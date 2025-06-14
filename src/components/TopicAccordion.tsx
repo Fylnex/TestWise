@@ -13,6 +13,8 @@ interface TopicSection {
   title: string;
   content: string;
   completed?: boolean;
+  isTest?: boolean;
+  testType?: "hints" | "final";
 }
 
 interface Topic {
@@ -21,13 +23,15 @@ interface Topic {
   content: string;
   completed: boolean;
   isMainTopic?: boolean;
+  hintsTestCompleted: boolean;
+  finalTestCompleted: boolean;
   children?: TopicSection[];
 }
 
 const topicData: Topic[] = [
   {
     id: "introduction",
-    title: "Введение в газотурбинные двигатели",
+    title: "Введение в газотурбинные ��вигатели",
     content: "Основополагающий курс по принципам работы и конструкции ГТД.",
     completed: true,
     isMainTopic: true,
@@ -48,7 +52,7 @@ const topicData: Topic[] = [
       {
         id: "basic-principles",
         title: "Основные принципы работы",
-        content: "Цикл Б��айтона и принципы преобразования энергии в ГТД.",
+        content: "Цикл Брайтона и принципы преобразования энергии в ГТД.",
         completed: true,
       },
       {
@@ -93,7 +97,7 @@ const topicData: Topic[] = [
   },
   {
     id: "compressors",
-    title: "К��мпрессоры ГТД",
+    title: "Компрессоры ГТД",
     content: "Конструкция, принципы работы и характеристики компрессоров.",
     completed: false,
     children: [
@@ -157,7 +161,7 @@ const topicData: Topic[] = [
       {
         id: "combustion-test",
         title: "Итоговый тест - Камеры сгорания",
-        content: "��онтроль знаний по камерам сгорания.",
+        content: "Контроль знаний по камерам сгорания.",
       },
     ],
   },
@@ -190,7 +194,7 @@ const topicData: Topic[] = [
       {
         id: "turbines-test",
         title: "Итоговый тест - Турбины",
-        content: "Проверка знаний по турбин��м ГТД.",
+        content: "Проверка знаний по турбинам ГТД.",
       },
     ],
   },
@@ -220,7 +224,7 @@ const topicData: Topic[] = [
       {
         id: "control-algorithms",
         title: "Алгоритмы управления",
-        content: "Логика работы системы управления, режимы работы.",
+        content: "Логика работы системы управле��ия, режимы работы.",
       },
       {
         id: "control-test",
@@ -252,7 +256,7 @@ const topicData: Topic[] = [
       },
       {
         id: "safety-procedures",
-        title: "Процедуры безопасности",
+        title: "��роцедуры безопасности",
         content: "Требования безопасности при работе с ГТД.",
       },
       {
@@ -276,7 +280,7 @@ const topicData: Topic[] = [
       {
         id: "fault-analysis",
         title: "Анализ неисправностей",
-        content: "Типичные неисправно��ти и методы их выявления.",
+        content: "Типичные неисправности и методы их выявления.",
       },
       {
         id: "repair-procedures",
