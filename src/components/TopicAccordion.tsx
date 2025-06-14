@@ -48,7 +48,7 @@ const topicData: Topic[] = [
       {
         id: "basic-principles",
         title: "Основные принципы работы",
-        content: "Цикл Брайтона и принципы преобразования энергии в ГТД.",
+        content: "Цикл Б��айтона и принципы преобразования энергии в ГТД.",
         completed: true,
       },
       {
@@ -93,7 +93,7 @@ const topicData: Topic[] = [
   },
   {
     id: "compressors",
-    title: "Компрессоры ГТД",
+    title: "К��мпрессоры ГТД",
     content: "Конструкция, принципы работы и характеристики компрессоров.",
     completed: false,
     children: [
@@ -122,7 +122,7 @@ const topicData: Topic[] = [
       {
         id: "compressors-test",
         title: "Итоговый тест - Компрессоры",
-        content: "Проверка знан��й по компрессорам ГТД.",
+        content: "Проверка знаний по компрессорам ГТД.",
       },
     ],
   },
@@ -157,7 +157,7 @@ const topicData: Topic[] = [
       {
         id: "combustion-test",
         title: "Итоговый тест - Камеры сгорания",
-        content: "Контроль знаний по камерам сгорания.",
+        content: "��онтроль знаний по камерам сгорания.",
       },
     ],
   },
@@ -190,7 +190,7 @@ const topicData: Topic[] = [
       {
         id: "turbines-test",
         title: "Итоговый тест - Турбины",
-        content: "Проверка знаний по турбинам ГТД.",
+        content: "Проверка знаний по турбин��м ГТД.",
       },
     ],
   },
@@ -276,7 +276,7 @@ const topicData: Topic[] = [
       {
         id: "fault-analysis",
         title: "Анализ неисправностей",
-        content: "Типичные неисправности и методы их выявления.",
+        content: "Типичные неисправно��ти и методы их выявления.",
       },
       {
         id: "repair-procedures",
@@ -305,77 +305,247 @@ const topicData: Topic[] = [
 ];
 
 const TopicAccordion = () => {
+  const [topics, setTopics] = useState<Topic[]>(topicData);
+
+  const handleCompleteTest = (topicId: string) => {
+    setTopics((prevTopics) =>
+      prevTopics.map((topic) =>
+        topic.id === topicId ? { ...topic, completed: true } : topic,
+      ),
+    );
+  };
+
+  const getTopicIcon = (topic: Topic) => {
+    if (topic.completed) {
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    }
+    if (!topic.completed && !topic.isMainTopic) {
+      return <Lock className="h-4 w-4 text-gray-400" />;
+    }
+    return <ChevronRight className="h-4 w-4 shrink-0" />;
+  };
+
+  const getSectionIcon = (section: TopicSection, parentCompleted: boolean) => {
+    if (section.completed) {
+      return <CheckCircle className="h-3 w-3 text-green-500" />;
+    }
+    if (!parentCompleted) {
+      return <Lock className="h-3 w-3 text-gray-400" />;
+    }
+    return <ChevronRight className="h-3 w-3 shrink-0" />;
+  };
+
+  const isTopicAccessible = (topic: Topic) => {
+    return topic.completed || topic.isMainTopic;
+  };
+
+  const isSectionAccessible = (
+    section: TopicSection,
+    parentCompleted: boolean,
+  ) => {
+    return section.completed || parentCompleted;
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <Accordion type="multiple" className="space-y-2">
-        {topicData.map((topic) => (
-          <AccordionItem
-            key={topic.id}
-            value={topic.id}
-            className={`
-              rounded-lg border-0 overflow-hidden
-              ${
-                topic.isMainTopic
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-100 hover:bg-slate-50"
-              }
-            `}
-          >
-            <AccordionTrigger
+        {topics.map((topic) => {
+          const isAccessible = isTopicAccessible(topic);
+
+          return (
+            <AccordionItem
+              key={topic.id}
+              value={topic.id}
+              disabled={!isAccessible}
               className={`
-                px-4 py-3 hover:no-underline
+                rounded-lg border-0 overflow-hidden transition-all duration-200
                 ${
                   topic.isMainTopic
-                    ? "text-white hover:bg-slate-700"
-                    : "text-slate-700 hover:bg-slate-100"
+                    ? topic.completed
+                      ? "bg-green-800 text-white"
+                      : "bg-slate-800 text-white"
+                    : topic.completed
+                      ? "bg-green-50 hover:bg-green-100 border border-green-200"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }
               `}
             >
-              <div className="flex items-center gap-3">
-                <ChevronRight className="h-4 w-4 shrink-0" />
-                <span className="text-left font-medium">{topic.title}</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-3">
-              <div
+              <AccordionTrigger
                 className={`
-                text-sm
-                ${topic.isMainTopic ? "text-slate-200" : "text-slate-600"}
-              `}
+                  px-4 py-3 hover:no-underline
+                  ${
+                    topic.isMainTopic
+                      ? topic.completed
+                        ? "text-white hover:bg-green-700"
+                        : "text-white hover:bg-slate-700"
+                      : topic.completed
+                        ? "text-green-700 hover:bg-green-100"
+                        : "text-gray-500 cursor-not-allowed"
+                  }
+                  ${!isAccessible ? "pointer-events-none" : ""}
+                `}
+                disabled={!isAccessible}
               >
-                {topic.content}
-              </div>
-
-              {topic.children && (
-                <div className="mt-3 space-y-1">
-                  <Accordion type="multiple" className="space-y-1">
-                    {topic.children.map((child) => (
-                      <AccordionItem
-                        key={child.id}
-                        value={child.id}
-                        className="bg-slate-200 rounded border-0 overflow-hidden"
-                      >
-                        <AccordionTrigger className="px-4 py-2 text-slate-700 hover:bg-slate-300 hover:no-underline">
-                          <div className="flex items-center gap-3">
-                            <ChevronRight className="h-3 w-3 shrink-0" />
-                            <span className="text-left text-sm font-medium">
-                              {child.title}
-                            </span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="px-4 pb-2">
-                          <div className="text-xs text-slate-600">
-                            {child.content}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-3">
+                    {getTopicIcon(topic)}
+                    <span className="text-left font-medium">{topic.title}</span>
+                  </div>
+                  {topic.completed && (
+                    <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                      Пройдено
+                    </span>
+                  )}
+                  {!topic.completed && !topic.isMainTopic && (
+                    <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded-full">
+                      Заблокировано
+                    </span>
+                  )}
                 </div>
+              </AccordionTrigger>
+
+              {isAccessible && (
+                <AccordionContent className="px-4 pb-3">
+                  <div
+                    className={`
+                      text-sm mb-3
+                      ${
+                        topic.isMainTopic
+                          ? "text-slate-200"
+                          : topic.completed
+                            ? "text-green-700"
+                            : "text-slate-600"
+                      }
+                    `}
+                  >
+                    {topic.content}
+                  </div>
+
+                  {!topic.completed && !topic.children && (
+                    <Button
+                      onClick={() => handleCompleteTest(topic.id)}
+                      className="mb-3 bg-blue-600 hover:bg-blue-700 text-white"
+                      size="sm"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Пройти итоговый тест
+                    </Button>
+                  )}
+
+                  {topic.children && (
+                    <div className="mt-3 space-y-1">
+                      <Accordion type="multiple" className="space-y-1">
+                        {topic.children.map((child) => {
+                          const sectionAccessible = isSectionAccessible(
+                            child,
+                            topic.completed,
+                          );
+
+                          return (
+                            <AccordionItem
+                              key={child.id}
+                              value={child.id}
+                              disabled={!sectionAccessible}
+                              className={`
+                                rounded border-0 overflow-hidden
+                                ${
+                                  child.completed
+                                    ? "bg-green-100 border border-green-300"
+                                    : sectionAccessible
+                                      ? "bg-slate-200 hover:bg-slate-300"
+                                      : "bg-gray-100 cursor-not-allowed"
+                                }
+                              `}
+                            >
+                              <AccordionTrigger
+                                className={`
+                                  px-4 py-2 hover:no-underline
+                                  ${
+                                    child.completed
+                                      ? "text-green-700 hover:bg-green-200"
+                                      : sectionAccessible
+                                        ? "text-slate-700 hover:bg-slate-300"
+                                        : "text-gray-500 cursor-not-allowed"
+                                  }
+                                  ${!sectionAccessible ? "pointer-events-none" : ""}
+                                `}
+                                disabled={!sectionAccessible}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-3">
+                                    {getSectionIcon(child, topic.completed)}
+                                    <span className="text-left text-sm font-medium">
+                                      {child.title}
+                                    </span>
+                                  </div>
+                                  {child.completed && (
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  )}
+                                  {!sectionAccessible && (
+                                    <Lock className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </AccordionTrigger>
+
+                              {sectionAccessible && (
+                                <AccordionContent className="px-4 pb-2">
+                                  <div
+                                    className={`
+                                      text-xs mb-2
+                                      ${child.completed ? "text-green-600" : "text-slate-600"}
+                                    `}
+                                  >
+                                    {child.content}
+                                  </div>
+
+                                  {child.title.includes("Итоговый тест") &&
+                                    !child.completed && (
+                                      <Button
+                                        onClick={() => {
+                                          setTopics((prevTopics) =>
+                                            prevTopics.map((topic) =>
+                                              topic.id === topic.id
+                                                ? {
+                                                    ...topic,
+                                                    children:
+                                                      topic.children?.map(
+                                                        (section) =>
+                                                          section.id ===
+                                                          child.id
+                                                            ? {
+                                                                ...section,
+                                                                completed: true,
+                                                              }
+                                                            : section,
+                                                      ),
+                                                  }
+                                                : topic,
+                                            ),
+                                          );
+                                          if (child.id.includes("test")) {
+                                            handleCompleteTest(topic.id);
+                                          }
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        size="sm"
+                                      >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Пройти тест
+                                      </Button>
+                                    )}
+                                </AccordionContent>
+                              )}
+                            </AccordionItem>
+                          );
+                        })}
+                      </Accordion>
+                    </div>
+                  )}
+                </AccordionContent>
               )}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
+            </AccordionItem>
+          );
+        })}
       </Accordion>
     </div>
   );
