@@ -4,81 +4,303 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, CheckCircle, Lock, Play } from "lucide-react";
+import { useState } from "react";
 
-const topicData = [
+interface TopicSection {
+  id: string;
+  title: string;
+  content: string;
+  completed?: boolean;
+}
+
+interface Topic {
+  id: string;
+  title: string;
+  content: string;
+  completed: boolean;
+  isMainTopic?: boolean;
+  children?: TopicSection[];
+}
+
+const topicData: Topic[] = [
   {
-    id: "topic-main",
-    title: "Название темы",
+    id: "introduction",
+    title: "Введение в газотурбинные двигатели",
+    content: "Основополагающий курс по принципам работы и конструкции ГТД.",
+    completed: true,
     isMainTopic: true,
-    content: "Основная тема с подробным описанием содержания.",
-  },
-  {
-    id: "topic-general",
-    title: "Название темы",
-    content: "Общая тема для обсуждения различных вопросов.",
     children: [
       {
-        id: "section-1",
-        title: "Название раздела-1",
-        content: "Подробное описание первого раздела темы.",
+        id: "history",
+        title: "История развития ГТД",
+        content:
+          "Эволюция газотурбинных технологий от первых образцов до современных двигателей.",
+        completed: true,
       },
       {
-        id: "section-2",
-        title: "Название раздела-2",
-        content: "Подробное описание второго раздела темы.",
+        id: "classification",
+        title: "Классификация и типы ГТД",
+        content: "Различные типы газотурбинных двигателей и их применение.",
+        completed: true,
       },
       {
-        id: "section-3",
-        title: "Название раздела-3",
-        content: "Подробное описание третьего раздела темы.",
+        id: "basic-principles",
+        title: "Основные принципы работы",
+        content: "Цикл Брайтона и принципы преобразования энергии в ГТД.",
+        completed: true,
       },
       {
-        id: "section-4",
-        title: "Название раздела-4",
-        content: "Подробное описание четвёртого раздела темы.",
-      },
-      {
-        id: "test-topic",
-        title: "Тест по теме",
-        content: "Интерактивный тест для проверки знаний по данной теме.",
-      },
-      {
-        id: "final-test",
-        title: "Итоговый тест по теме",
-        content: "Финальный тест для оценки общего понимания темы.",
+        id: "introduction-test",
+        title: "Итоговый тест - Введение",
+        content: "Проверка знаний по основам газотурбинных двигателей.",
+        completed: true,
       },
     ],
   },
   {
-    id: "topic-2",
-    title: "Название темы",
-    content: "Дополнительная тема для изучения специфических вопросов.",
+    id: "thermodynamics",
+    title: "Термодинамические основы ГТД",
+    content: "Изучение термодинамических процессов в газотурбинных двигателях.",
+    completed: true,
+    children: [
+      {
+        id: "brayton-cycle",
+        title: "Цикл Брайтона",
+        content: "Идеальный и действительный циклы, КПД цикла.",
+        completed: true,
+      },
+      {
+        id: "heat-transfer",
+        title: "Теплообмен в ГТД",
+        content: "Процессы теплопередачи в различных узлах двигателя.",
+        completed: true,
+      },
+      {
+        id: "gas-dynamics",
+        title: "Газодинамика проточной части",
+        content: "Течение газа через компрессор, камеру сгорания и турбину.",
+        completed: true,
+      },
+      {
+        id: "thermodynamics-test",
+        title: "Итоговый тест - Термодинамика",
+        content: "Контроль знаний по термодинамическим процессам.",
+        completed: true,
+      },
+    ],
   },
   {
-    id: "topic-3",
-    title: "Название темы",
-    content: "Ещё одна тема для расширения знаний.",
+    id: "compressors",
+    title: "Компрессоры ГТД",
+    content: "Конструкция, принципы работы и характеристики компрессоров.",
+    completed: false,
+    children: [
+      {
+        id: "axial-compressors",
+        title: "Осевые компрессоры",
+        content: "Устройство и работа многоступенчатых осевых компрессоров.",
+      },
+      {
+        id: "centrifugal-compressors",
+        title: "Центробежные компрессоры",
+        content:
+          "Принципы работы и области применения центробежных компрессоров.",
+      },
+      {
+        id: "compressor-characteristics",
+        title: "Характеристики компрессоров",
+        content:
+          "Построение и анализ характеристик, помпаж, запас устойчивости.",
+      },
+      {
+        id: "compressor-control",
+        title: "Регулирование компрессоров",
+        content: "Методы регулирования работы компрессора, поворотные лопатки.",
+      },
+      {
+        id: "compressors-test",
+        title: "Итоговый тест - Компрессоры",
+        content: "Проверка знан��й по компрессорам ГТД.",
+      },
+    ],
   },
   {
-    id: "topic-4",
-    title: "Название темы",
-    content: "Тема для углублённого изучения предмета.",
+    id: "combustion",
+    title: "Камеры сгорания",
+    content:
+      "Процессы горения, конструкция и рабочие характеристики камер сгорания.",
+    completed: false,
+    children: [
+      {
+        id: "combustion-theory",
+        title: "Теория горения",
+        content:
+          "Физико-химические процессы горения топлива в камере сгорания.",
+      },
+      {
+        id: "combustor-types",
+        title: "Типы камер сгорания",
+        content: "Кольцевые, трубчатые и трубчато-кольцевые камеры сгорания.",
+      },
+      {
+        id: "fuel-systems",
+        title: "Топливные системы",
+        content: "Форсунки, распределение топлива, системы подачи.",
+      },
+      {
+        id: "emission-control",
+        title: "Экологические аспекты",
+        content: "Снижение выбросов NOx, CO, несгоревших углеводородов.",
+      },
+      {
+        id: "combustion-test",
+        title: "Итоговый тест - Камеры сгорания",
+        content: "Контроль знаний по камерам сгорания.",
+      },
+    ],
   },
   {
-    id: "topic-5",
-    title: "Название темы",
-    content: "Дополнительная тема для практических занятий.",
+    id: "turbines",
+    title: "Турбины ГТД",
+    content: "Конструкция и работа турбин высокого и низкого давления.",
+    completed: false,
+    children: [
+      {
+        id: "turbine-theory",
+        title: "Теория турбин",
+        content: "Принципы работы осевых турбин, треугольники скоростей.",
+      },
+      {
+        id: "cooling-systems",
+        title: "Системы охлаждения",
+        content: "Методы охлаждения лопаток и дисков турбины.",
+      },
+      {
+        id: "turbine-materials",
+        title: "Материалы турбин",
+        content: "Жаропрочные сплавы, керамические покрытия.",
+      },
+      {
+        id: "turbine-design",
+        title: "Конструкция турбин",
+        content: "Диски, лопатки, системы крепления и уплотнения.",
+      },
+      {
+        id: "turbines-test",
+        title: "Итоговый тест - Турбины",
+        content: "Проверка знаний по турбинам ГТД.",
+      },
+    ],
   },
   {
-    id: "topic-6",
-    title: "Название темы",
-    content: "Заключительная тема курса.",
+    id: "control-systems",
+    title: "Системы управления ГТД",
+    content: "Автоматическое управление и регулирование работы двигателя.",
+    completed: false,
+    children: [
+      {
+        id: "control-theory",
+        title: "Теория управления",
+        content:
+          "Принципы автоматического регулирования газотурбинных двигателей.",
+      },
+      {
+        id: "fadec-systems",
+        title: "Системы FADEC",
+        content:
+          "Полнофункциональное цифровое электронное управление двигателем.",
+      },
+      {
+        id: "sensors",
+        title: "Датчики и измерения",
+        content: "Контроль параметров работы двигателя, системы мониторинга.",
+      },
+      {
+        id: "control-algorithms",
+        title: "Алгоритмы управления",
+        content: "Логика работы системы управления, режимы работы.",
+      },
+      {
+        id: "control-test",
+        title: "Итоговый тест - Системы управления",
+        content: "Контроль знаний по системам управления.",
+      },
+    ],
   },
   {
-    id: "final-topic-test",
-    title: "Итоговый тест по темам",
-    content: "Общий итоговый тест по всем изученным темам курса.",
+    id: "operation",
+    title: "Эксплуатация и обслуживание ГТД",
+    content: "Практические аспекты эксплуатации газотурбинных двигателей.",
+    completed: false,
+    children: [
+      {
+        id: "operation-procedures",
+        title: "Процедуры эксплуатации",
+        content: "Запуск, работа на различных режимах, останов двигателя.",
+      },
+      {
+        id: "maintenance",
+        title: "Техническое обслуживание",
+        content: "Планово-предупредительные работы, межремонтные периоды.",
+      },
+      {
+        id: "performance-monitoring",
+        title: "Мониторинг характеристик",
+        content: "Отслеживание изменения параметров, trending анализ.",
+      },
+      {
+        id: "safety-procedures",
+        title: "Процедуры безопасности",
+        content: "Требования безопасности при работе с ГТД.",
+      },
+      {
+        id: "operation-test",
+        title: "Итоговый тест - Эксплуатация",
+        content: "Проверка знаний по эксплуатации ГТД.",
+      },
+    ],
+  },
+  {
+    id: "diagnostics",
+    title: "Диагностика и устранение неисправностей",
+    content: "Методы диагностики состояния и поиск неисправностей ГТД.",
+    completed: false,
+    children: [
+      {
+        id: "diagnostic-methods",
+        title: "Методы диагностики",
+        content: "Вибродиагностика, термография, эндоскопия.",
+      },
+      {
+        id: "fault-analysis",
+        title: "Анализ неисправностей",
+        content: "Типичные неисправности и методы их выявления.",
+      },
+      {
+        id: "repair-procedures",
+        title: "Процедуры ремонта",
+        content: "Технологии ремонта и восстановления узлов ГТД.",
+      },
+      {
+        id: "predictive-maintenance",
+        title: "Прогнозное обслуживание",
+        content: "Системы прогнозирования технического состояния.",
+      },
+      {
+        id: "diagnostics-test",
+        title: "Итоговый тест - Диагностика",
+        content: "Контроль знаний по диагностике ГТД.",
+      },
+    ],
+  },
+  {
+    id: "final-certification",
+    title: "Итоговая аттестация",
+    content: "Комплексная проверка знаний по всем разделам курса ГТД.",
+    completed: false,
+    isMainTopic: true,
   },
 ];
 
@@ -117,7 +339,7 @@ const TopicAccordion = () => {
             <AccordionContent className="px-4 pb-3">
               <div
                 className={`
-                text-sm 
+                text-sm
                 ${topic.isMainTopic ? "text-slate-200" : "text-slate-600"}
               `}
               >
