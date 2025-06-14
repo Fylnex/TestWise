@@ -8,7 +8,13 @@ const Index = () => {
 
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">Название темы</h1>
+          <h1 className="text-3xl font-bold text-slate-800">
+            Газотурбинные двигатели
+          </h1>
+          <p className="text-slate-600 mt-2">
+            Комплексный курс изучения конструкции, принципов работы и
+            эксплуатации ГТД
+          </p>
         </div>
 
         <TopicAccordion />
