@@ -17,7 +17,7 @@ const Header = () => {
               <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" />
             </svg>
           </div>
-          <h1 className="text-lg font-semibold">Название сайта</h1>
+          <h1 className="text-lg font-semibold">TestWise</h1>
         </div>
 
         {/* Navigation Menu */}
@@ -26,31 +26,31 @@ const Header = () => {
             to="/"
             className="text-sm hover:text-purple-300 transition-colors"
           >
-            Home
+            Главная страница
           </Link>
           <Link
             to="/task"
             className="text-sm hover:text-purple-300 transition-colors"
           >
-            Task
+            Задания
           </Link>
           <Link
             to="/rating"
             className="text-sm hover:text-purple-300 transition-colors"
           >
-            Rating
+            Курс
           </Link>
           <Link
             to="/events"
             className="text-sm hover:text-purple-300 transition-colors"
           >
-            Events
+            Разделы курса
           </Link>
           <Link
             to="/about"
             className="text-sm hover:text-purple-300 transition-colors"
           >
-            About Us
+            О нас
           </Link>
         </nav>
 
