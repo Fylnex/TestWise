@@ -31,9 +31,11 @@ interface Topic {
 const topicData: Topic[] = [
   {
     id: "introduction",
-    title: "Введение в газотурбинные ��вигатели",
+    title: "Введение в газотурбинные двигатели",
     content: "Основополагающий курс по принципам работы и конструкции ГТД.",
     completed: true,
+    hintsTestCompleted: true,
+    finalTestCompleted: true,
     isMainTopic: true,
     children: [
       {
@@ -56,10 +58,21 @@ const topicData: Topic[] = [
         completed: true,
       },
       {
-        id: "introduction-test",
-        title: "Итоговый тест - Введение",
-        content: "Проверка знаний по основам газотурбинных двигателей.",
+        id: "introduction-hints-test",
+        title: "Тест с подсказками - Введение",
+        content: "Тренировочный тест с подсказками по основам ГТД.",
         completed: true,
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "introduction-final-test",
+        title: "Итоговый тест - Введение",
+        content:
+          "Финальная проверка знаний по основам газотурбинных двигателей.",
+        completed: true,
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -68,6 +81,8 @@ const topicData: Topic[] = [
     title: "Термодинамические основы ГТД",
     content: "Изучение термодинамических процессов в газотурбинных двигателях.",
     completed: true,
+    hintsTestCompleted: true,
+    finalTestCompleted: true,
     children: [
       {
         id: "brayton-cycle",
@@ -88,10 +103,21 @@ const topicData: Topic[] = [
         completed: true,
       },
       {
-        id: "thermodynamics-test",
-        title: "Итоговый тест - Термодинамика",
-        content: "Контроль знаний по термодинамическим процессам.",
+        id: "thermodynamics-hints-test",
+        title: "Тест с подсказками - Термодинамика",
+        content:
+          "Тренировочный тест с подсказками по термодинамическим процессам.",
         completed: true,
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "thermodynamics-final-test",
+        title: "Итоговый тест - Термодинамика",
+        content: "Финальный контроль знаний по термодинамическим процессам.",
+        completed: true,
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -100,6 +126,8 @@ const topicData: Topic[] = [
     title: "Компрессоры ГТД",
     content: "Конструкция, принципы работы и характеристики компрессоров.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "axial-compressors",
@@ -124,9 +152,18 @@ const topicData: Topic[] = [
         content: "Методы регулирования работы компрессора, поворотные лопатки.",
       },
       {
-        id: "compressors-test",
+        id: "compressors-hints-test",
+        title: "Тест с подсказками - Компрессоры",
+        content: "Тренировочный тест с подсказками по компрессорам ГТД.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "compressors-final-test",
         title: "Итоговый тест - Компрессоры",
-        content: "Проверка знаний по компрессорам ГТД.",
+        content: "Финальная проверка знаний по компрессорам ГТД.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -136,6 +173,8 @@ const topicData: Topic[] = [
     content:
       "Процессы горения, конструкция и рабочие характеристики камер сгорания.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "combustion-theory",
@@ -159,9 +198,18 @@ const topicData: Topic[] = [
         content: "Снижение выбросов NOx, CO, несгоревших углеводородов.",
       },
       {
-        id: "combustion-test",
+        id: "combustion-hints-test",
+        title: "Тест с подсказками - Камеры сгорания",
+        content: "Тренировочный тест с подсказками по камерам сгорания.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "combustion-final-test",
         title: "Итоговый тест - Камеры сгорания",
-        content: "Контроль знаний по камерам сгорания.",
+        content: "Финальный контроль знаний по камерам сгорания.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -170,6 +218,8 @@ const topicData: Topic[] = [
     title: "Турбины ГТД",
     content: "Конструкция и работа турбин высокого и низкого давления.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "turbine-theory",
@@ -192,9 +242,18 @@ const topicData: Topic[] = [
         content: "Диски, лопатки, системы крепления и уплотнения.",
       },
       {
-        id: "turbines-test",
+        id: "turbines-hints-test",
+        title: "Тест с подсказками - Турбины",
+        content: "Тренировочный тест с подсказками по турбинам ГТД.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "turbines-final-test",
         title: "Итоговый тест - Турбины",
-        content: "Проверка знаний по турбинам ГТД.",
+        content: "Финальная проверка знаний по турбинам ГТД.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -203,6 +262,8 @@ const topicData: Topic[] = [
     title: "Системы управления ГТД",
     content: "Автоматическое управление и регулирование работы двигателя.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "control-theory",
@@ -219,17 +280,26 @@ const topicData: Topic[] = [
       {
         id: "sensors",
         title: "Датчики и измерения",
-        content: "Контроль параметров работы двигателя, системы мониторинга.",
+        content: "Контроль параметров работы дв��гателя, системы мониторинга.",
       },
       {
         id: "control-algorithms",
         title: "Алгоритмы управления",
-        content: "Логика работы системы управле��ия, режимы работы.",
+        content: "Логика работы системы управления, режимы работы.",
       },
       {
-        id: "control-test",
+        id: "control-hints-test",
+        title: "Тест с подсказками - Системы управления",
+        content: "Тренировочный тест с подсказками по системам управления.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "control-final-test",
         title: "Итоговый тест - Системы управления",
-        content: "Контроль знаний по системам управления.",
+        content: "Финальный контроль знаний по системам управления.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -238,11 +308,13 @@ const topicData: Topic[] = [
     title: "Эксплуатация и обслуживание ГТД",
     content: "Практические аспекты эксплуатации газотурбинных двигателей.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "operation-procedures",
         title: "Процедуры эксплуатации",
-        content: "Запуск, работа на различных режимах, останов двигателя.",
+        content: "Запуск, работа на различных режимах, ос��анов двигателя.",
       },
       {
         id: "maintenance",
@@ -256,13 +328,22 @@ const topicData: Topic[] = [
       },
       {
         id: "safety-procedures",
-        title: "��роцедуры безопасности",
+        title: "Процедуры безопасности",
         content: "Требования безопасности при работе с ГТД.",
       },
       {
-        id: "operation-test",
+        id: "operation-hints-test",
+        title: "Тест с подсказками - Эксплуатация",
+        content: "Тренировочный тест с подсказками по эксплуатации ГТД.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "operation-final-test",
         title: "Итоговый тест - Эксплуатация",
-        content: "Проверка знаний по эксплуатации ГТД.",
+        content: "Финальная проверка знаний по эксплуатации ГТД.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -271,6 +352,8 @@ const topicData: Topic[] = [
     title: "Диагностика и устранение неисправностей",
     content: "Методы диагностики состояния и поиск неисправностей ГТД.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     children: [
       {
         id: "diagnostic-methods",
@@ -293,9 +376,18 @@ const topicData: Topic[] = [
         content: "Системы прогнозирования технического состояния.",
       },
       {
-        id: "diagnostics-test",
+        id: "diagnostics-hints-test",
+        title: "Тест с подсказкам�� - Диагностика",
+        content: "Тренировочный тест с подсказками по диагностике ГТД.",
+        isTest: true,
+        testType: "hints",
+      },
+      {
+        id: "diagnostics-final-test",
         title: "Итоговый тест - Диагностика",
-        content: "Контроль знаний по диагностике ГТД.",
+        content: "Финальный контроль знаний по диагностике ГТД.",
+        isTest: true,
+        testType: "final",
       },
     ],
   },
@@ -304,10 +396,11 @@ const topicData: Topic[] = [
     title: "Итоговая аттестация",
     content: "Комплексная проверка знаний по всем разделам курса ГТД.",
     completed: false,
+    hintsTestCompleted: false,
+    finalTestCompleted: false,
     isMainTopic: true,
   },
 ];
-
 const TopicAccordion = () => {
   const [topics, setTopics] = useState<Topic[]>(topicData);
 
