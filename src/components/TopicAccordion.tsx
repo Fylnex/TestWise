@@ -5,7 +5,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, CheckCircle, Lock, Play } from "lucide-react";
+import {
+  ChevronRight,
+  CheckCircle,
+  Lock,
+  Play,
+  HelpCircle,
+  Target,
+} from "lucide-react";
 import { useState } from "react";
 
 interface TopicSection {
@@ -190,7 +197,7 @@ const topicData: Topic[] = [
       {
         id: "fuel-systems",
         title: "Топливные системы",
-        content: "Форсунки, распределение топлива, системы подачи.",
+        content: "Форсунки, распределение топлив��, системы подачи.",
       },
       {
         id: "emission-control",
@@ -280,7 +287,7 @@ const topicData: Topic[] = [
       {
         id: "sensors",
         title: "Датчики и измерения",
-        content: "Контроль параметров работы дв��гателя, системы мониторинга.",
+        content: "Контроль параметров работы двигателя, системы мониторинга.",
       },
       {
         id: "control-algorithms",
@@ -290,7 +297,7 @@ const topicData: Topic[] = [
       {
         id: "control-hints-test",
         title: "Тест с подсказками - Системы управления",
-        content: "Тренировочный тест с подсказками по системам управления.",
+        content: "Тренировочный тест с подсказками по системам управлени��.",
         isTest: true,
         testType: "hints",
       },
@@ -314,7 +321,7 @@ const topicData: Topic[] = [
       {
         id: "operation-procedures",
         title: "Процедуры эксплуатации",
-        content: "Запуск, работа на различных режимах, ос��анов двигателя.",
+        content: "Запуск, работа на различных режимах, останов двигателя.",
       },
       {
         id: "maintenance",
@@ -377,7 +384,7 @@ const topicData: Topic[] = [
       },
       {
         id: "diagnostics-hints-test",
-        title: "Тест с подсказкам�� - Диагностика",
+        title: "Тест с подсказками - Диагностика",
         content: "Тренировочный тест с подсказками по диагностике ГТД.",
         isTest: true,
         testType: "hints",
@@ -385,7 +392,7 @@ const topicData: Topic[] = [
       {
         id: "diagnostics-final-test",
         title: "Итоговый тест - Диагностика",
-        content: "Финальный контроль знаний по диагностике ГТД.",
+        content: "Финальный контроль знаний по диагнос��ике ГТД.",
         isTest: true,
         testType: "final",
       },
@@ -401,46 +408,121 @@ const topicData: Topic[] = [
     isMainTopic: true,
   },
 ];
+
 const TopicAccordion = () => {
   const [topics, setTopics] = useState<Topic[]>(topicData);
 
-  const handleCompleteTest = (topicId: string) => {
-    setTopics((prevTopics) =>
-      prevTopics.map((topic) =>
-        topic.id === topicId ? { ...topic, completed: true } : topic,
-      ),
-    );
+  const handleCompleteTest = (
+    topicId: string,
+    testType: "hints" | "final",
+    sectionId?: string,
+  ) => {
+    setTopics((prevTopics) => {
+      const updatedTopics = prevTopics.map((topic) => {
+        if (topic.id === topicId) {
+          const updatedTopic = { ...topic };
+
+          if (testType === "hints") {
+            updatedTopic.hintsTestCompleted = true;
+          } else if (testType === "final") {
+            updatedTopic.finalTestCompleted = true;
+          }
+
+          // Проверяем, завершены ли оба теста
+          if (
+            updatedTopic.hintsTestCompleted &&
+            updatedTopic.finalTestCompleted
+          ) {
+            updatedTopic.completed = true;
+          }
+
+          // Обновляем дочерние секции
+          if (sectionId && topic.children) {
+            updatedTopic.children = topic.children.map((child) =>
+              child.id === sectionId ? { ...child, completed: true } : child,
+            );
+          }
+
+          return updatedTopic;
+        }
+        return topic;
+      });
+
+      return updatedTopics;
+    });
   };
 
   const getTopicIcon = (topic: Topic) => {
     if (topic.completed) {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
     }
-    if (!topic.completed && !topic.isMainTopic) {
+    if (!isTopicAccessible(topic)) {
       return <Lock className="h-4 w-4 text-gray-400" />;
     }
     return <ChevronRight className="h-4 w-4 shrink-0" />;
   };
 
-  const getSectionIcon = (section: TopicSection, parentCompleted: boolean) => {
+  const getSectionIcon = (section: TopicSection, parentAccessible: boolean) => {
     if (section.completed) {
       return <CheckCircle className="h-3 w-3 text-green-500" />;
     }
-    if (!parentCompleted) {
+    if (!parentAccessible) {
       return <Lock className="h-3 w-3 text-gray-400" />;
+    }
+    if (section.isTest && section.testType === "hints") {
+      return <HelpCircle className="h-3 w-3 text-blue-500" />;
+    }
+    if (section.isTest && section.testType === "final") {
+      return <Target className="h-3 w-3 text-red-500" />;
     }
     return <ChevronRight className="h-3 w-3 shrink-0" />;
   };
 
   const isTopicAccessible = (topic: Topic) => {
-    return topic.completed || topic.isMainTopic;
+    if (topic.isMainTopic && topic.id === "final-certification") {
+      // Итоговая аттестация доступна только если все предыдущие темы пройдены
+      const mainTopics = topics.filter(
+        (t) => !t.isMainTopic || t.id !== "final-certification",
+      );
+      return mainTopics.every((t) => t.completed);
+    }
+
+    if (topic.isMainTopic) {
+      return true; // Первая тема всегда доступна
+    }
+
+    // Находим индекс текущей темы
+    const currentIndex = topics.findIndex((t) => t.id === topic.id);
+    if (currentIndex === 0) return true;
+
+    // Проверяем, завершена ли предыдущая тема
+    const previousTopic = topics[currentIndex - 1];
+    return previousTopic.completed;
   };
 
   const isSectionAccessible = (
     section: TopicSection,
-    parentCompleted: boolean,
+    parentAccessible: boolean,
   ) => {
-    return section.completed || parentCompleted;
+    return parentAccessible;
+  };
+
+  const getTopicProgress = (topic: Topic) => {
+    let completed = 0;
+    let total = 2; // Всегда 2 теста
+
+    if (topic.hintsTestCompleted) completed++;
+    if (topic.finalTestCompleted) completed++;
+
+    return { completed, total };
+  };
+
+  const canTakeTest = (topic: Topic, testType: "hints" | "final") => {
+    if (testType === "hints") {
+      return !topic.hintsTestCompleted;
+    }
+    // Итоговый тест доступен только после прохождения теста с подсказками
+    return topic.hintsTestCompleted && !topic.finalTestCompleted;
   };
 
   return (
@@ -448,6 +530,7 @@ const TopicAccordion = () => {
       <Accordion type="multiple" className="space-y-2">
         {topics.map((topic) => {
           const isAccessible = isTopicAccessible(topic);
+          const progress = getTopicProgress(topic);
 
           return (
             <AccordionItem
@@ -460,10 +543,14 @@ const TopicAccordion = () => {
                   topic.isMainTopic
                     ? topic.completed
                       ? "bg-green-800 text-white"
-                      : "bg-slate-800 text-white"
+                      : isAccessible
+                        ? "bg-slate-800 text-white"
+                        : "bg-gray-400 text-gray-600"
                     : topic.completed
                       ? "bg-green-50 hover:bg-green-100 border border-green-200"
-                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      : isAccessible
+                        ? "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }
               `}
             >
@@ -474,10 +561,14 @@ const TopicAccordion = () => {
                     topic.isMainTopic
                       ? topic.completed
                         ? "text-white hover:bg-green-700"
-                        : "text-white hover:bg-slate-700"
+                        : isAccessible
+                          ? "text-white hover:bg-slate-700"
+                          : "text-gray-600 cursor-not-allowed"
                       : topic.completed
                         ? "text-green-700 hover:bg-green-100"
-                        : "text-gray-500 cursor-not-allowed"
+                        : isAccessible
+                          ? "text-blue-700 hover:bg-blue-100"
+                          : "text-gray-500 cursor-not-allowed"
                   }
                   ${!isAccessible ? "pointer-events-none" : ""}
                 `}
@@ -486,18 +577,35 @@ const TopicAccordion = () => {
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
                     {getTopicIcon(topic)}
-                    <span className="text-left font-medium">{topic.title}</span>
+                    <div className="text-left">
+                      <span className="font-medium">{topic.title}</span>
+                      {!topic.isMainTopic && isAccessible && (
+                        <div className="text-xs opacity-75 mt-1">
+                          Тесты: {progress.completed}/{progress.total}
+                          {progress.completed > 0 &&
+                            progress.completed < progress.total &&
+                            " (в процессе)"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {topic.completed && (
-                    <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
-                      Пройдено
-                    </span>
-                  )}
-                  {!topic.completed && !topic.isMainTopic && (
-                    <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded-full">
-                      Заблокировано
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {topic.completed && (
+                      <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                        Завершено
+                      </span>
+                    )}
+                    {!topic.completed && isAccessible && !topic.isMainTopic && (
+                      <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
+                        Доступно
+                      </span>
+                    )}
+                    {!isAccessible && (
+                      <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded-full">
+                        Заблокировано
+                      </span>
+                    )}
+                  </div>
                 </div>
               </AccordionTrigger>
 
@@ -511,22 +619,42 @@ const TopicAccordion = () => {
                           ? "text-slate-200"
                           : topic.completed
                             ? "text-green-700"
-                            : "text-slate-600"
+                            : "text-blue-700"
                       }
                     `}
                   >
                     {topic.content}
                   </div>
 
-                  {!topic.completed && !topic.children && (
-                    <Button
-                      onClick={() => handleCompleteTest(topic.id)}
-                      className="mb-3 bg-blue-600 hover:bg-blue-700 text-white"
-                      size="sm"
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      Пройти итоговый тест
-                    </Button>
+                  {/* Для итоговой аттестации показываем специальные кнопки */}
+                  {topic.id === "final-certification" && isAccessible && (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={() => handleCompleteTest(topic.id, "hints")}
+                        disabled={topic.hintsTestCompleted}
+                        className="mr-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        size="sm"
+                      >
+                        <HelpCircle className="h-4 w-4 mr-2" />
+                        {topic.hintsTestCompleted
+                          ? "✓ Тест с подсказками пройден"
+                          : "Тест с подсказками"}
+                      </Button>
+                      <Button
+                        onClick={() => handleCompleteTest(topic.id, "final")}
+                        disabled={
+                          !canTakeTest(topic, "final") ||
+                          topic.finalTestCompleted
+                        }
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        size="sm"
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        {topic.finalTestCompleted
+                          ? "✓ Итоговый тест пройден"
+                          : "Итоговый тест"}
+                      </Button>
+                    </div>
                   )}
 
                   {topic.children && (
@@ -535,7 +663,7 @@ const TopicAccordion = () => {
                         {topic.children.map((child) => {
                           const sectionAccessible = isSectionAccessible(
                             child,
-                            topic.completed,
+                            isAccessible,
                           );
 
                           return (
@@ -548,9 +676,14 @@ const TopicAccordion = () => {
                                 ${
                                   child.completed
                                     ? "bg-green-100 border border-green-300"
-                                    : sectionAccessible
-                                      ? "bg-slate-200 hover:bg-slate-300"
-                                      : "bg-gray-100 cursor-not-allowed"
+                                    : child.isTest && child.testType === "hints"
+                                      ? "bg-blue-100 border border-blue-300"
+                                      : child.isTest &&
+                                          child.testType === "final"
+                                        ? "bg-red-100 border border-red-300"
+                                        : sectionAccessible
+                                          ? "bg-slate-200 hover:bg-slate-300"
+                                          : "bg-gray-100 cursor-not-allowed"
                                 }
                               `}
                             >
@@ -560,9 +693,15 @@ const TopicAccordion = () => {
                                   ${
                                     child.completed
                                       ? "text-green-700 hover:bg-green-200"
-                                      : sectionAccessible
-                                        ? "text-slate-700 hover:bg-slate-300"
-                                        : "text-gray-500 cursor-not-allowed"
+                                      : child.isTest &&
+                                          child.testType === "hints"
+                                        ? "text-blue-700 hover:bg-blue-200"
+                                        : child.isTest &&
+                                            child.testType === "final"
+                                          ? "text-red-700 hover:bg-red-200"
+                                          : sectionAccessible
+                                            ? "text-slate-700 hover:bg-slate-300"
+                                            : "text-gray-500 cursor-not-allowed"
                                   }
                                   ${!sectionAccessible ? "pointer-events-none" : ""}
                                 `}
@@ -570,7 +709,7 @@ const TopicAccordion = () => {
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center gap-3">
-                                    {getSectionIcon(child, topic.completed)}
+                                    {getSectionIcon(child, sectionAccessible)}
                                     <span className="text-left text-sm font-medium">
                                       {child.title}
                                     </span>
@@ -589,46 +728,76 @@ const TopicAccordion = () => {
                                   <div
                                     className={`
                                       text-xs mb-2
-                                      ${child.completed ? "text-green-600" : "text-slate-600"}
+                                      ${
+                                        child.completed
+                                          ? "text-green-600"
+                                          : child.isTest &&
+                                              child.testType === "hints"
+                                            ? "text-blue-600"
+                                            : child.isTest &&
+                                                child.testType === "final"
+                                              ? "text-red-600"
+                                              : "text-slate-600"
+                                      }
                                     `}
                                   >
                                     {child.content}
                                   </div>
 
-                                  {child.title.includes("Итоговый тест") &&
-                                    !child.completed && (
-                                      <Button
-                                        onClick={() => {
-                                          setTopics((prevTopics) =>
-                                            prevTopics.map((topic) =>
-                                              topic.id === topic.id
-                                                ? {
-                                                    ...topic,
-                                                    children:
-                                                      topic.children?.map(
-                                                        (section) =>
-                                                          section.id ===
-                                                          child.id
-                                                            ? {
-                                                                ...section,
-                                                                completed: true,
-                                                              }
-                                                            : section,
-                                                      ),
-                                                  }
-                                                : topic,
-                                            ),
+                                  {child.isTest && !child.completed && (
+                                    <Button
+                                      onClick={() => {
+                                        if (
+                                          child.testType === "hints" &&
+                                          canTakeTest(topic, "hints")
+                                        ) {
+                                          handleCompleteTest(
+                                            topic.id,
+                                            "hints",
+                                            child.id,
                                           );
-                                          if (child.id.includes("test")) {
-                                            handleCompleteTest(topic.id);
-                                          }
-                                        }}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        size="sm"
-                                      >
-                                        <Play className="h-3 w-3 mr-1" />
-                                        Пройти тест
-                                      </Button>
+                                        } else if (
+                                          child.testType === "final" &&
+                                          canTakeTest(topic, "final")
+                                        ) {
+                                          handleCompleteTest(
+                                            topic.id,
+                                            "final",
+                                            child.id,
+                                          );
+                                        }
+                                      }}
+                                      disabled={
+                                        (child.testType === "hints" &&
+                                          !canTakeTest(topic, "hints")) ||
+                                        (child.testType === "final" &&
+                                          !canTakeTest(topic, "final"))
+                                      }
+                                      className={`
+                                        text-white text-xs
+                                        ${
+                                          child.testType === "hints"
+                                            ? "bg-blue-600 hover:bg-blue-700"
+                                            : "bg-red-600 hover:bg-red-700"
+                                        }
+                                      `}
+                                      size="sm"
+                                    >
+                                      {child.testType === "hints" ? (
+                                        <HelpCircle className="h-3 w-3 mr-1" />
+                                      ) : (
+                                        <Target className="h-3 w-3 mr-1" />
+                                      )}
+                                      Пройти тест
+                                    </Button>
+                                  )}
+
+                                  {child.testType === "final" &&
+                                    !canTakeTest(topic, "final") &&
+                                    !child.completed && (
+                                      <div className="text-xs text-gray-500 mt-2">
+                                        Сначала пройдите тест с подсказками
+                                      </div>
                                     )}
                                 </AccordionContent>
                               )}
