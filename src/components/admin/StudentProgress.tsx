@@ -52,12 +52,12 @@ export function StudentProgress() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Student Progress</h2>
+      <h2 className="text-2xl font-bold mb-6">Прогресс студента</h2>
       
       <div className="mb-6">
         <Select onValueChange={handleStudentSelect}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select student" />
+            <SelectValue placeholder="Выберите студента" />
           </SelectTrigger>
           <SelectContent>
             {users.map((user) => (
@@ -73,8 +73,8 @@ export function StudentProgress() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
-              <CardTitle>Completed Tests</CardTitle>
-              <CardDescription>Total number of completed tests</CardDescription>
+              <CardTitle>Выполненные тесты</CardTitle>
+              <CardDescription>Общее количество выполненных тестов</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{progress.completedTests}</p>
@@ -83,8 +83,8 @@ export function StudentProgress() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Average Score</CardTitle>
-              <CardDescription>Overall performance</CardDescription>
+              <CardTitle>Средний балл</CardTitle>
+              <CardDescription>Общая успеваемость</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{progress.averageScore}%</p>
@@ -93,8 +93,8 @@ export function StudentProgress() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Last Activity</CardTitle>
-              <CardDescription>Most recent test completion</CardDescription>
+              <CardTitle>Последняя активность</CardTitle>
+              <CardDescription>Последнее выполнение теста</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
@@ -105,8 +105,8 @@ export function StudentProgress() {
 
           <Card className="md:col-span-2 lg:col-span-4">
             <CardHeader>
-              <CardTitle>Test History</CardTitle>
-              <CardDescription>Recent test results</CardDescription>
+              <CardTitle>История тестов</CardTitle>
+              <CardDescription>Последние результаты тестов</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

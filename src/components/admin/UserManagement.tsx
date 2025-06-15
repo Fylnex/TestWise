@@ -100,14 +100,14 @@ export function UserManagement() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">User Management</h2>
+        <h2 className="text-2xl font-bold">Управление пользователями</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Create New User</Button>
+            <Button>Создать нового пользователя</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
+              <DialogTitle>Создать нового пользователя</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <Input
@@ -133,7 +133,7 @@ export function UserManagement() {
                   <SelectItem value="student">Student</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={handleCreateUser}>Create</Button>
+              <Button onClick={handleCreateUser}>Создать</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -157,10 +157,10 @@ export function UserManagement() {
               <TableCell>
                 <div className="space-x-2">
                   <Button variant="outline" onClick={() => openEditDialog(user)}>
-                    Edit
+                    Редактировать
                   </Button>
                   <Button variant="destructive" onClick={() => handleDeleteUser(user.id)}>
-                    Delete
+                    Удалить
                   </Button>
                 </div>
               </TableCell>
@@ -172,7 +172,7 @@ export function UserManagement() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
+            <DialogTitle>Редактировать пользователя</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
@@ -198,7 +198,7 @@ export function UserManagement() {
                 <SelectItem value="student">Student</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleUpdateUser}>Update</Button>
+            <Button onClick={handleUpdateUser}>Обновить</Button>
           </div>
         </DialogContent>
       </Dialog>
