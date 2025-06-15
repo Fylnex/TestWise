@@ -8,6 +8,9 @@ import NotFound from "./pages/NotFound";
 import TopicSection from "./pages/TopicSection";
 import Login from "./pages/Login";
 import { AdminPanel } from "./pages/AdminPanel";
+import Profile from "./pages/Profile";
+import About from "./pages/About";
+import Topics from "./pages/Topics";
 import { TopicProvider } from "./context/TopicContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -52,6 +55,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/topics"
+                element={
+                  <ProtectedRoute>
+                    <Topics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/section/:sectionId"
                 element={
                   <ProtectedRoute>
@@ -67,6 +78,15 @@ const App = () => (
                   </AdminRoute>
                 }
               />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/about" element={<About />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

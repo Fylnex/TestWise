@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { RotateCcw, LogOut, Settings } from "lucide-react";
+import { RotateCcw, LogOut, Settings, User } from "lucide-react";
 
 const Header = () => {
   const { resetProgress } = useTopics();
@@ -30,53 +30,84 @@ const Header = () => {
     <header className="bg-white shadow-sm">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-gray-800">
-            TestWise
-          </Link>
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="text-xl font-bold text-gray-900">
+              TestWise
+            </Link>
+            <nav className="hidden md:flex space-x-6">
+              <Link
+                to="/"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Главная
+              </Link>
+              <Link
+                to="/topics"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Темы
+              </Link>
+              <Link
+                to="/about"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                О нас
+              </Link>
+            </nav>
+          </div>
 
           <div className="flex items-center space-x-4">
-            {user?.role === 'admin' && (
-              <Link to="/admin">
-                <Button variant="ghost" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Admin Panel
+            {user && (
+              <>
+                {user.role === 'admin' && (
+                  <Link to="/admin">
+                    <Button variant="ghost" size="sm">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Панель администратора
+                    </Button>
+                  </Link>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={resetProgress}
+                  title="Сбросить прогресс"
+                >
+                  <RotateCcw className="h-5 w-5" />
                 </Button>
-              </Link>
-            )}
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Reset Progress
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reset Progress</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to reset your progress? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={resetProgress}>
-                    Reset
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
 
-            <div className="flex items-center space-x-2">
-              <Avatar>
-                <AvatarImage src={`https://avatar.vercel.sh/${user?.username}`} />
-                <AvatarFallback>{user?.username?.[0]?.toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+                <Link to="/profile">
+                  <Avatar className="h-8 w-8 cursor-pointer">
+                    <AvatarImage src={user.avatar || `https://avatar.vercel.sh/${user.username}`} alt={user.username} />
+                    <AvatarFallback>
+                      {user.username.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Вы уверены, что хотите выйти из своего аккаунта?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLogout}>
+                        Выйти
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
         </div>
       </div>
