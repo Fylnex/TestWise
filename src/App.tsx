@@ -13,6 +13,8 @@ import About from "./pages/About";
 import Topics from "./pages/Topics";
 import { TopicProvider } from "./context/TopicContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import TeacherDashboard from "./pages/TeacherDashboard";
+import GroupManagement from "./pages/GroupManagement";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   
-  if (!isAuthenticated || user?.role !== 'admin') {
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'teacher')) {
     return <Navigate to="/" replace />;
   }
 
@@ -75,6 +77,22 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <AdminPanel />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/teacher"
+                element={
+                  <AdminRoute>
+                    <TeacherDashboard />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/teacher/group/:groupId"
+                element={
+                  <AdminRoute>
+                    <GroupManagement />
                   </AdminRoute>
                 }
               />

@@ -4,7 +4,7 @@ import { api } from "@/services/api";
 interface User {
   id: number;
   username: string;
-  role: "admin" | "student";
+  role: "admin" | "student" | "teacher";
   avatar?: string;
 }
 
@@ -13,6 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateUserData: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,8 +56,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("token");
   };
 
+  const updateUserData = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, updateUserData }}>
       {children}
     </AuthContext.Provider>
   );

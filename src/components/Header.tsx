@@ -67,6 +67,14 @@ const Header = () => {
                     </Button>
                   </Link>
                 )}
+                {user.role === 'teacher' && (
+                  <Link to="/teacher">
+                    <Button variant="ghost" size="sm">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Панель учителя
+                    </Button>
+                  </Link>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

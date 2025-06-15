@@ -28,7 +28,15 @@ export default function Profile() {
                 </Avatar>
                 <div>
                   <h2 className="text-2xl font-bold">{user?.username}</h2>
-                  <p className="text-gray-500">Роль: {user?.role === 'admin' ? 'Администратор' : 'Студент'}</p>
+                  <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                    user?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                    user?.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {user?.role === 'admin' ? 'Администратор' :
+                     user?.role === 'teacher' ? 'Учитель' :
+                     'Студент'}
+                  </p>
                 </div>
               </div>
             </CardContent>

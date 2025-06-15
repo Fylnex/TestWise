@@ -21,7 +21,7 @@ http.interceptors.request.use((config) => {
 export interface User {
   id: number;
   username: string;
-  role: "admin" | "student";
+  role: "admin" | "student" | "teacher";
   avatar?: string;
 }
 

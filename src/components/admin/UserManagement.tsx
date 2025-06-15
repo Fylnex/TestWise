@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userApi, User } from '../../services/api';
+import { useAuth } from '@/context/AuthContext';
 import {
   Table,
   TableBody,
@@ -27,6 +28,7 @@ import {
 import { toast } from "sonner";
 
 export function UserManagement() {
+  const { user: currentUser, updateUserData } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -65,14 +67,19 @@ export function UserManagement() {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     try {
-      await userApi.updateUser(selectedUser.id, formData);
+      const updatedUser = await userApi.updateUser(selectedUser.id, formData);
       setIsEditDialogOpen(false);
       setSelectedUser(null);
       setFormData({ username: '', password: '', role: 'student' });
       loadUsers();
-      toast.success('User updated successfully');
+      
+      if (currentUser && currentUser.id === selectedUser.id) {
+        updateUserData(updatedUser);
+      }
+      
+      toast.success('Пользователь успешно обновлен');
     } catch (error) {
-      toast.error('Failed to update user');
+      toast.error('Не удалось обновить пользователя');
     }
   };
 
@@ -126,11 +133,12 @@ export function UserManagement() {
                 onValueChange={(value) => setFormData({ ...formData, role: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder="Выберите роль" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="admin">Администратор</SelectItem>
+                  <SelectItem value="teacher">Учитель</SelectItem>
+                  <SelectItem value="student">Студент</SelectItem>
                 </SelectContent>
               </Select>
               <Button onClick={handleCreateUser}>Создать</Button>
@@ -143,9 +151,9 @@ export function UserManagement() {
         <TableHeader>
           <TableRow>
             <TableHead>ID</TableHead>
-            <TableHead>Username</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>Имя пользователя</TableHead>
+            <TableHead>Роль</TableHead>
+            <TableHead>Действия</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -153,7 +161,17 @@ export function UserManagement() {
             <TableRow key={user.id}>
               <TableCell>{user.id}</TableCell>
               <TableCell>{user.username}</TableCell>
-              <TableCell>{user.role}</TableCell>
+              <TableCell>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                  user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
+                  'bg-green-100 text-green-800'
+                }`}>
+                  {user.role === 'admin' ? 'Администратор' :
+                   user.role === 'teacher' ? 'Учитель' :
+                   'Студент'}
+                </span>
+              </TableCell>
               <TableCell>
                 <div className="space-x-2">
                   <Button variant="outline" onClick={() => openEditDialog(user)}>
@@ -176,13 +194,13 @@ export function UserManagement() {
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Username"
+              placeholder="Имя пользователя"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
             />
             <Input
               type="password"
-              placeholder="New Password (leave blank to keep current)"
+              placeholder="Новый пароль (оставьте пустым, чтобы сохранить текущий)"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
@@ -191,14 +209,15 @@ export function UserManagement() {
               onValueChange={(value) => setFormData({ ...formData, role: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder="Выберите роль" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="admin">Администратор</SelectItem>
+                <SelectItem value="teacher">Учитель</SelectItem>
+                <SelectItem value="student">Студент</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleUpdateUser}>Обновить</Button>
+            <Button onClick={handleUpdateUser}>Сохранить</Button>
           </div>
         </DialogContent>
       </Dialog>
