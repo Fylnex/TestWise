@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { api } from "@/services/api";
 
 interface User {
+  id: string;
   username: string;
-  role: string;
+  role: "admin" | "student";
 }
 
 interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
-  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,43 +19,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    const savedToken = localStorage.getItem("token");
+    
+    if (savedUser && savedToken) {
+      // Проверяем валидность токена
+      api.getCurrentUser(savedToken).catch(() => {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        return null;
+      });
+      return JSON.parse(savedUser);
+    }
+    return null;
   });
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("user");
-    }
-  }, [user]);
+  const isAuthenticated = !!user;
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Здесь в реальном приложении был бы запрос к API
-    if (username === "admin" && password === "12345") {
-      const userData = {
-        username: "admin",
-        role: "admin"
-      };
+    try {
+      const { token, user: userData } = await api.login(username, password);
       setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("token", token);
       return true;
+    } catch (error) {
+      console.error("Login error:", error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
