@@ -1,7 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTopics } from "@/context/TopicContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +14,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, LogOut } from "lucide-react";
 
 const Header = () => {
   const { resetProgress } = useTopics();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="bg-slate-900 text-white py-3 px-6">
@@ -71,37 +79,51 @@ const Header = () => {
 
         {/* User Avatar and Reset Button */}
         <div className="flex items-center gap-4">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          {user && (
+            <>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-slate-800"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Сбросить прогресс
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Сбросить прогресс?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Это действие удалит весь ваш прогресс по тестам. Это действие нельзя отменить.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={resetProgress}>
+                      Сбросить
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-white hover:bg-slate-800"
+                onClick={handleLogout}
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Сбросить прогресс
+                <LogOut className="w-4 h-4 mr-2" />
+                Выйти
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Сбросить прогресс?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Это действие удалит весь ваш прогресс по тестам. Это действие нельзя отменить.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction onClick={resetProgress}>
-                  Сбросить
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            </>
+          )}
 
           <Avatar className="h-8 w-8">
             <AvatarImage src="/placeholder.svg" alt="User avatar" />
             <AvatarFallback className="bg-purple-600 text-white text-xs">
-              U
+              {user?.username?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
         </div>
