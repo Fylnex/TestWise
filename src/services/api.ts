@@ -1,43 +1,75 @@
+import axios from 'axios';
+
 const API_URL = 'http://localhost:3001/api';
 
-interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    username: string;
-    role: 'admin' | 'student';
-  };
+const http = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Добавляем токен к каждому запросу
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export interface User {
+  id: number;
+  username: string;
+  role: string;
+}
+
+export interface StudentProgress {
+  completedTests: number;
+  averageScore: number;
+  lastActivity: string;
+  testHistory: {
+    testId: number;
+    score: number;
+    date: string;
+  }[];
 }
 
 export const api = {
-  async login(username: string, password: string): Promise<LoginResponse> {
-    const response = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
+  login: async (username: string, password: string): Promise<{ token: string; user: User }> => {
+    const response = await axios.post<{ token: string; user: User }>(`${API_URL}/login`, { username, password });
+    return response.data;
+  },
+  getCurrentUser: async (token: string): Promise<User> => {
+    const response = await axios.get<User>(`${API_URL}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
+    return response.data;
+  },
+};
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to login');
-    }
-
-    return response.json();
+export const userApi = {
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await http.get<User[]>('/users');
+    return response.data;
   },
 
-  async getCurrentUser(token: string) {
-    const response = await fetch(`${API_URL}/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+  createUser: async (userData: { username: string; password: string; role: string }): Promise<User> => {
+    const response = await http.post<User>('/users', userData);
+    return response.data;
+  },
 
-    if (!response.ok) {
-      throw new Error('Failed to get current user');
-    }
+  updateUser: async (id: number, userData: { username: string; password?: string; role: string }): Promise<User> => {
+    const response = await http.put<User>(`/users/${id}`, userData);
+    return response.data;
+  },
 
-    return response.json();
+  deleteUser: async (id: number): Promise<void> => {
+    await http.delete(`/users/${id}`);
+  },
+
+  getStudentProgress: async (studentId: number): Promise<StudentProgress> => {
+    const response = await http.get<StudentProgress>(`/students/${studentId}/progress`);
+    return response.data;
   },
 }; 

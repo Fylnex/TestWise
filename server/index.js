@@ -124,6 +124,130 @@ app.get('/api/me', authenticateToken, (req, res) => {
   res.json(req.user);
 });
 
+// Get all users (admin only)
+app.get('/api/users', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  db.all('SELECT id, username, role FROM users', (err, users) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(users);
+  });
+});
+
+// Create new user (admin only)
+app.post('/api/users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const { username, password, role } = req.body;
+  
+  if (!username || !password || !role) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    db.run(
+      'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+      [username, hashedPassword, role],
+      function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: 'Username already exists' });
+          }
+          return res.status(500).json({ error: 'Database error' });
+        }
+        res.json({ id: this.lastID, username, role });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: 'Error creating user' });
+  }
+});
+
+// Update user (admin only)
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const { id } = req.params;
+  const { username, password, role } = req.body;
+
+  try {
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.run(
+        'UPDATE users SET username = ?, password = ?, role = ? WHERE id = ?',
+        [username, hashedPassword, role, id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Database error' });
+          }
+          res.json({ id, username, role });
+        }
+      );
+    } else {
+      db.run(
+        'UPDATE users SET username = ?, role = ? WHERE id = ?',
+        [username, role, id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: 'Database error' });
+          }
+          res.json({ id, username, role });
+        }
+      );
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error updating user' });
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/users/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const { id } = req.params;
+  
+  db.run('DELETE FROM users WHERE id = ?', [id], (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  });
+});
+
+// Get student progress (admin only)
+app.get('/api/students/:id/progress', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const { id } = req.params;
+  
+  // Заглушка для демонстрации
+  const mockProgress = {
+    completedTests: 5,
+    averageScore: 85,
+    lastActivity: new Date().toISOString(),
+    testHistory: [
+      { testId: 1, score: 90, date: '2024-03-15' },
+      { testId: 2, score: 85, date: '2024-03-14' },
+      { testId: 3, score: 80, date: '2024-03-13' }
+    ]
+  };
+
+  res.json(mockProgress);
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
