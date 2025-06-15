@@ -14,6 +14,8 @@ import {
   Target,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTopics } from "@/context/TopicContext";
 
 interface TopicSection {
   id: string;
@@ -35,7 +37,7 @@ interface Topic {
   children?: TopicSection[];
 }
 
-const topicData: Topic[] = [
+export const topicData: Topic[] = [
   {
     id: "introduction",
     title: "Введение в газотурбинные двигатели",
@@ -297,7 +299,7 @@ const topicData: Topic[] = [
       {
         id: "control-hints-test",
         title: "Тест с подсказками - Системы управления",
-        content: "Тренировочный тест с подсказками по системам управлени��.",
+        content: "Тренировочный тест с подсказками по системам управления.",
         isTest: true,
         testType: "hints",
       },
@@ -410,45 +412,53 @@ const topicData: Topic[] = [
 ];
 
 const TopicAccordion = () => {
-  const [topics, setTopics] = useState<Topic[]>(topicData);
+  const navigate = useNavigate();
+  const [expandedTopics, setExpandedTopics] = useState<string[]>([]);
+  const { topics } = useTopics();
+
+  const handleTopicClick = (topicId: string) => {
+    setExpandedTopics((prev) =>
+      prev.includes(topicId)
+        ? prev.filter((id) => id !== topicId)
+        : [...prev, topicId]
+    );
+  };
+
+  const handleSectionClick = (sectionId: string) => {
+    navigate(`/section/${sectionId}`);
+  };
 
   const handleCompleteTest = (
     topicId: string,
     testType: "hints" | "final",
     sectionId?: string,
   ) => {
-    setTopics((prevTopics) => {
-      const updatedTopics = prevTopics.map((topic) => {
-        if (topic.id === topicId) {
-          const updatedTopic = { ...topic };
+    topics.map((topic) => {
+      if (topic.id === topicId) {
+        const updatedTopic = { ...topic };
 
-          if (testType === "hints") {
-            updatedTopic.hintsTestCompleted = true;
-          } else if (testType === "final") {
-            updatedTopic.finalTestCompleted = true;
-          }
-
-          // Проверяем, завершены ли оба теста
-          if (
-            updatedTopic.hintsTestCompleted &&
-            updatedTopic.finalTestCompleted
-          ) {
-            updatedTopic.completed = true;
-          }
-
-          // Обновляем дочерние секции
-          if (sectionId && topic.children) {
-            updatedTopic.children = topic.children.map((child) =>
-              child.id === sectionId ? { ...child, completed: true } : child,
-            );
-          }
-
-          return updatedTopic;
+        if (testType === "hints") {
+          updatedTopic.hintsTestCompleted = true;
+        } else if (testType === "final") {
+          updatedTopic.finalTestCompleted = true;
         }
-        return topic;
-      });
 
-      return updatedTopics;
+        if (
+          updatedTopic.hintsTestCompleted &&
+          updatedTopic.finalTestCompleted
+        ) {
+          updatedTopic.completed = true;
+        }
+
+        if (sectionId && topic.children) {
+          updatedTopic.children = topic.children.map((child) =>
+            child.id === sectionId ? { ...child, completed: true } : child,
+          );
+        }
+
+        return updatedTopic;
+      }
+      return topic;
     });
   };
 
@@ -480,7 +490,6 @@ const TopicAccordion = () => {
 
   const isTopicAccessible = (topic: Topic) => {
     if (topic.isMainTopic && topic.id === "final-certification") {
-      // Итоговая аттестация доступна только если все предыдущие темы пройдены
       const mainTopics = topics.filter(
         (t) => !t.isMainTopic || t.id !== "final-certification",
       );
@@ -488,14 +497,12 @@ const TopicAccordion = () => {
     }
 
     if (topic.isMainTopic) {
-      return true; // Первая тема всегда доступна
+      return true;
     }
 
-    // Находим индекс текущей темы
     const currentIndex = topics.findIndex((t) => t.id === topic.id);
     if (currentIndex === 0) return true;
 
-    // Проверяем, завершена ли предыдущая тема
     const previousTopic = topics[currentIndex - 1];
     return previousTopic.completed;
   };
@@ -509,7 +516,7 @@ const TopicAccordion = () => {
 
   const getTopicProgress = (topic: Topic) => {
     let completed = 0;
-    let total = 2; // Всегда 2 теста
+    let total = 2;
 
     if (topic.hintsTestCompleted) completed++;
     if (topic.finalTestCompleted) completed++;
@@ -521,13 +528,17 @@ const TopicAccordion = () => {
     if (testType === "hints") {
       return !topic.hintsTestCompleted;
     }
-    // Итоговый тест доступен только после прохождения теста с подсказками
     return topic.hintsTestCompleted && !topic.finalTestCompleted;
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion
+        type="multiple"
+        value={expandedTopics}
+        onValueChange={setExpandedTopics}
+        className="space-y-2"
+      >
         {topics.map((topic) => {
           const isAccessible = isTopicAccessible(topic);
           const progress = getTopicProgress(topic);
@@ -555,6 +566,7 @@ const TopicAccordion = () => {
               `}
             >
               <AccordionTrigger
+                onClick={() => handleTopicClick(topic.id)}
                 className={`
                   px-4 py-3 hover:no-underline
                   ${
@@ -626,7 +638,6 @@ const TopicAccordion = () => {
                     {topic.content}
                   </div>
 
-                  {/* Для итоговой аттестации показываем специальные кнопки */}
                   {topic.id === "final-certification" && isAccessible && (
                     <div className="space-y-2">
                       <Button
@@ -688,6 +699,7 @@ const TopicAccordion = () => {
                               `}
                             >
                               <AccordionTrigger
+                                onClick={() => handleSectionClick(child.id)}
                                 className={`
                                   px-4 py-2 hover:no-underline
                                   ${

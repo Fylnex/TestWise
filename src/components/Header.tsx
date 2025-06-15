@@ -1,8 +1,23 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useTopics } from "@/context/TopicContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { RotateCcw } from "lucide-react";
 
 const Header = () => {
+  const { resetProgress } = useTopics();
+
   return (
     <header className="bg-slate-900 text-white py-3 px-6">
       <div className="container mx-auto flex items-center justify-between">
@@ -54,8 +69,35 @@ const Header = () => {
           </Link>
         </nav>
 
-        {/* User Avatar */}
-        <div className="flex items-center">
+        {/* User Avatar and Reset Button */}
+        <div className="flex items-center gap-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-slate-800"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Сбросить прогресс
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Сбросить прогресс?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Это действие удалит весь ваш прогресс по тестам. Это действие нельзя отменить.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction onClick={resetProgress}>
+                  Сбросить
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Avatar className="h-8 w-8">
             <AvatarImage src="/placeholder.svg" alt="User avatar" />
             <AvatarFallback className="bg-purple-600 text-white text-xs">
