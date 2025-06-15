@@ -23,6 +23,9 @@ export interface User {
   username: string;
   role: "admin" | "student" | "teacher";
   avatar?: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLogin?: string;
 }
 
 export interface StudentProgress {
@@ -50,8 +53,14 @@ export const api = {
 };
 
 export const userApi = {
-  getAllUsers: async (): Promise<User[]> => {
-    const response = await http.get<User[]>('/users');
+  getAllUsers: async (filters?: {
+    search?: string;
+    role?: string;
+    isActive?: boolean;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<User[]> => {
+    const response = await http.get<User[]>('/users', { params: filters });
     return response.data;
   },
 
@@ -60,7 +69,12 @@ export const userApi = {
     return response.data;
   },
 
-  updateUser: async (id: number, userData: { username: string; password?: string; role: string }): Promise<User> => {
+  updateUser: async (id: number, userData: { 
+    username?: string; 
+    password?: string; 
+    role?: string;
+    isActive?: boolean;
+  }): Promise<User> => {
     const response = await http.put<User>(`/users/${id}`, userData);
     return response.data;
   },
@@ -72,5 +86,43 @@ export const userApi = {
   getStudentProgress: async (studentId: number): Promise<StudentProgress> => {
     const response = await http.get<StudentProgress>(`/students/${studentId}/progress`);
     return response.data;
+  },
+
+  blockUser: async (id: number): Promise<User> => {
+    const response = await http.put<User>(`/users/${id}/block`);
+    return response.data;
+  },
+
+  unblockUser: async (id: number): Promise<User> => {
+    const response = await http.put<User>(`/users/${id}/unblock`);
+    return response.data;
+  },
+
+  resetPassword: async (id: number): Promise<void> => {
+    await http.post(`/users/${id}/reset-password`);
+  },
+
+  bulkUpdateRoles: async (userIds: number[], role: string): Promise<User[]> => {
+    const response = await http.put<User[]>('/users/bulk/roles', { userIds, role });
+    return response.data;
+  },
+
+  bulkUpdateStatus: async (userIds: number[], isActive: boolean): Promise<User[]> => {
+    const response = await http.put<User[]>('/users/bulk/status', { userIds, isActive });
+    return response.data;
+  },
+
+  exportUsers: async (filters?: {
+    search?: string;
+    role?: string;
+    isActive?: boolean;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Blob> => {
+    const response = await http.get<ArrayBuffer>('/users/export', {
+      params: filters,
+      responseType: 'arraybuffer'
+    });
+    return new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   },
 }; 
