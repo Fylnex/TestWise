@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "testwise-backend"
+version = "0.1.0"
+description = "Backend for TestWise educational platform"
+#authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.115.0"
+uvicorn = "^0.30.6"
+sqlalchemy = "^2.0.35"
+aiosqlite = "^0.20.0"
+pydantic = { version = "^2.0", extras = ["email"] }
+pydantic-settings = "^2.5.2"
+python-dotenv = "^1.0.1"
+loguru = "^0.7.2"
+python-jose = { extras = ["cryptography"], version = "^3.3.0" }
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+aiofiles = "^23.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
