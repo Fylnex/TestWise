@@ -2,7 +2,7 @@
 name = "testwise-backend"
 version = "0.1.0"
 description = "Backend for TestWise educational platform"
-#authors = ["Your Name <your.email@example.com>"]
+authors = ["Your Name <your.email@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"

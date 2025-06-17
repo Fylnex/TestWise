@@ -1,4 +1,3 @@
-# TestWise/Backend/Dockerfile
 # Базовый образ Python 3.10
 FROM python:3.10-slim
 
@@ -14,10 +13,8 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi
 
-# Копируем весь код приложения
+# Копируем код приложения
 COPY src ./src
-COPY logs ./logs
-COPY database.sqlite .
 
 # Указываем порт
 ENV PORT=8000
