@@ -1,7 +1,7 @@
 // TestWise/src/services/api.ts
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://localhost:8000/api/v1';
 
 const http = axios.create({
   baseURL: API_URL,
@@ -38,6 +38,55 @@ export interface StudentProgress {
     score: number;
     date: string;
   }[];
+}
+
+export interface Topic {
+  id: number;
+  title: string;
+  description?: string;
+  category?: string;
+  image?: string;
+  created_at?: string;
+  progress?: any;
+}
+
+export interface Section {
+  id: number;
+  topic_id: number;
+  title: string;
+  content?: string;
+  description?: string;
+  order: number;
+  created_at?: string;
+}
+
+export interface Test {
+  id: number;
+  title: string;
+  type: string;
+  duration?: number;
+  section_id?: number;
+  topic_id?: number;
+  question_ids?: number[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  start_year: number;
+  end_year: number;
+  description?: string;
+  created_at?: string;
+}
+
+export interface GroupStudent {
+  group_id: number;
+  user_id: number;
+  status: 'active' | 'inactive';
+  joined_at: string;
+  left_at?: string;
 }
 
 export const api = {
@@ -125,5 +174,176 @@ export const userApi = {
       responseType: 'arraybuffer'
     });
     return new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  },
+};
+
+export const topicApi = {
+  getTopics: async (): Promise<Topic[]> => {
+    const response = await http.get<Topic[]>("/topics");
+    return response.data;
+  },
+  getTopic: async (topicId: number): Promise<Topic> => {
+    const response = await http.get<Topic>(`/topics/${topicId}`);
+    return response.data;
+  },
+  getSectionsByTopic: async (topicId: number): Promise<Section[]> => {
+    const response = await http.get<Section[]>(`/sections`, { params: { topic_id: topicId } });
+    return response.data;
+  },
+  getTestsByTopic: async (topicId: number): Promise<Test[]> => {
+    const response = await http.get<Test[]>(`/tests`, { params: { topic_id: topicId } });
+    return response.data;
+  },
+  createTopic: async (data: Partial<Topic>) => {
+    const response = await http.post<Topic>("/topics", data);
+    return response.data;
+  },
+  createSection: async (data: Partial<Section>) => {
+    const response = await http.post<Section>("/sections", data);
+    return response.data;
+  },
+  createTest: async (data: Partial<Test>) => {
+    const response = await http.post<Test>("/tests", data);
+    return response.data;
+  },
+};
+
+export const groupApi = {
+  getGroups: async (): Promise<Group[]> => {
+    const response = await http.get<Group[]>("/groups");
+    return response.data;
+  },
+  getGroup: async (groupId: number): Promise<Group> => {
+    const response = await http.get<Group>(`/groups/${groupId}`);
+    return response.data;
+  },
+  createGroup: async (data: Partial<Group>) => {
+    const response = await http.post<Group>("/groups", data);
+    return response.data;
+  },
+  getGroupStudents: async (groupId: number): Promise<GroupStudent[]> => {
+    const response = await http.get<{students: GroupStudent[]}>(`/groups/${groupId}/students`);
+    return response.data.students;
+  },
+  addGroupStudents: async (groupId: number, user_ids: number[]) => {
+    const response = await http.post<GroupStudent[]>(`/groups/${groupId}/students`, { user_ids });
+    return response.data;
+  },
+  removeGroupStudent: async (groupId: number, userId: number) => {
+    await http.delete(`/groups/${groupId}/students/${userId}`);
+  },
+  updateGroupStudentStatus: async (groupId: number, userId: number, status: 'active' | 'inactive') => {
+    const response = await http.put<GroupStudent>(`/groups/${groupId}/students/${userId}/status`, { status });
+    return response.data;
+  },
+};
+
+export const sectionApi = {
+  getSection: async (sectionId: number) => {
+    const response = await http.get(`/sections/${sectionId}`);
+    return response.data;
+  },
+  updateSection: async (sectionId: number, data: any) => {
+    const response = await http.put(`/sections/${sectionId}`, data);
+    return response.data;
+  },
+  deleteSection: async (sectionId: number) => {
+    await http.delete(`/sections/${sectionId}`);
+  },
+  getSectionProgress: async (sectionId: number) => {
+    const response = await http.get(`/sections/${sectionId}/progress`);
+    return response.data;
+  },
+  getSectionSubsections: async (sectionId: number) => {
+    const response = await http.get(`/sections/${sectionId}/subsections`);
+    return response.data;
+  },
+};
+
+export const subsectionApi = {
+  getSubsection: async (subsectionId: number) => {
+    const response = await http.get(`/subsections/${subsectionId}`);
+    return response.data;
+  },
+  createSubsection: async (data: any) => {
+    const response = await http.post(`/subsections`, data);
+    return response.data;
+  },
+  updateSubsection: async (subsectionId: number, data: any) => {
+    const response = await http.put(`/subsections/${subsectionId}`, data);
+    return response.data;
+  },
+  deleteSubsection: async (subsectionId: number) => {
+    await http.delete(`/subsections/${subsectionId}`);
+  },
+  markSubsectionViewed: async (subsectionId: number) => {
+    const response = await http.post(`/subsections/${subsectionId}/view`);
+    return response.data;
+  },
+};
+
+export const questionApi = {
+  getQuestion: async (questionId: number) => {
+    const response = await http.get(`/questions/${questionId}`);
+    return response.data;
+  },
+  createQuestion: async (data: any) => {
+    const response = await http.post(`/questions`, data);
+    return response.data;
+  },
+  updateQuestion: async (questionId: number, data: any) => {
+    const response = await http.put(`/questions/${questionId}`, data);
+    return response.data;
+  },
+  deleteQuestion: async (questionId: number) => {
+    await http.delete(`/questions/${questionId}`);
+  },
+};
+
+export const testApi = {
+  getTest: async (testId: number) => {
+    const response = await http.get(`/tests/${testId}`);
+    return response.data;
+  },
+  updateTest: async (testId: number, data: any) => {
+    const response = await http.put(`/tests/${testId}`, data);
+    return response.data;
+  },
+  deleteTest: async (testId: number) => {
+    await http.delete(`/tests/${testId}`);
+  },
+  startTest: async (testId: number) => {
+    const response = await http.post(`/tests/${testId}/start`);
+    return response.data;
+  },
+  submitTest: async (testId: number, data: any) => {
+    const response = await http.post(`/tests/${testId}/submit`, data);
+    return response.data;
+  },
+};
+
+export const progressApi = {
+  getTopicProgressList: async (userId?: number) => {
+    const response = await http.get(`/progress/topics`, { params: userId ? { user_id: userId } : {} });
+    return response.data;
+  },
+  getSectionProgressList: async (userId?: number) => {
+    const response = await http.get(`/progress/sections`, { params: userId ? { user_id: userId } : {} });
+    return response.data;
+  },
+  getSubsectionProgressList: async (userId?: number) => {
+    const response = await http.get(`/progress/subsections`, { params: userId ? { user_id: userId } : {} });
+    return response.data;
+  },
+  getTestAttempts: async (userId?: number) => {
+    const response = await http.get(`/progress/tests`, { params: userId ? { user_id: userId } : {} });
+    return response.data;
+  },
+};
+
+export const profileApi = {
+  getProfile: async () => {
+    const response = await http.get(`/profile`);
+    return response.data;
   },
 }; 

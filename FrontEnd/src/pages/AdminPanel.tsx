@@ -5,6 +5,7 @@ import { StudentProgress } from '../components/admin/StudentProgress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
+import TeacherDashboard from './TeacherDashboard';
 
 export function AdminPanel() {
   return (
@@ -18,6 +19,7 @@ export function AdminPanel() {
             <TabsTrigger value="progress">Прогресс студентов</TabsTrigger>
             <TabsTrigger value="profile">Профиль</TabsTrigger>
             <TabsTrigger value="overall">Общий прогресс</TabsTrigger>
+            <TabsTrigger value="teacher">Панель учителя</TabsTrigger>
           </TabsList>
           
           <TabsContent value="users">
@@ -40,6 +42,10 @@ export function AdminPanel() {
               <h2 className="text-2xl font-bold mb-4">Общий прогресс</h2>
               <p>Просмотр общего прогресса всех студентов.</p>
             </div>
+          </TabsContent>
+
+          <TabsContent value="teacher">
+            <TeacherDashboard withoutLayout={true} />
           </TabsContent>
         </Tabs>
       </div>

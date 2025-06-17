@@ -3,7 +3,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { useTopics } from "@/context/TopicContext";
 import { useAuth } from "@/context/AuthContext";
 import {
   AlertDialog,
@@ -19,7 +18,6 @@ import {
 import { RotateCcw, LogOut, Settings, User } from "lucide-react";
 
 const Header = () => {
-  const { resetProgress } = useTopics();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -77,15 +75,6 @@ const Header = () => {
                     </Button>
                   </Link>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={resetProgress}
-                  title="Сбросить прогресс"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </Button>
-
                 <Link to="/profile">
                   <Avatar className="h-8 w-8 cursor-pointer">
                     <AvatarImage src={user.avatar || `https://avatar.vercel.sh/${user.username}`} alt={user.username} />
