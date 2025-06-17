@@ -1,0 +1,19 @@
+# TestWise/Backend/docker-compose.yml
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./database.sqlite:/app/database.sqlite
+      - ./logs:/app/logs
+    environment:
+      - PORT=${PORT:-8000}
+      - DATABASE_URL=sqlite+aiosqlite:///database.sqlite
+
+volumes:
+  db_data:
