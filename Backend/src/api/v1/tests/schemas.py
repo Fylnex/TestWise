@@ -1,28 +1,58 @@
 # TestWise/Backend/src/api/v1/tests/schemas.py
 # -*- coding: utf-8 -*-
 """
-Этот модуль определяет Pydantic-схемы для эндпоинтов, связанных с тестами.
+Pydantic-схемы для работы с тестами.
 """
 
 from datetime import datetime
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from src.database.models import QuestionType
+from src.database.models import QuestionType, TestType
 
 
-class TestStartSchema(BaseModel):
+# ----------------------------- CRUD -----------------------------------------
+
+
+class TestCreateSchema(BaseModel):
     """
-    Схема для запроса на начало теста.
+    Схема создания теста (учителя / админы).
     """
-    section_id: int
-    num_questions: int
+    title: str
+    type: TestType
+    duration: Optional[int] = Field(
+        default=None, description="Максимальная длительность, сек. 0/None — без лимита"
+    )
+    section_id: Optional[int] = Field(default=None, description="Тест по секции")
+    topic_id: Optional[int] = Field(default=None, description="Глобальный тест по теме")
+    question_ids: Optional[List[int]] = Field(default=None, description="Фиксированный набор вопросов")
+
+
+class TestReadSchema(BaseModel):
+    """
+    Полное представление теста.
+    """
+    id: int
+    title: str
+    type: TestType
+    duration: Optional[int]
+    section_id: Optional[int]
+    topic_id: Optional[int]
+    question_ids: Optional[List[int]]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+# ----------------------------- START / SUBMIT -------------------------------
 
 
 class TestQuestionSchema(BaseModel):
     """
-    Схема для вопроса в тесте.
+    Упрощённое представление вопроса, выдаваемое студенту.
     """
     id: int
     question: str
@@ -37,26 +67,37 @@ class TestQuestionSchema(BaseModel):
 
 class TestStartResponseSchema(BaseModel):
     """
-    Схема для ответа на начало теста.
+    Ответ на старт теста.
     """
+    attempt_id: int
     test_id: int
     questions: List[TestQuestionSchema]
     start_time: datetime
-    duration: int
+    duration: Optional[int]
 
 
 class TestSubmitSchema(BaseModel):
     """
-    Схема для отправки ответов на тест.
+    Пакет с ответами студента.
     """
-    section_id: int
+    attempt_id: int
     answers: List[dict]  # [{"question_id": int, "answer": Any}]
+    time_spent: int      # сек
 
 
-class TestSubmitResponseSchema(BaseModel):
+class TestAttemptRead(BaseModel):
     """
-    Схема для ответа на отправку теста.
+    Полное состояние попытки.
     """
-    score: float
-    time_spent: int
-    completed: bool
+    id: int
+    user_id: int
+    test_id: int
+    attempt_number: int
+    score: Optional[float]
+    time_spent: Optional[int]
+    answers: Optional[Any]
+    started_at: datetime
+    completed_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True

@@ -1,45 +1,67 @@
-# TestWise/Backend/src/api/v1/progress/schemas.py
 # -*- coding: utf-8 -*-
 """
-Этот модуль определяет Pydantic-схемы для эндпоинтов, связанных с прогрессом.
+Pydantic-схемы, отражающие модели прогресса.
 """
 
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional, Any
 
-class ProgressCreateSchema(BaseModel):
-    """
-    Схема для создания записи о прогрессе.
-    """
-    user_id: int
-    topic_id: int
-    section_id: int
-    score: Optional[float] = None
-    time_spent: Optional[int] = None
+from pydantic import BaseModel
 
-class ProgressUpdateSchema(BaseModel):
-    """
-    Схема для обновления записи о прогрессе.
-    """
-    score: Optional[float] = None
-    time_spent: Optional[int] = None
 
-class ProgressReadSchema(BaseModel):
-    """
-    Схема для чтения данных о прогрессе.
-    """
+class TopicProgressRead(BaseModel):
     id: int
     user_id: int
     topic_id: int
+    status: str
+    completion_percentage: float
+    last_accessed: Optional[datetime]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class SectionProgressRead(BaseModel):
+    id: int
+    user_id: int
     section_id: int
+    status: str
+    completion_percentage: float
+    last_accessed: Optional[datetime]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class SubsectionProgressRead(BaseModel):
+    id: int
+    user_id: int
+    subsection_id: int
+    is_viewed: bool
+    viewed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class TestAttemptRead(BaseModel):
+    id: int
+    user_id: int
+    test_id: int
+    attempt_number: int
     score: Optional[float]
     time_spent: Optional[int]
-    completed: bool
+    answers: Optional[Any]
+    started_at: datetime
     completed_at: Optional[datetime]
-    attempts: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True

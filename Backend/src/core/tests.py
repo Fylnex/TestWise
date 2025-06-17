@@ -1,101 +1,229 @@
 # TestWise/Backend/src/core/tests.py
 # -*- coding: utf-8 -*-
+"""core.tests
+~~~~~~~~~~~~~~~~
+Dynamic test generation & attempt lifecycle helpers.
+
+This module focuses on **assembling** tests (as rows in the *tests* table)
+from available questions and delegating persistence of attempts to
+``core.crud``.  Scoring is extremely simple (percentage of correct answers)
+but is easy to replace with something more sophisticated later.
 """
-This module handles test-related logic for the TestWise application.
-It provides functionality for dynamically generating tests based on test type and control question percentage.
-"""
+
+from __future__ import annotations
 
 import random
+from datetime import datetime
+from typing import Any, Dict, List
 
-from sqlalchemy import select, func
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.crud import (
+    create_test,
+    create_test_attempt,
+    submit_test as crud_submit_test,
+)
 from src.core.logger import configure_logger
-from src.database.models import Section, Question, TestType
+from src.core.progress import check_test_availability
+from src.database.models import (
+    Question,
+    QuestionType,
+    Section,
+    Test,
+    TestAttempt,
+    TestType,
+    Topic,
+)
 from src.utils.exceptions import NotFoundError, ValidationError
 
 logger = configure_logger()
 
 
-async def generate_test_questions(session: AsyncSession, section_id: int, num_questions: int) -> list[Question]:
-    """
-    Generates a list of questions for a test based on section ID and test type.
+# ---------------------------------------------------------------------------
+# Question helpers
+# ---------------------------------------------------------------------------
 
-    Args:
-        session (AsyncSession): Database session.
-        section_id (int): ID of the section (test).
-        num_questions (int): Number of questions to generate.
 
-    Returns:
-        list[Question]: List of randomly selected questions.
+async def _fetch_questions(
+        session: AsyncSession, stmt: Select, limit: int | None = None
+) -> List[Question]:
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    res = await session.execute(stmt)
+    return list(res.scalars().all())
 
-    Exceptions:
-        - NotFoundError: If the section is not found.
-        - ValidationError: If insufficient questions are available.
-    """
-    section = await session.get(Section, section_id)
-    if not section or not section.is_test:
+
+async def _random_sample_questions(
+        questions: List[Question], num: int | None = None
+) -> List[int]:
+    if num is None or num >= len(questions):
+        return [q.id for q in questions]
+    return [q.id for q in random.sample(questions, num)]
+
+
+# ---------------------------------------------------------------------------
+# Test generators
+# ---------------------------------------------------------------------------
+
+
+async def generate_hinted_test(
+        session: AsyncSession,
+        section_id: int,
+        num_questions: int = 10,
+        duration: int | None = 15,
+        title: str | None = None,
+) -> Test:
+    """Create or return a *hinted* test for a section."""
+    section: Section | None = await session.get(Section, section_id)
+    if section is None:
         raise NotFoundError(resource_type="Section", resource_id=section_id)
 
-    if section.test_type == TestType.HINTS:
-        # Only non-control questions for hints test
-        stmt = select(Question).where(
-            Question.section_id == section_id,
-            Question.is_control == False
-        )
-    else:
-        # Mix of control and non-control questions for final test
-        control_percentage = section.control_questions_percentage or 0
-        num_control = int(num_questions * (control_percentage / 100))
-        num_regular = num_questions - num_control
+    stmt = select(Question).where(Question.section_id == section_id, Question.is_final.is_(False))
+    questions = await _fetch_questions(session, stmt)
+    if not questions:
+        raise ValidationError(detail="Section contains no suitable questions")
 
-        # Check available questions
-        regular_count = await session.scalar(
-            select(func.count()).select_from(Question).where(
-                Question.section_id == section_id,
-                Question.is_control == False
-            )
-        )
-        control_count = await session.scalar(
-            select(func.count()).select_from(Question).where(
-                Question.section_id == section_id,
-                Question.is_control == True
-            )
-        )
+    question_ids = await _random_sample_questions(questions, num_questions)
 
-        if regular_count < num_regular or control_count < num_control:
-            raise ValidationError(
-                detail=f"Insufficient questions: need {num_regular} regular and {num_control} control, "
-                       f"but only {regular_count} regular and {control_count} control available"
-            )
+    test = await create_test(
+        session,
+        title or f"Hinted Quiz: {section.title}",
+        TestType.HINTED,
+        section_id=section_id,
+        duration=duration,
+        question_ids=question_ids,
+    )
+    logger.info("Generated hinted test %s with %s Qs", test.id, len(question_ids))
+    return test
 
-        # Fetch regular questions
-        regular_stmt = select(Question).where(
-            Question.section_id == section_id,
-            Question.is_control == False
-        ).limit(num_regular)
-        regular_questions = (await session.execute(regular_stmt)).scalars().all()
 
-        # Fetch control questions
-        control_stmt = select(Question).where(
-            Question.section_id == section_id,
-            Question.is_control == True
-        ).limit(num_control)
-        control_questions = (await session.execute(control_stmt)).scalars().all()
+async def generate_section_final_test(
+        session: AsyncSession,
+        section_id: int,
+        num_questions: int | None = None,
+        duration: int | None = 20,
+        title: str | None = None,
+) -> Test:
+    """Create a *section_final* test consisting of questions marked ``is_final``."""
+    section: Section | None = await session.get(Section, section_id)
+    if section is None:
+        raise NotFoundError(resource_type="Section", resource_id=section_id)
 
-        questions = regular_questions + control_questions
-        random.shuffle(questions)
-        return questions
+    stmt = select(Question).where(Question.section_id == section_id, Question.is_final.is_(True))
+    questions = await _fetch_questions(session, stmt)
+    if not questions:
+        raise ValidationError(detail="Section has no final questions")
 
-    # Fetch questions for hints test
-    result = await session.execute(stmt.limit(num_questions))
-    questions = result.scalars().all()
+    question_ids = await _random_sample_questions(questions, num_questions)
 
-    if len(questions) < num_questions:
-        raise ValidationError(
-            detail=f"Insufficient questions: need {num_questions}, but only {len(questions)} available"
-        )
+    test = await create_test(
+        session,
+        title or f"Final Test: {section.title}",
+        TestType.SECTION_FINAL,
+        section_id=section_id,
+        duration=duration,
+        question_ids=question_ids,
+    )
+    logger.info("Generated section-final test %s with %s Qs", test.id, len(question_ids))
+    return test
 
-    random.shuffle(questions)
-    logger.info(f"Generated {len(questions)} questions for section {section_id}")
-    return questions
+
+async def generate_global_final_test(
+        session: AsyncSession,
+        topic_id: int,
+        num_questions: int = 30,
+        duration: int | None = 40,
+        title: str | None = None,
+) -> Test:
+    """Create a *global_final* test across all sections of a topic."""
+    topic: Topic | None = await session.get(Topic, topic_id)
+    if topic is None:
+        raise NotFoundError(resource_type="Topic", resource_id=topic_id)
+
+    stmt = select(Question).join(Section).where(
+        Section.topic_id == topic_id, Question.is_final.is_(True)
+    )
+    questions = await _fetch_questions(session, stmt)
+    if not questions:
+        raise ValidationError(detail="Topic has no final questions")
+
+    question_ids = await _random_sample_questions(questions, num_questions)
+
+    test = await create_test(
+        session,
+        title or f"Global Final: {topic.title}",
+        TestType.GLOBAL_FINAL,
+        topic_id=topic_id,
+        duration=duration,
+        question_ids=question_ids,
+    )
+    logger.info("Generated global-final test %s with %s Qs", test.id, len(question_ids))
+    return test
+
+
+# ---------------------------------------------------------------------------
+# Attempt lifecycle wrappers (delegates to crud)
+# ---------------------------------------------------------------------------
+
+
+async def start_test(session: AsyncSession, user_id: int, test_id: int) -> TestAttempt:
+    """Begin a test attempt after availability check."""
+    if not await check_test_availability(session, user_id, test_id):
+        raise ValidationError(detail="Test not yet available")
+    return await create_test_attempt(session, user_id, test_id)
+
+
+async def submit_test(
+        session: AsyncSession,
+        attempt_id: int,
+        answers: Dict[int, Any],  # question_id -> raw answer
+) -> TestAttempt:
+    """Score answers, finalise attempt, and persist via CRUD layer."""
+    attempt: TestAttempt | None = await session.get(TestAttempt, attempt_id)
+    if attempt is None:
+        raise NotFoundError(resource_type="TestAttempt", resource_id=attempt_id)
+    if attempt.completed_at is not None:
+        raise ValidationError(detail="Attempt already submitted")
+
+    test: Test | None = await session.get(Test, attempt.test_id)
+    if test is None:
+        raise NotFoundError(resource_type="Test", resource_id=attempt.test_id)
+
+    # Pull question set
+    stmt = select(Question).where(Question.id.in_(test.question_ids))
+    res = await session.execute(stmt)
+    questions = {q.id: q for q in res.scalars().all()}
+
+    # Simple scoring: +1 for each correct
+    correct_count = 0
+    for q_id, q in questions.items():
+        user_answer = answers.get(q_id)
+        if user_answer is None:
+            continue
+        if q.question_type in {QuestionType.SINGLE_CHOICE, QuestionType.OPEN_TEXT}:
+            if user_answer == q.correct_answer:
+                correct_count += 1
+        elif q.question_type == QuestionType.MULTIPLE_CHOICE:
+            # Treat as unordered list equality
+            if sorted(user_answer) == sorted(q.correct_answer or []):
+                correct_count += 1
+
+    score_percentage = (correct_count / len(questions)) * 100.0 if questions else 0.0
+    time_spent = int((datetime.now() - attempt.started_at).total_seconds())
+
+    attempt = await crud_submit_test(
+        session=session,
+        attempt_id=attempt_id,
+        score=round(score_percentage, 2),
+        time_spent=time_spent,
+        answers=answers,
+    )
+    logger.info(
+        "Attempt %s submitted: %s/%s correct (%.2f%%)",
+        attempt_id,
+        correct_count,
+        len(questions),
+        score_percentage,
+    )
+    return attempt

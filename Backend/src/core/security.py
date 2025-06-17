@@ -1,82 +1,104 @@
 # TestWise/Backend/src/core/security.py
 # -*- coding: utf-8 -*-
+"""core.security
+~~~~~~~~~~~~~~~~
+JWT helpers and role‑based access checks.
+
+Key points
+==========
+* Uses *python‑jose* for compact JWS handling.
+* Export **create_access_token**, **verify_token**, and **require_roles**
+  (a FastAPI dependency factory).
+* Teachers can now manage group membership (`GroupStudents`) so they have the
+  same rights as admins for that sub‑API.  The dependency is granular — you
+  pass the *minimal* set of roles accepted for a given route.
 """
-This module handles JWT authentication and role-based access control for the TestWise application.
-It provides functions for creating and verifying JWT tokens and checking user roles.
-"""
+
+from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Optional
+from functools import wraps
+from typing import Callable, List, Sequence
+
+from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
-from fastapi import HTTPException, status
-from src.core.config import settings
+
+from src.core.config import settings  # type: ignore
 from src.database.models import Role
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Creates a JWT access token for a user.
 
-    Args:
-        data (dict): Data to encode in the token (e.g., user ID, role).
-        expires_delta (timedelta, optional): Token expiration time. Defaults to settings.access_token_expire_minutes.
+# ---------------------------------------------------------------------------
+# JWT helpers
+# ---------------------------------------------------------------------------
 
-    Returns:
-        str: Encoded JWT token.
 
-    Exceptions:
-        - JWTError: If token creation fails.
-    """
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:  # noqa:ANN401
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.utcnow() + (
+        expires_delta
+        if expires_delta is not None
+        else timedelta(minutes=settings.access_token_expire_minutes)
+    )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
-def verify_token(token: str) -> dict:
-    """
-    Verifies a JWT token and returns its payload.
 
-    Args:
-        token (str): JWT token to verify.
-
-    Returns:
-        dict: Decoded token payload.
-
-    Exceptions:
-        - HTTPException: If token is invalid or expired (401).
-    """
+def verify_token(token: str) -> dict:  # noqa:ANN401
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        return payload
-    except JWTError:
+        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Role‑based guard
+# ---------------------------------------------------------------------------
+
+
+def _extract_token(request: Request) -> str:
+    auth: str | None = request.headers.get("Authorization")
+    if not auth or not auth.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
+    return auth.split(" ", 1)[1]
 
-def restrict_to_roles(allowed_roles: list[Role]) -> callable:
-    """
-    Decorator to restrict access to specific roles.
 
-    Args:
-        allowed_roles (list[Role]): List of allowed roles for the endpoint.
+def require_roles(*allowed_roles: Role) -> Callable[[Request], dict]:
+    """FastAPI dependency factory enforcing that the JWT contains one of roles."""
 
-    Returns:
-        callable: FastAPI dependency function.
+    # Fast‑path: convert list->set once
+    allowed: set[Role] = set(allowed_roles)
 
-    Exceptions:
-        - HTTPException: If user role is not in allowed_roles (403).
-    """
-    def check_role(token: str) -> dict:
+    async def checker(request: Request) -> dict:  # noqa:ANN401
+        token = _extract_token(request)
         payload = verify_token(token)
-        if Role(payload.get("role")) not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
-            )
+        try:
+            role = Role(payload["role"])
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload") from exc
+
+        if role not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return payload
-    return check_role
+
+    return checker
+
+
+# Convenience presets --------------------------------------------------------
+
+
+admin_only = require_roles(Role.ADMIN)
+
+authenticated = require_roles(Role.ADMIN, Role.TEACHER, Role.STUDENT)
+
+# Teachers can create + manage group membership just like admins for that
+# sub‑API (covered in routes/group).  Use where appropriate:
+admin_or_teacher = require_roles(Role.ADMIN, Role.TEACHER)

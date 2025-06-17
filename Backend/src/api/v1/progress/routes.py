@@ -1,65 +1,153 @@
-# TestWise/Backend/src/api/v1/progress/routes.py
 # -*- coding: utf-8 -*-
 """
-Этот модуль определяет маршруты FastAPI для эндпоинтов, связанных с прогрессом.
+Маршруты FastAPI для получения прогресса пользователей.
+
+Поддерживает четыре агрегирующих эндпоинта:
+
+* GET /api/v1/progress/topics       — прогресс по темам
+* GET /api/v1/progress/sections     — прогресс по секциям
+* GET /api/v1/progress/subsections  — прогресс по подсекциям
+* GET /api/v1/progress/tests        — история попыток тестов
+
+✔ Студент может запрашивать только *свой* прогресс.
+✔ Учитель / админ — любой, либо по `user_id` в query-param.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database.db import get_db
-from src.core.progress import save_progress, get_user_progress
-from src.core.security import restrict_to_roles
+
 from src.core.logger import configure_logger
-from src.database.models import Role
-from .schemas import ProgressCreateSchema, ProgressUpdateSchema, ProgressReadSchema
+from src.core.security import authenticated, require_roles
+from src.database.db import get_db
+from src.database.models import (
+    Role,
+    TopicProgress,
+    SectionProgress,
+    SubsectionProgress,
+    TestAttempt,
+)
+from .schemas import (
+    TopicProgressRead,
+    SectionProgressRead,
+    SubsectionProgressRead,
+    TestAttemptRead,
+)
 
 router = APIRouter()
 logger = configure_logger()
 
-@router.post("", response_model=ProgressReadSchema)
-async def create_progress_endpoint(progress_data: ProgressCreateSchema, session: AsyncSession = Depends(get_db),
-                                   _token: dict = Depends(restrict_to_roles([Role.ADMIN, Role.TEACHER]))):
+
+# -------------------------- helpers -----------------------------------------
+
+
+def _resolve_user_id(
+    requested: int | None, jwt_payload: dict
+) -> int | None:
     """
-    Создает новую запись о прогрессе.
+    Возвращает фактический user_id для выборки:
 
-    Аргументы:
-        progress_data (ProgressCreateSchema): Данные для новой записи.
-        session (AsyncSession): Сессия базы данных.
-        _token (dict): Декодированный JWT-токен (админ или учитель).
-
-    Возвращает:
-        ProgressReadSchema: Данные созданной записи.
-
-    Исключения:
-        - NotFoundError: Если пользователь, тема или раздел не найдены.
-        - ValidationError: Если оценка недействительна.
+    * Если текущий пользователь — студент, игнорируем `requested`
+      и возвращаем его собственный `sub`.
+    * Для учителя/админа — используем `requested` (если передан),
+      иначе None, что означает «все пользователи».
     """
-    progress = await save_progress(
-        session,
-        user_id=progress_data.user_id,
-        topic_id=progress_data.topic_id,
-        section_id=progress_data.section_id,
-        score=progress_data.score,
-        time_spent=progress_data.time_spent
-    )
-    return progress
+    role = Role(jwt_payload["role"])
+    if role == Role.STUDENT:
+        return jwt_payload["sub"]  # type: ignore[index]
+    return requested
 
-@router.get("/{user_id}", response_model=list[ProgressReadSchema])
-async def get_progress(user_id: int, session: AsyncSession = Depends(get_db),
-                       _token: dict = Depends(restrict_to_roles([Role.ADMIN, Role.TEACHER, Role.STUDENT]))):
+
+# -------------------------- endpoints ---------------------------------------
+
+
+@router.get(
+    "/topics",
+    response_model=list[TopicProgressRead],
+    dependencies=[Depends(authenticated)],
+)
+async def list_topic_progress(
+    user_id: int | None = Query(None, description="Фильтр по пользователю"),
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
     """
-    Получает прогресс пользователя.
-
-    Аргументы:
-        user_id (int): ID пользователя для получения прогресса.
-        session (AsyncSession): Сессия базы данных.
-        _token (dict): Декодированный JWT-токен (админ, учитель или студент).
-
-    Возвращает:
-        list[ProgressReadSchema]: Список записей о прогрессе.
-
-    Исключения:
-        - NotFoundError: Если пользователь не найден.
+    Возвращает прогресс по темам.
     """
-    progress = await get_user_progress(session, user_id)
-    return progress
+    uid = _resolve_user_id(user_id, claims)
+
+    stmt = select(TopicProgress)
+    if uid is not None:
+        stmt = stmt.where(TopicProgress.user_id == uid)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    return rows
+
+
+@router.get(
+    "/sections",
+    response_model=list[SectionProgressRead],
+    dependencies=[Depends(authenticated)],
+)
+async def list_section_progress(
+    user_id: int | None = Query(None, description="Фильтр по пользователю"),
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    """
+    Возвращает прогресс по секциям.
+    """
+    uid = _resolve_user_id(user_id, claims)
+
+    stmt = select(SectionProgress)
+    if uid is not None:
+        stmt = stmt.where(SectionProgress.user_id == uid)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    return rows
+
+
+@router.get(
+    "/subsections",
+    response_model=list[SubsectionProgressRead],
+    dependencies=[Depends(authenticated)],
+)
+async def list_subsection_progress(
+    user_id: int | None = Query(None, description="Фильтр по пользователю"),
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    """
+    Возвращает прогресс по подсекциям.
+    """
+    uid = _resolve_user_id(user_id, claims)
+
+    stmt = select(SubsectionProgress)
+    if uid is not None:
+        stmt = stmt.where(SubsectionProgress.user_id == uid)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    return rows
+
+
+@router.get(
+    "/tests",
+    response_model=list[TestAttemptRead],
+    dependencies=[Depends(authenticated)],
+)
+async def list_test_attempts(
+    user_id: int | None = Query(None, description="Фильтр по пользователю"),
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    """
+    Возвращает историю попыток тестов.
+    """
+    uid = _resolve_user_id(user_id, claims)
+
+    stmt = select(TestAttempt)
+    if uid is not None:
+        stmt = stmt.where(TestAttempt.user_id == uid)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    return rows

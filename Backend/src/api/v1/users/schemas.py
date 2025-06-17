@@ -1,37 +1,33 @@
 # TestWise/Backend/src/api/v1/users/schemas.py
 # -*- coding: utf-8 -*-
-"""
-This module defines Pydantic schemas for user-related API endpoints.
-"""
+"""Pydantic schemas for Users API (v1)."""
 
-from pydantic import BaseModel, EmailStr
-from src.database.models import Role
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 
+from pydantic import BaseModel, EmailStr
+
+from src.database.models import Role
+
+
 class UserCreateSchema(BaseModel):
-    """
-    Schema for creating a new user.
-    """
     username: str
     email: EmailStr
     password: str
     role: Role
 
+
 class UserUpdateSchema(BaseModel):
-    """
-    Schema for updating a user.
-    """
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[Role] = None
     is_active: Optional[bool] = None
 
+
 class UserReadSchema(BaseModel):
-    """
-    Schema for reading user data.
-    """
     id: int
     username: str
     email: EmailStr
@@ -41,3 +37,14 @@ class UserReadSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Filters
+# ---------------------------------------------------------------------------
+
+
+class UserFilter(BaseModel):
+    """Query‑param helper used by GET /users."""
+
+    role: Optional[Role] = None  # when omitted, disables role filtering for admins

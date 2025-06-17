@@ -1,110 +1,190 @@
 # TestWise/Backend/src/api/v1/tests/routes.py
 # -*- coding: utf-8 -*-
 """
-Этот модуль определяет маршруты FastAPI для эндпоинтов, связанных с тестами.
+Маршруты FastAPI для работы с тестами.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.crud import (
+    create_test,
+    delete_test,
+    get_item,
+    get_test,
+    start_test,
+    submit_test,
+    update_test,
+)
 from src.core.logger import configure_logger
-from src.core.progress import save_progress
-from src.core.security import restrict_to_roles
-from src.core.tests import generate_test_questions
+from src.core.progress import check_test_availability
+from src.core.security import admin_or_teacher, authenticated, require_roles
 from src.database.db import get_db
-from src.database.models import Section, Question, Role
-from .schemas import TestStartSchema, TestStartResponseSchema, TestSubmitSchema, TestSubmitResponseSchema
+from src.database.models import Question, Role, Test
+from .schemas import (
+    TestAttemptRead,
+    TestCreateSchema,
+    TestReadSchema,
+    TestStartResponseSchema,
+    TestSubmitSchema,
+)
 
 router = APIRouter()
 logger = configure_logger()
 
 
-@router.post("/start", response_model=TestStartResponseSchema)
-async def start_test(test_data: TestStartSchema, session: AsyncSession = Depends(get_db),
-                     token: dict = Depends(restrict_to_roles([Role.STUDENT]))):
+# ---------------------------------------------------------------------------#
+# CRUD (учителя / админы)                                                    #
+# ---------------------------------------------------------------------------#
+
+
+@router.post(
+    "",
+    response_model=TestReadSchema,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(admin_or_teacher)],
+)
+async def create_test_endpoint(
+        payload: TestCreateSchema,
+        session: AsyncSession = Depends(get_db),
+):
     """
-    Начинает тест, возвращает вопросы и устанавливает таймер.
+    Создаёт новый тест (админ / учитель).
 
-    Аргументы:
-        test_data (TestStartSchema): Данные для начала теста (section_id, num_questions).
-        session (AsyncSession): Сессия базы данных.
-        token (dict): Декодированный JWT-токен (только для студента).
-
-    Возвращает:
-        TestStartResponseSchema: Данные теста (вопросы, время начала, длительность).
-
-    Исключения:
-        - NotFoundError: Если раздел не найден.
-        - ValidationError: Если недостаточно вопросов.
+    Требуется указать **section_id** *или* **topic_id** (но не оба).
     """
-    section = await session.get(Section, test_data.section_id)
-    if not section or not section.is_test:
-        raise HTTPException(status_code=404, detail="Раздел не является тестом")
-
-    questions = await generate_test_questions(session, test_data.section_id, test_data.num_questions)
-    duration = 3600  # Длительность теста в секундах (1 час)
-
-    logger.info(f"Тест начат для пользователя {token['user_id']} в разделе {test_data.section_id}")
-    return {
-        "test_id": test_data.section_id,
-        "questions": questions,
-        "start_time": datetime.utcnow(),
-        "duration": duration
-    }
-
-
-@router.post("/submit", response_model=TestSubmitResponseSchema)
-async def submit_test(test_data: TestSubmitSchema, session: AsyncSession = Depends(get_db),
-                      token: dict = Depends(restrict_to_roles([Role.STUDENT]))):
-    """
-    Принимает ответы на тест, рассчитывает оценку и сохраняет прогресс.
-
-    Аргументы:
-        test_data (TestSubmitSchema): Данные с ответами на тест.
-        session (AsyncSession): Сессия базы данных.
-        token (dict): Декодированный JWT-токен (только для студента).
-
-    Возвращает:
-        TestSubmitResponseSchema: Результат теста (оценка, время, статус).
-
-    Исключения:
-        - NotFoundError: Если раздел или вопросы не найдены.
-        - ValidationError: Если данные недействительны.
-    """
-    section = await session.get(Section, test_data.section_id)
-    if not section or not section.is_test:
-        raise HTTPException(status_code=404, detail="Раздел не является тестом")
-
-    # Рассчитываем оценку
-    correct_answers = 0
-    total_questions = len(test_data.answers)
-
-    for answer in test_data.answers:
-        question = await session.get(Question, answer["question_id"])
-        if not question or question.section_id != test_data.section_id:
-            raise HTTPException(status_code=400, detail=f"Недействительный вопрос {answer['question_id']}")
-
-        if question.correct_answer == answer["answer"]:
-            correct_answers += 1
-
-    score = (correct_answers / total_questions) * 100 if total_questions > 0 else 0
-    time_spent = 1800  # Пример: время в секундах (будет зависеть от фронтенда)
-
-    # Сохраняем прогресс
-    progress = await save_progress(
-        session,
-        user_id=token["user_id"],
-        topic_id=section.topic_id,
-        section_id=test_data.section_id,
-        score=score,
-        time_spent=time_spent
+    test = await create_test(
+        session=session,
+        title=payload.title,
+        type=payload.type,
+        duration=payload.duration,
+        section_id=payload.section_id,
+        topic_id=payload.topic_id,
+        question_ids=payload.question_ids,
     )
+    return test
 
-    logger.info(f"Тест завершен для пользователя {token['user_id']} в разделе {test_data.section_id}, оценка: {score}")
+
+@router.get(
+    "/{test_id}",
+    response_model=TestReadSchema,
+    dependencies=[Depends(require_roles(Role.ADMIN, Role.TEACHER, Role.STUDENT))],
+)
+async def get_test_endpoint(
+        test_id: int,
+        session: AsyncSession = Depends(get_db),
+):
+    """Возвращает тест по ID."""
+    return await get_test(session, test_id)
+
+
+@router.put(
+    "/{test_id}",
+    response_model=TestReadSchema,
+    dependencies=[Depends(admin_or_teacher)],
+)
+async def update_test_endpoint(
+        test_id: int,
+        payload: TestCreateSchema,  # переиспользуем, все поля опциональны?
+        session: AsyncSession = Depends(get_db),
+):
+    """
+    Обновляет тест. Передавайте только изменяемые поля.
+    """
+    update_data = payload.model_dump(exclude_unset=True)
+    return await update_test(session, test_id, **update_data)
+
+
+@router.delete(
+    "/{test_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_or_teacher)],
+)
+async def delete_test_endpoint(
+        test_id: int,
+        session: AsyncSession = Depends(get_db),
+):
+    """Удаляет тест и все связанные сущности."""
+    await delete_test(session, test_id)
+    return
+
+
+# ---------------------------------------------------------------------------#
+# Студенческие действия                                                      #
+# ---------------------------------------------------------------------------#
+
+
+@router.post(
+    "/{test_id}/start",
+    response_model=TestStartResponseSchema,
+    dependencies=[Depends(require_roles(Role.STUDENT))],
+)
+async def start_test_endpoint(
+        test_id: int,
+        session: AsyncSession = Depends(get_db),
+        claims: dict[str, Any] = Depends(authenticated),
+):
+    """
+    Студент начинает тест — проверяем доступность (прогресс) и создаём попытку.
+    """
+    user_id = claims["sub"]
+    # Проверяем, может ли студент приступить к тесту
+    if not await check_test_availability(session, user_id, test_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Тест недоступен")
+
+    attempt = await start_test(session, user_id, test_id)
+    test = await get_item(session, Test, test_id)
+
+    # Если у теста фиксированный набор вопросов
+    questions_stmt = select(Question).where(Question.id.in_(test.question_ids)) if test.question_ids else \
+        select(Question).where(Question.test_id == test_id)
+    result = await session.execute(questions_stmt)
+    questions = list(result.scalars().all())
+
     return {
-        "score": progress.score,
-        "time_spent": progress.time_spent,
-        "completed": progress.completed
+        "attempt_id": attempt.id,
+        "test_id": test.id,
+        "questions": questions,
+        "start_time": datetime.now(tz=timezone.utc),
+        "duration": test.duration,
     }
+
+
+@router.post(
+    "/{test_id}/submit",
+    response_model=TestAttemptRead,
+    dependencies=[Depends(require_roles(Role.STUDENT))],
+)
+async def submit_test_endpoint(
+        test_id: int,
+        payload: TestSubmitSchema,
+        session: AsyncSession = Depends(get_db),
+        claims: dict[str, Any] = Depends(authenticated),
+):
+    """
+    Студент сдаёт тест — оцениваем, сохраняем и возвращаем попытку.
+    """
+    user_id = claims["sub"]
+
+    # Считаем баллы
+    correct = 0
+    for a in payload.answers:
+        q: Question = await get_item(session, Question, a["question_id"])
+        if q.test_id != test_id:
+            raise HTTPException(status_code=400, detail="Не тот тест для вопроса")
+        if q.correct_answer == a["answer"]:
+            correct += 1
+
+    score = (correct / len(payload.answers)) * 100 if payload.answers else 0.0
+    attempt = await submit_test(
+        session=session,
+        attempt_id=payload.attempt_id,
+        score=score,
+        time_spent=payload.time_spent,
+        answers=payload.answers,
+    )
+    return attempt
