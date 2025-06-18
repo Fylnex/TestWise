@@ -24,44 +24,72 @@ from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 
 from src.core.config import settings  # type: ignore
+from src.core.logger import configure_logger
 from src.database.models import Role
 
+logger = configure_logger()
 
 # ---------------------------------------------------------------------------
 # JWT helpers
 # ---------------------------------------------------------------------------
 
+# Отдельные секреты для access и refresh токенов
+ACCESS_TOKEN_SECRET = settings.jwt_secret
+REFRESH_TOKEN_SECRET = settings.jwt_secret + "_refresh"
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:  # noqa:ANN401
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (
         expires_delta
         if expires_delta is not None
         else timedelta(minutes=settings.access_token_expire_minutes)
     )
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    to_encode.update({"exp": expire, "token_type": "access"})
+    if "sub" in to_encode and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
+    encoded_jwt = jwt.encode(to_encode, ACCESS_TOKEN_SECRET, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (
+        expires_delta
+        if expires_delta is not None
+        else timedelta(days=7)  # Refresh Token действует 7 дней
+    )
+    to_encode.update({"exp": expire, "token_type": "refresh"})
+    if "sub" in to_encode and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
+    encoded_jwt = jwt.encode(to_encode, REFRESH_TOKEN_SECRET, algorithm=settings.jwt_algorithm)
+    return encoded_jwt
 
-def verify_token(token: str) -> dict:  # noqa:ANN401
+def verify_token(token: str, expected_type: str = "access") -> dict:
+    secret = ACCESS_TOKEN_SECRET if expected_type == "access" else REFRESH_TOKEN_SECRET
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, secret, algorithms=[settings.jwt_algorithm])
+        token_type = payload.get("token_type")
+        if token_type != expected_type:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token type. Expected {expected_type}, got {token_type}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return payload
     except JWTError as exc:
+        logger.error(f"JWT verification failed: {str(exc)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-
 # ---------------------------------------------------------------------------
 # Role‑based guard
 # ---------------------------------------------------------------------------
 
-
 def _extract_token(request: Request) -> str:
     auth: str | None = request.headers.get("Authorization")
+    logger.debug(f"Extracted Authorization header: {auth}")  # Отладка
     if not auth or not auth.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -70,16 +98,12 @@ def _extract_token(request: Request) -> str:
         )
     return auth.split(" ", 1)[1]
 
-
 def require_roles(*allowed_roles: Role) -> Callable[[Request], dict]:
-    """FastAPI dependency factory enforcing that the JWT contains one of roles."""
-
-    # Fast‑path: convert list->set once
     allowed: set[Role] = set(allowed_roles)
 
-    async def checker(request: Request) -> dict:  # noqa:ANN401
+    async def checker(request: Request) -> dict:
         token = _extract_token(request)
-        payload = verify_token(token)
+        payload = verify_token(token, "access")  # Только access токен для ролей
         try:
             role = Role(payload["role"])
         except (KeyError, ValueError) as exc:
@@ -91,14 +115,10 @@ def require_roles(*allowed_roles: Role) -> Callable[[Request], dict]:
 
     return checker
 
-
 # Convenience presets --------------------------------------------------------
-
 
 admin_only = require_roles(Role.ADMIN)
 
 authenticated = require_roles(Role.ADMIN, Role.TEACHER, Role.STUDENT)
 
-# Teachers can create + manage group membership just like admins for that
-# sub‑API (covered in routes/group).  Use where appropriate:
 admin_or_teacher = require_roles(Role.ADMIN, Role.TEACHER)

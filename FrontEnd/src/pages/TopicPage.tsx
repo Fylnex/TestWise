@@ -1,19 +1,35 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+// TestWise/src/pages/TopicPage.tsx
+// -*- coding: utf-8 -*-
+// """Страница темы в TestWise.
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Отображает информацию о теме, ее секциях, подсекциях и тестах,
+// а также предоставляет интерфейс для создания секций и тестов
+// для администраторов и учителей.
+// """
+
+import React, {useEffect, useState} from "react";
+import {Link, useParams} from "react-router-dom";
 import Layout from "@/components/Layout";
-import { topicApi, Topic, Section, Test, sectionApi } from "@/services/api";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { Section, Topic, topicApi } from "@/services/topicApi";
+import { Test, testApi } from "@/services/testApi";
+import { sectionApi, Subsection } from "@/services/sectionApi";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import {
   Dialog,
-  DialogTrigger,
+  DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
-  DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 
 const TopicPage: React.FC = () => {
@@ -34,7 +50,9 @@ const TopicPage: React.FC = () => {
   const [errorSection, setErrorSection] = useState<string | null>(null);
   const [errorTest, setErrorTest] = useState<string | null>(null);
 
-  const [subsectionsMap, setSubsectionsMap] = useState<Record<number, any[]>>({});
+  const [subsectionsMap, setSubsectionsMap] = useState<
+    Record<number, Subsection[]>
+  >({});
 
   useEffect(() => {
     if (!topicId) return;
@@ -42,24 +60,31 @@ const TopicPage: React.FC = () => {
     Promise.all([
       topicApi.getTopic(Number(topicId)),
       topicApi.getSectionsByTopic(Number(topicId)),
-      topicApi.getTestsByTopic(Number(topicId)),
+      testApi.getTestsByTopic(Number(topicId)),
     ])
       .then(async ([topicData, sectionsData, testsData]) => {
         setTopic(topicData);
         setSections(sectionsData.sort((a, b) => a.order - b.order));
         setTests(testsData);
         // Загружаем подсекции для каждой секции
-        const subsMap: Record<number, any[]> = {};
+        const subsMap: Record<number, Subsection[]> = {};
         await Promise.all(
           sectionsData.map(async (section) => {
             try {
               const res = await sectionApi.getSectionSubsections(section.id);
               subsMap[section.id] = res.subsections || [];
-            } catch {}
-          })
+            } catch (error) {
+              console.error(
+                `Failed to load subsections for section ${section.id}:`,
+                error,
+              );
+              subsMap[section.id] = [];
+            }
+          }),
         );
         setSubsectionsMap(subsMap);
       })
+      .catch((error) => console.error("Error loading topic data:", error))
       .finally(() => setLoading(false));
   }, [topicId]);
 
@@ -88,7 +113,7 @@ const TopicPage: React.FC = () => {
     setCreatingTest(true);
     setErrorTest(null);
     try {
-      const newTest = await topicApi.createTest({
+      const newTest = await testApi.createTest({
         ...testForm,
         topic_id: Number(topicId),
         duration: testForm.duration ? Number(testForm.duration) : null,
@@ -118,10 +143,12 @@ const TopicPage: React.FC = () => {
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-slate-800">{topic.title}</h1>
         {topic.description && (
-          <p className="text-slate-600 mt-2 max-w-2xl mx-auto">{topic.description}</p>
+          <p className="text-slate-600 mt-2 max-w-2xl mx-auto">
+            {topic.description}
+          </p>
         )}
       </div>
-      {(user?.role === 'admin' || user?.role === 'teacher') && (
+      {(user?.role === "admin" || user?.role === "teacher") && (
         <div className="flex gap-4 justify-center mb-8">
           <Dialog open={openSection} onOpenChange={setOpenSection}>
             <DialogTrigger asChild>
@@ -130,14 +157,18 @@ const TopicPage: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать секцию</DialogTitle>
-                <DialogDescription>Введите данные для новой секции.</DialogDescription>
+                <DialogDescription>
+                  Введите данные для новой секции.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateSection} className="space-y-4">
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="Название секции"
                   value={sectionForm.title}
-                  onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
+                  onChange={(e) =>
+                    setSectionForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   required
                 />
                 <input
@@ -145,28 +176,44 @@ const TopicPage: React.FC = () => {
                   placeholder="Порядок (число)"
                   type="number"
                   value={sectionForm.order}
-                  onChange={e => setSectionForm(f => ({ ...f, order: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setSectionForm((f) => ({
+                      ...f,
+                      order: Number(e.target.value),
+                    }))
+                  }
                   required
                 />
                 <textarea
                   className="w-full border rounded px-3 py-2"
                   placeholder="Описание секции"
                   value={sectionForm.description}
-                  onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
+                  onChange={(e) =>
+                    setSectionForm((f) => ({
+                      ...f,
+                      description: e.target.value,
+                    }))
+                  }
                 />
                 <textarea
                   className="w-full border rounded px-3 py-2"
                   placeholder="Контент секции (необязательно)"
                   value={sectionForm.content}
-                  onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
+                  onChange={(e) =>
+                    setSectionForm((f) => ({ ...f, content: e.target.value }))
+                  }
                 />
-                {errorSection && <div className="text-red-500 text-sm">{errorSection}</div>}
+                {errorSection && (
+                  <div className="text-red-500 text-sm">{errorSection}</div>
+                )}
                 <DialogFooter>
                   <Button type="submit" disabled={creatingSection}>
-                    {creatingSection ? 'Создание...' : 'Создать'}
+                    {creatingSection ? "Создание..." : "Создать"}
                   </Button>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline">Отмена</Button>
+                    <Button type="button" variant="outline">
+                      Отмена
+                    </Button>
                   </DialogClose>
                 </DialogFooter>
               </form>
@@ -179,20 +226,26 @@ const TopicPage: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать тест</DialogTitle>
-                <DialogDescription>Введите данные для нового теста.</DialogDescription>
+                <DialogDescription>
+                  Введите данные для нового теста.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateTest} className="space-y-4">
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="Название теста"
                   value={testForm.title}
-                  onChange={e => setTestForm(f => ({ ...f, title: e.target.value }))}
+                  onChange={(e) =>
+                    setTestForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   required
                 />
                 <select
                   className="w-full border rounded px-3 py-2"
                   value={testForm.type}
-                  onChange={e => setTestForm(f => ({ ...f, type: e.target.value }))}
+                  onChange={(e) =>
+                    setTestForm((f) => ({ ...f, type: e.target.value }))
+                  }
                   required
                 >
                   <option value="hinted">С подсказками</option>
@@ -204,21 +257,29 @@ const TopicPage: React.FC = () => {
                   placeholder="Длительность (сек, 0 — без лимита)"
                   type="number"
                   value={testForm.duration}
-                  onChange={e => setTestForm(f => ({ ...f, duration: e.target.value }))}
+                  onChange={(e) =>
+                    setTestForm((f) => ({ ...f, duration: e.target.value }))
+                  }
                 />
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="ID вопросов через запятую (необязательно)"
                   value={testForm.question_ids}
-                  onChange={e => setTestForm(f => ({ ...f, question_ids: e.target.value }))}
+                  onChange={(e) =>
+                    setTestForm((f) => ({ ...f, question_ids: e.target.value }))
+                  }
                 />
-                {errorTest && <div className="text-red-500 text-sm">{errorTest}</div>}
+                {errorTest && (
+                  <div className="text-red-500 text-sm">{errorTest}</div>
+                )}
                 <DialogFooter>
                   <Button type="submit" disabled={creatingTest}>
-                    {creatingTest ? 'Создание...' : 'Создать'}
+                    {creatingTest ? "Создание..." : "Создать"}
                   </Button>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline">Отмена</Button>
+                    <Button type="button" variant="outline">
+                      Отмена
+                    </Button>
                   </DialogClose>
                 </DialogFooter>
               </form>
@@ -233,18 +294,21 @@ const TopicPage: React.FC = () => {
               <span>{section.title}</span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="mb-2 text-slate-700">{section.description || section.content}</div>
+              <div className="mb-2 text-slate-700">
+                {section.description || section.content}
+              </div>
               {/* Подсекции */}
-              {subsectionsMap[section.id] && subsectionsMap[section.id].length > 0 && (
-                <div className="mt-4">
-                  <div className="font-semibold mb-2">Подсекции:</div>
-                  <ul className="list-disc pl-6">
-                    {subsectionsMap[section.id].map((sub) => (
-                      <li key={sub.id}>{sub.title}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {subsectionsMap[section.id] &&
+                subsectionsMap[section.id].length > 0 && (
+                  <div className="mt-4">
+                    <div className="font-semibold mb-2">Подсекции:</div>
+                    <ul className="list-disc pl-6">
+                      {subsectionsMap[section.id].map((sub) => (
+                        <li key={sub.id}>{sub.title}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               <Link to={`/section/${section.id}`}>
                 <Button variant="outline">Перейти к секции</Button>
               </Link>
@@ -253,7 +317,9 @@ const TopicPage: React.FC = () => {
         ))}
         {tests.length > 0 && (
           <>
-            <div className="mt-6 mb-2 font-semibold text-slate-700">Тесты по теме</div>
+            <div className="mt-6 mb-2 font-semibold text-slate-700">
+              Тесты по теме
+            </div>
             {tests.map((test) => (
               <AccordionItem key={test.id} value={`test-${test.id}`}>
                 <AccordionTrigger>
@@ -275,4 +341,4 @@ const TopicPage: React.FC = () => {
   );
 };
 
-export default TopicPage; 
+export default TopicPage;

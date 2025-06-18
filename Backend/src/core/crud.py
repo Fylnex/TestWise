@@ -112,25 +112,23 @@ async def create_user(
         username: str,
         email: str,
         password: str,
-        role: Role = Role.STUDENT,
+        role: Role,
+        is_active: bool = True,
 ) -> User:
     hashed_password = pwd_context.hash(password)
-    return await create_item(
-        session,
-        User,
-        username=username,
-        email=email,
-        password=hashed_password,
-        role=role,
-    )
+    user = User(username=username, email=email, password=hashed_password, role=role, is_active=is_active)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
 
 
 async def get_user_by_username(session: AsyncSession, username: str) -> User:
-    stmt = select(User).where(User.username == username)
+    stmt = select(User).where(User.username == username.strip())  # Обрезаем пробелы
     res = await session.execute(stmt)
     user = res.scalar_one_or_none()
     if not user:
-        raise NotFoundError(resource_type="User", resource_id=username)
+        raise NotFoundError(resource_type="User", resource_id=username)  # Убедитесь, что NotFoundError определен
     return user
 
 

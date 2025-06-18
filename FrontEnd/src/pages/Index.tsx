@@ -1,21 +1,31 @@
-// TestWise/src/pages/Index.tsx
 import React, { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { topicApi, Topic } from "@/services/api";
+import { topicApi, Topic } from "@/services/topicApi";
 
 const Index = () => {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      console.log("Authenticated user:", user);
+    } else {
+      console.log("User not authenticated, redirecting to login");
+      navigate("/login");
+    }
+
     topicApi.getTopics()
       .then(setTopics)
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAuthenticated, navigate, user]);
 
   return (
     <Layout>
@@ -23,6 +33,11 @@ const Index = () => {
         <h1 className="text-3xl font-bold text-slate-800">
           Добро пожаловать на платформу ЛайнТест!
         </h1>
+        {isAuthenticated && user && (
+          <p className="text-slate-600 mt-2">
+            Здравствуйте, {user.username} ({user.role})!
+          </p>
+        )}
         <p className="text-slate-600 mt-2 max-w-2xl mx-auto">
           TestWise — современная образовательная платформа для изучения технических дисциплин. Здесь вы найдете интерактивные курсы, тесты, отслеживание прогресса и многое другое.<br/><br/>
           Выберите интересующую вас тему для начала обучения. После выбора темы вы сможете изучать материалы, проходить тесты и отслеживать свой прогресс.

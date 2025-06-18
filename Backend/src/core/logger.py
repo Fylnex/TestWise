@@ -1,20 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-This module configures the Loguru logger for the TestWise application.
-It sets up logging to a file with a custom format including timestamp, level, and prefix.
-"""
-
+# TestWise/Backend/src/core/logger.py
 from pathlib import Path
 from loguru import logger
 from src.core.config import settings
 
-def configure_logger(prefix: str = "TESTWISE", color: str = "green") -> logger:
+def configure_logger(prefix: str = "TESTWISE") -> logger:
     """
     Configures the Loguru logger with a specific prefix and color.
 
     Args:
         prefix (str): The prefix to include in log messages (default: "TESTWISE").
-        color (str): The color for the timestamp in logs (default: "green").
 
     Returns:
         logger: Configured Loguru logger instance.
@@ -34,7 +28,7 @@ def configure_logger(prefix: str = "TESTWISE", color: str = "green") -> logger:
         log_path / settings.log_file,
         level="DEBUG",
         format=(
-            f"<{color}>{{time:YYYY-MM-DD HH:mm:ss.SSS}}</{color}> | "
+            "<green>{{time:YYYY-MM-DD HH:mm:ss.SSS}}</green> | "
             "<b>{level:<8}</b> | "
             "<cyan>{name}:{function}:{line}</cyan> | "
             f"{prefix} <b>{{message}}</b>"
@@ -43,5 +37,25 @@ def configure_logger(prefix: str = "TESTWISE", color: str = "green") -> logger:
         retention="30 days",
         compression="zip"
     )
+
+    # Add console handler with level-specific colors
+    logger.add(
+        sink=lambda msg: print(msg, end=""),
+        level="DEBUG",
+        format=(
+            "<green>{{time:YYYY-MM-DD HH:mm:ss.SSS}}</green> | "
+            "<level>{level:<8}</level> | "
+            "<cyan>{name}:{function}:{line}</cyan> | "
+            f"{prefix} <b>{{message}}</b>"
+        ),
+        colorize=True,  # Включаем цветовую поддержку
+    )
+
+    # Устанавливаем цвета для уровней логирования
+    logger.level("DEBUG", color="<blue>")
+    logger.level("INFO", color="<green>")
+    logger.level("WARNING", color="<yellow>")
+    logger.level("ERROR", color="<red>")
+    logger.level("CRITICAL", color="<magenta>")
 
     return logger

@@ -97,6 +97,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
     last_login = Column(DateTime, nullable=True)
+    refresh_token = Column(String, nullable=True)
 
     # Relationships
     group_students = relationship("GroupStudents", back_populates="user", cascade="all, delete-orphan")
@@ -104,6 +105,7 @@ class User(Base):
     section_progress = relationship("SectionProgress", back_populates="user", cascade="all, delete-orphan")
     subsection_progress = relationship("SubsectionProgress", back_populates="user", cascade="all, delete-orphan")
     test_attempts = relationship("TestAttempt", back_populates="user", cascade="all, delete-orphan")
+
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User(username={self.username!r}, role={self.role})>"

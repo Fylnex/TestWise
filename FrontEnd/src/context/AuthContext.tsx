@@ -1,12 +1,19 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { api } from "@/services/api";
+// TestWise/FrontEnd/src/context/AuthContext.tsx
+// -*- coding: utf-8 -*-
+// """Контекст аутентификации для управления состоянием пользователя.
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Предоставляет функционал для входа, выхода, обновления данных пользователя
+// и автоматического обновления токена с использованием Refresh Token.
+// """
 
-interface User {
-  id: number;
-  username: string;
-  role: "admin" | "student" | "teacher";
-  avatar?: string;
-}
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { api, User } from "@/services/api";
 
 interface AuthContextType {
   user: User | null;
@@ -18,32 +25,105 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
-    
-    if (savedUser && savedToken) {
-      // Проверяем валидность токена
-      api.getCurrentUser(savedToken).catch(() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        return null;
-      });
-      return JSON.parse(savedUser);
-    }
-    return null;
-  });
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const savedToken = localStorage.getItem("token");
+      const savedRefreshToken = localStorage.getItem("refresh_token");
+
+      if (savedToken && savedRefreshToken) {
+        try {
+          console.log("Validating token:", savedToken);
+          const userData = await api.getCurrentUser();
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+          console.log("User loaded:", userData);
+        } catch (error) {
+          console.error("Token validation failed:", error);
+          if (savedRefreshToken) {
+            try {
+              const { access_token, refresh_token } =
+                await api.refreshToken(savedRefreshToken);
+              localStorage.setItem("token", access_token);
+              if (refresh_token) {
+                localStorage.setItem("refresh_token", refresh_token);
+              }
+              const userData = await api.getCurrentUser();
+              setUser(userData);
+              localStorage.setItem("user", JSON.stringify(userData));
+              console.log("Token refreshed, user reloaded:", userData);
+            } catch (refreshError) {
+              console.error("Refresh token failed:", refreshError);
+              localStorage.removeItem("token");
+              localStorage.removeItem("refresh_token");
+              localStorage.removeItem("user");
+              setUser(null);
+            }
+          } else {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setUser(null);
+          }
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeAuth();
+
+    const interval = setInterval(
+      async () => {
+        const refreshToken = localStorage.getItem("refresh_token");
+        if (refreshToken) {
+          try {
+            const { access_token, refresh_token } =
+              await api.refreshToken(refreshToken);
+            localStorage.setItem("token", access_token);
+            if (refresh_token) {
+              localStorage.setItem("refresh_token", refresh_token);
+            }
+            console.log("Token refreshed automatically");
+          } catch (error) {
+            console.error("Automatic token refresh failed:", error);
+            localStorage.removeItem("token");
+            localStorage.removeItem("refresh_token");
+            localStorage.removeItem("user");
+            setUser(null);
+          }
+        }
+      },
+      30 * 60 * 1000,
+    );
+
+    return () => clearInterval(interval);
+  }, []);
 
   const isAuthenticated = !!user;
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (
+    username: string,
+    password: string,
+  ): Promise<boolean> => {
     try {
-      const { token, user: userData } = await api.login(username, password);
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("token", token);
-      return true;
+      console.log("Attempting login with API:", { username, password });
+      const response = await api.login(username, password);
+      const { access_token, refresh_token, user: userData } = response;
+      if (access_token && refresh_token && userData) {
+        localStorage.setItem("token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        console.log("Login successful, token:", access_token);
+        return true;
+      } else {
+        console.error("Login failed: Invalid response", response);
+        return false;
+      }
     } catch (error) {
       console.error("Login error:", error);
       return false;
@@ -54,15 +134,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    console.log("Logged out");
   };
 
   const updateUserData = (userData: User) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+    console.log("User data updated:", userData);
   };
 
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, updateUserData }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated, login, logout, updateUserData }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -74,4 +163,4 @@ export const useAuth = () => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}; 
+};

@@ -16,7 +16,6 @@ from .schemas import QuestionCreateSchema, QuestionReadSchema, QuestionUpdateSch
 router = APIRouter()
 logger = configure_logger()
 
-
 @router.post(
     "",
     response_model=QuestionReadSchema,
@@ -40,6 +39,7 @@ async def create_question_endpoint(
         - NotFoundError: Если раздел/тест не найдены.
         - ValidationError: Если параметры вопроса недействительны.
     """
+    logger.debug(f"Creating question with data: {question_data.model_dump()}")
     question = await create_question(
         session=session,
         section_id=question_data.section_id,
@@ -52,8 +52,8 @@ async def create_question_endpoint(
         is_final=question_data.is_final,
         image=question_data.image,
     )
+    logger.debug(f"Question created with ID: {question.id}")
     return question
-
 
 @router.get(
     "/{question_id}",
@@ -77,8 +77,8 @@ async def get_question_endpoint(
     Исключения:
         - NotFoundError: Если вопрос не найден.
     """
+    logger.debug(f"Fetching question with ID: {question_id}")
     return await get_item(session, Question, question_id)
-
 
 @router.put(
     "/{question_id}",
@@ -105,9 +105,10 @@ async def update_question_endpoint(
         - NotFoundError: Если вопрос не найден.
         - ValidationError: Если данные некорректны.
     """
-    update_data = question_data.model_dump(exclude_unset=True)   # <-- model_dump
+    logger.debug(f"Updating question {question_id} with data: {question_data.model_dump()}")
+    update_data = question_data.model_dump(exclude_unset=True)
+    logger.debug(f"Update data: {update_data}")
     return await update_item(session, Question, question_id, **update_data)
-
 
 @router.delete(
     "/{question_id}",
@@ -127,6 +128,7 @@ async def delete_question_endpoint(
     Исключения:
         - NotFoundError: Если вопрос не найден.
     """
+    logger.debug(f"Deleting question with ID: {question_id}")
     await delete_item(session, Question, question_id)
-    logger.info("Удалён вопрос %s", question_id)
+    logger.info(f"Удалён вопрос {question_id}")
     return {"detail": "Вопрос удалён"}

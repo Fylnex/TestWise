@@ -1,23 +1,26 @@
 # TestWise/Backend/src/api/v1/users/schemas.py
-# -*- coding: utf-8 -*-
-"""Pydantic schemas for Users API (v1)."""
-
-from __future__ import annotations
-
-from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel, EmailStr
-
+from typing import Optional
+from datetime import datetime
 from src.database.models import Role
-
 
 class UserCreateSchema(BaseModel):
     username: str
     email: EmailStr
     password: str
-    role: Role
+    role: Role  # Используем enum Role напрямую
+    is_active: bool = True
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "newuser",
+                "email": "user@example.com",
+                "password": "securepassword123",
+                "role": "student",
+                "is_active": True
+            }
+        }
 
 class UserUpdateSchema(BaseModel):
     username: Optional[str] = None
@@ -26,6 +29,16 @@ class UserUpdateSchema(BaseModel):
     role: Optional[Role] = None
     is_active: Optional[bool] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "updateduser",
+                "email": "updated@example.com",
+                "password": "newpassword123",
+                "role": "teacher",
+                "is_active": False
+            }
+        }
 
 class UserReadSchema(BaseModel):
     id: int
@@ -34,17 +47,7 @@ class UserReadSchema(BaseModel):
     role: Role
     is_active: bool
     created_at: datetime
+    last_login: Optional[datetime] = None
 
     class Config:
         from_attributes = True
-
-
-# ---------------------------------------------------------------------------
-# Filters
-# ---------------------------------------------------------------------------
-
-
-class UserFilter(BaseModel):
-    """Query‑param helper used by GET /users."""
-
-    role: Optional[Role] = None  # when omitted, disables role filtering for admins

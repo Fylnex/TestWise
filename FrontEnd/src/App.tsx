@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
+import React from 'react';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -30,7 +30,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
-  
+
   if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'teacher')) {
     return <Navigate to="/" replace />;
   }
@@ -43,7 +43,6 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <TopicProvider>
-          <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
@@ -105,7 +104,6 @@ const App = () => (
                 }
               />
               <Route path="/about" element={<About />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

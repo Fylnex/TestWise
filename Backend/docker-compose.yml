@@ -9,7 +9,7 @@ services:
       - ./src/database.sqlite:/app/src/database.sqlite
       - ./logs:/app/logs
     env_file:
-      - .env.dev
+      - .env.prod
     environment:
       - PORT=${PORT:-8000}
 
