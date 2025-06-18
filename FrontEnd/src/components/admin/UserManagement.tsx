@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { userApi, User } from '../../services/api';
-import { useAuth } from '@/context/AuthContext';
+// TestWise/FrontEnd/src/components/admin/UserManagement.tsx
+// -*- coding: utf-8 -*-
+// """Компонент управления пользователями.
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Предоставляет интерфейс для создания, редактирования, удаления,
+// блокировки/разблокировки пользователей, массового управления ролями и статусом,
+// а также экспорта данных в CSV. Включает фильтрацию и обработку ошибок.
+// """
+
+import React, { useEffect, useState } from "react";
+import { userApi, User } from "@/services/userApi";
+import { useAuth } from "@/context/AuthContext";
 import {
   Table,
   TableBody,
@@ -29,7 +38,7 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "../../components/ui/date-picker";
 import { format } from "date-fns";
-import { Pencil, Ban, Check, Trash, Plus } from "lucide-react";
+import { Ban, Check, Pencil, Plus, Trash } from "lucide-react";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -45,16 +54,20 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error in UserManagement:', error, errorInfo);
+    console.error("Error in UserManagement:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Что-то пошло не так</h2>
-          <p>Произошла ошибка при загрузке компонента управления пользователями.</p>
-          <Button 
+          <h2 className="text-2xl font-bold text-red-600 mb-4">
+            Что-то пошло не так
+          </h2>
+          <p>
+            Произошла ошибка при загрузке компонента управления пользователями.
+          </p>
+          <Button
             onClick={() => this.setState({ hasError: false })}
             className="mt-4"
           >
@@ -76,18 +89,20 @@ export function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    role: 'student',
+    username: "",
+    email: "",
+    password: "",
+    role: "student",
+    isActive: true,
   });
   const [filters, setFilters] = useState({
-    search: '',
-    role: 'all',
+    search: "",
+    role: "all",
     isActive: undefined as boolean | undefined,
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
   });
-  const [bulkRole, setBulkRole] = useState('admin');
+  const [bulkRole, setBulkRole] = useState("admin");
 
   useEffect(() => {
     loadUsers();
@@ -95,52 +110,44 @@ export function UserManagement() {
 
   const loadUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
-      let filteredUsers = response;
-
-      if (filters.search) {
-        filteredUsers = filteredUsers.filter(user =>
-          user.username.toLowerCase().includes(filters.search.toLowerCase())
-        );
-      }
-
-      if (filters.role !== 'all') {
-        filteredUsers = filteredUsers.filter(user => user.role === filters.role);
-      }
-
-      if (filters.isActive !== undefined) {
-        filteredUsers = filteredUsers.filter(user => user.isActive === filters.isActive);
-      }
-
-      if (filters.startDate && !isNaN(filters.startDate.getTime())) {
-        filteredUsers = filteredUsers.filter(user => {
-          const userDate = new Date(user.createdAt);
-          return !isNaN(userDate.getTime()) && userDate >= filters.startDate!;
-        });
-      }
-
-      if (filters.endDate && !isNaN(filters.endDate.getTime())) {
-        filteredUsers = filteredUsers.filter(user => {
-          const userDate = new Date(user.createdAt);
-          return !isNaN(userDate.getTime()) && userDate <= filters.endDate!;
-        });
-      }
-
-      setUsers(filteredUsers);
+      const response = await userApi.getAllUsers({
+        search: filters.search,
+        role: filters.role !== "all" ? filters.role : undefined,
+        isActive: filters.isActive,
+        startDate: filters.startDate
+          ? format(filters.startDate, "yyyy-MM-dd")
+          : undefined,
+        endDate: filters.endDate
+          ? format(filters.endDate, "yyyy-MM-dd")
+          : undefined,
+      });
+      setUsers(response);
     } catch (error) {
-      toast.error('Ошибка при загрузке пользователей');
+      toast.error("Ошибка при загрузке пользователей");
     }
   };
 
   const handleCreateUser = async () => {
     try {
-      await userApi.createUser(formData);
-      toast.success('Пользователь успешно создан');
+      await userApi.createUser({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        isActive: formData.isActive,
+      });
+      toast.success("Пользователь успешно создан");
       setIsCreateDialogOpen(false);
-      setFormData({ username: '', password: '', role: 'student' });
+      setFormData({
+        username: "",
+        email: "",
+        password: "",
+        role: "student",
+        isActive: true,
+      });
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при создании пользователя');
+      toast.error("Ошибка при создании пользователя");
     }
   };
 
@@ -150,84 +157,96 @@ export function UserManagement() {
     try {
       const updatedUser = await userApi.updateUser(selectedUser.id, {
         username: formData.username,
+        email: formData.email,
         password: formData.password || undefined,
         role: formData.role,
+        isActive: formData.isActive,
       });
 
       if (currentUser?.id === selectedUser.id) {
         updateUserData(updatedUser);
       }
 
-      toast.success('Пользователь успешно обновлен');
+      toast.success("Пользователь успешно обновлен");
       setIsEditDialogOpen(false);
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при обновлении пользователя');
+      toast.error("Ошибка при обновлении пользователя");
     }
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
+    if (!confirm("Вы уверены, что хотите удалить этого пользователя?")) return;
 
     try {
       await userApi.deleteUser(userId);
-      toast.success('Пользователь успешно удален');
+      toast.success("Пользователь успешно удален");
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при удалении пользователя');
+      toast.error("Ошибка при удалении пользователя");
     }
   };
 
   const handleBlockUser = async (userId: number) => {
     try {
       await userApi.updateUser(userId, { isActive: false });
-      toast.success('Пользователь заблокирован');
+      toast.success("Пользователь заблокирован");
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при блокировке пользователя');
+      toast.error("Ошибка при блокировке пользователя");
     }
   };
 
   const handleUnblockUser = async (userId: number) => {
     try {
       await userApi.updateUser(userId, { isActive: true });
-      toast.success('Пользователь разблокирован');
+      toast.success("Пользователь разблокирован");
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при разблокировке пользователя');
+      toast.error("Ошибка при разблокировке пользователя");
     }
   };
 
   const handleResetPassword = async (userId: number) => {
     try {
-      await userApi.resetPassword(userId);
-      toast.success('Пароль успешно сброшен');
+      const result = await userApi.resetPassword(userId);
+      toast.success(`Пароль сброшен. Новый пароль: ${result.new_password}`);
     } catch (error) {
-      toast.error('Ошибка при сбросе пароля');
+      toast.error("Ошибка при сбросе пароля");
     }
   };
 
   const handleExportUsers = async () => {
     try {
-      const blob = await userApi.exportUsers();
+      const blob = await userApi.exportUsers({
+        search: filters.search,
+        role: filters.role !== "all" ? filters.role : undefined,
+        isActive: filters.isActive,
+        startDate: filters.startDate
+          ? format(filters.startDate, "yyyy-MM-dd")
+          : undefined,
+        endDate: filters.endDate
+          ? format(filters.endDate, "yyyy-MM-dd")
+          : undefined,
+      });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = 'users.csv';
+      a.download = "users.csv";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      toast.error('Ошибка при экспорте пользователей');
+      toast.error("Ошибка при экспорте пользователей");
     }
   };
 
   const toggleUserSelection = (userId: number) => {
-    setSelectedUsers(prev =>
+    setSelectedUsers((prev) =>
       prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
     );
   };
 
@@ -235,15 +254,11 @@ export function UserManagement() {
     if (!selectedUsers.length) return;
 
     try {
-      await Promise.all(
-        selectedUsers.map(userId =>
-          userApi.updateUser(userId, { role })
-        )
-      );
-      toast.success('Роли успешно обновлены');
+      await userApi.bulkUpdateRoles(selectedUsers, role);
+      toast.success("Роли успешно обновлены");
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при обновлении ролей');
+      toast.error("Ошибка при обновлении ролей");
     }
   };
 
@@ -251,15 +266,13 @@ export function UserManagement() {
     if (!selectedUsers.length) return;
 
     try {
-      await Promise.all(
-        selectedUsers.map(userId =>
-          userApi.updateUser(userId, { isActive })
-        )
+      await userApi.bulkUpdateStatus(selectedUsers, isActive);
+      toast.success(
+        `Пользователи успешно ${isActive ? "разблокированы" : "заблокированы"}`,
       );
-      toast.success(`Пользователи успешно ${isActive ? 'разблокированы' : 'заблокированы'}`);
       loadUsers();
     } catch (error) {
-      toast.error('Ошибка при обновлении статуса пользователей');
+      toast.error("Ошибка при обновлении статуса пользователей");
     }
   };
 
@@ -267,8 +280,10 @@ export function UserManagement() {
     setSelectedUser(user);
     setFormData({
       username: user.username,
-      password: '',
+      email: user.email || "",
+      password: "",
       role: user.role,
+      isActive: user.isActive,
     });
     setIsEditDialogOpen(true);
   };
@@ -279,67 +294,129 @@ export function UserManagement() {
         {/* Header Section */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Управление пользователями</h2>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Управление пользователями
+            </h2>
             <p className="text-muted-foreground">
               Создание, редактирование и управление пользователями системы
             </p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Создать пользователя
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Создать нового пользователя</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Имя пользователя</label>
-                  <Input
-                    placeholder="Введите имя пользователя"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  />
+          <div className="flex gap-2">
+            <Button onClick={handleExportUsers}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Экспорт
+            </Button>
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Создать пользователя
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Создать нового пользователя</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Имя пользователя
+                    </label>
+                    <Input
+                      placeholder="Введите имя пользователя"
+                      value={formData.username}
+                      onChange={(e) =>
+                        setFormData({ ...formData, username: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Email</label>
+                    <Input
+                      type="email"
+                      placeholder="Введите email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Пароль</label>
+                    <Input
+                      type="password"
+                      placeholder="Введите пароль"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Роль</label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, role: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите роль" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Администратор</SelectItem>
+                        <SelectItem value="teacher">Учитель</SelectItem>
+                        <SelectItem value="student">Студент</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Статус</label>
+                    <Select
+                      value={formData.isActive.toString()}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          isActive: value === "true",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите статус" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Активен</SelectItem>
+                        <SelectItem value="false">Заблокирован</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Пароль</label>
-                  <Input
-                    type="password"
-                    placeholder="Введите пароль"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Роль</label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите роль" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Администратор</SelectItem>
-                      <SelectItem value="teacher">Учитель</SelectItem>
-                      <SelectItem value="student">Студент</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    Отмена
+                  </Button>
+                  <Button onClick={handleCreateUser}>Создать</Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Отмена
-                </Button>
-                <Button onClick={handleCreateUser}>
-                  Создать
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Filters Section */}
@@ -351,14 +428,18 @@ export function UserManagement() {
               <Input
                 placeholder="Поиск по имени"
                 value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, search: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Роль</label>
               <Select
                 value={filters.role}
-                onValueChange={(value) => setFilters({ ...filters, role: value })}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, role: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Фильтр по роли" />
@@ -372,10 +453,22 @@ export function UserManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Статус</label>
+              <label className="text-sm font-medium text-gray-700">
+                Статус
+              </label>
               <Select
                 value={filters.isActive?.toString() || "all"}
-                onValueChange={(value) => setFilters({ ...filters, isActive: value === 'true' ? true : value === 'false' ? false : undefined })}
+                onValueChange={(value) =>
+                  setFilters({
+                    ...filters,
+                    isActive:
+                      value === "true"
+                        ? true
+                        : value === "false"
+                          ? false
+                          : undefined,
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Статус" />
@@ -388,11 +481,15 @@ export function UserManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Период</label>
+              <label className="text-sm font-medium text-gray-700">
+                Период
+              </label>
               <div className="flex space-x-2">
                 <DatePicker
                   selected={filters.startDate}
-                  onSelect={(date) => setFilters({ ...filters, startDate: date })}
+                  onSelect={(date) =>
+                    setFilters({ ...filters, startDate: date })
+                  }
                   placeholderText="Дата с"
                 />
                 <DatePicker
@@ -431,24 +528,20 @@ export function UserManagement() {
                     <SelectItem value="student">Студент</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => handleBulkUpdateStatus(true)}
                   className="flex items-center gap-2"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
+                  <Check className="h-4 w-4" />
                   Разблокировать
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => handleBulkUpdateStatus(false)}
                   className="flex items-center gap-2"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
+                  <Ban className="h-4 w-4" />
                   Заблокировать
                 </Button>
               </div>
@@ -466,7 +559,7 @@ export function UserManagement() {
                     checked={selectedUsers.length === users.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setSelectedUsers(users.map(u => u.id));
+                        setSelectedUsers(users.map((u) => u.id));
                       } else {
                         setSelectedUsers([]);
                       }
@@ -475,6 +568,7 @@ export function UserManagement() {
                 </TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Имя пользователя</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Роль</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Дата регистрации</TableHead>
@@ -493,33 +587,46 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell className="font-medium">{user.id}</TableCell>
                   <TableCell>{user.username}</TableCell>
+                  <TableCell>{user.email || "-"}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                      user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {user.role === 'admin' ? 'Администратор' :
-                       user.role === 'teacher' ? 'Учитель' :
-                       'Студент'}
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        user.role === "admin"
+                          ? "bg-red-100 text-red-800"
+                          : user.role === "teacher"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {user.role === "admin"
+                        ? "Администратор"
+                        : user.role === "teacher"
+                          ? "Учитель"
+                          : "Студент"}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.isActive ? 'Активен' : 'Заблокирован'}
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        user.isActive
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {user.isActive ? "Активен" : "Заблокирован"}
                     </span>
                   </TableCell>
                   <TableCell>
-                    {user.createdAt && !isNaN(new Date(user.createdAt).getTime())
-                      ? format(new Date(user.createdAt), 'dd.MM.yyyy')
-                      : '-'}
+                    {user.createdAt &&
+                    !isNaN(new Date(user.createdAt).getTime())
+                      ? format(new Date(user.createdAt), "dd.MM.yyyy")
+                      : "-"}
                   </TableCell>
                   <TableCell>
-                    {user.lastLogin && !isNaN(new Date(user.lastLogin).getTime())
-                      ? format(new Date(user.lastLogin), 'dd.MM.yyyy HH:mm')
-                      : '-'}
+                    {user.lastLogin &&
+                    !isNaN(new Date(user.lastLogin).getTime())
+                      ? format(new Date(user.lastLogin), "dd.MM.yyyy HH:mm")
+                      : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -550,6 +657,24 @@ export function UserManagement() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => handleResetPassword(user.id)}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.999 9.561a1 1 0 11-2 0v-1.122a6.001 6.001 0 0111.959 1.561A1 1 0 0114 12a5.001 5.001 0 01-9.999.561V13a1 1 0 11-2 0v-2.439z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleDeleteUser(user.id)}
                       >
                         <Trash className="h-4 w-4" />
@@ -574,7 +699,20 @@ export function UserManagement() {
                 <Input
                   placeholder="Введите имя пользователя"
                   value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  placeholder="Введите email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -583,14 +721,18 @@ export function UserManagement() {
                   type="password"
                   placeholder="Оставьте пустым, чтобы сохранить текущий"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Роль</label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, role: value })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите роль" />
@@ -602,18 +744,39 @@ export function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Статус</label>
+                <Select
+                  value={formData.isActive.toString()}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      isActive: value === "true",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите статус" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Активен</SelectItem>
+                    <SelectItem value="false">Заблокирован</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
                 Отмена
               </Button>
-              <Button onClick={handleUpdateUser}>
-                Сохранить
-              </Button>
+              <Button onClick={handleUpdateUser}>Сохранить</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
     </ErrorBoundary>
   );
-} 
+}

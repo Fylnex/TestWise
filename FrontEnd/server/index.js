@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // JWT secret
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = '32b7d6e7ce471a23ad31ba2b2d96eebeceb8a23d04816a47f076afc55fb20ad2';
 
 // Database setup
 const db = new sqlite3.Database('./database.sqlite', (err) => {

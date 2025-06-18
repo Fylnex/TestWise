@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { topicApi, Topic } from "@/services/api";
+import { topicApi, Topic } from "@/services/topicApi";
 import {
   Dialog,
   DialogTrigger,

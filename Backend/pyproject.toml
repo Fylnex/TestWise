@@ -15,7 +15,8 @@ pydantic-settings = "^2.5.2"
 python-dotenv = "^1.0.1"
 loguru = "^0.7.2"
 python-jose = { extras = ["cryptography"], version = "^3.3.0" }
-passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+bcrypt = "4.0.1"
+passlib = { version = "^1.7", extras = ["bcrypt"] }
 aiofiles = "^23.1.0"
 
 [tool.poetry.group.dev.dependencies]

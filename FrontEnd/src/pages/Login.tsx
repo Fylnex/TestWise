@@ -1,4 +1,3 @@
-// TestWise/src/pages/Login.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -18,18 +17,21 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Явно предотвращаем перезагрузку
     setError("");
 
     try {
+      console.log("Attempting login with", { username, password });
       const success = await login(username, password);
       if (success) {
-        navigate("/");
+        console.log("Login successful, navigating to /profile");
+        navigate("/profile", { replace: true });
       } else {
         setError("Неверное имя пользователя или пароль");
       }
-    } catch (err) {
-      setError("Произошла ошибка при входе");
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Произошла ошибка при входе");
+      console.error("Login error:", err);
     }
   };
 
@@ -79,4 +81,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

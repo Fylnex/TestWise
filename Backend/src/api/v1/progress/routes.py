@@ -1,3 +1,4 @@
+# TestWise/Backend/src/api/v1/progress/routes.py
 # -*- coding: utf-8 -*-
 """
 Маршруты FastAPI для получения прогресса пользователей.
@@ -11,14 +12,17 @@
 
 ✔ Студент может запрашивать только *свой* прогресс.
 ✔ Учитель / админ — любой, либо по `user_id` в query-param.
+
+Примечание: Клиент может агрегировать данные в формат StudentProgress,
+используя комбинацию этих эндпоинтов.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import configure_logger
-from src.core.security import authenticated, require_roles
+from src.core.security import authenticated
 from src.database.db import get_db
 from src.database.models import (
     Role,
@@ -37,9 +41,7 @@ from .schemas import (
 router = APIRouter()
 logger = configure_logger()
 
-
 # -------------------------- helpers -----------------------------------------
-
 
 def _resolve_user_id(
     requested: int | None, jwt_payload: dict
@@ -57,9 +59,7 @@ def _resolve_user_id(
         return jwt_payload["sub"]  # type: ignore[index]
     return requested
 
-
 # -------------------------- endpoints ---------------------------------------
-
 
 @router.get(
     "/topics",
@@ -74,6 +74,7 @@ async def list_topic_progress(
     """
     Возвращает прогресс по темам.
     """
+    logger.debug(f"Fetching topic progress, user_id: {claims['sub']}, requested: {user_id}")
     uid = _resolve_user_id(user_id, claims)
 
     stmt = select(TopicProgress)
@@ -81,8 +82,8 @@ async def list_topic_progress(
         stmt = stmt.where(TopicProgress.user_id == uid)
 
     rows = (await session.execute(stmt)).scalars().all()
+    logger.debug(f"Retrieved {len(rows)} topic progress records")
     return rows
-
 
 @router.get(
     "/sections",
@@ -97,6 +98,7 @@ async def list_section_progress(
     """
     Возвращает прогресс по секциям.
     """
+    logger.debug(f"Fetching section progress, user_id: {claims['sub']}, requested: {user_id}")
     uid = _resolve_user_id(user_id, claims)
 
     stmt = select(SectionProgress)
@@ -104,8 +106,8 @@ async def list_section_progress(
         stmt = stmt.where(SectionProgress.user_id == uid)
 
     rows = (await session.execute(stmt)).scalars().all()
+    logger.debug(f"Retrieved {len(rows)} section progress records")
     return rows
-
 
 @router.get(
     "/subsections",
@@ -120,6 +122,7 @@ async def list_subsection_progress(
     """
     Возвращает прогресс по подсекциям.
     """
+    logger.debug(f"Fetching subsection progress, user_id: {claims['sub']}, requested: {user_id}")
     uid = _resolve_user_id(user_id, claims)
 
     stmt = select(SubsectionProgress)
@@ -127,8 +130,8 @@ async def list_subsection_progress(
         stmt = stmt.where(SubsectionProgress.user_id == uid)
 
     rows = (await session.execute(stmt)).scalars().all()
+    logger.debug(f"Retrieved {len(rows)} subsection progress records")
     return rows
-
 
 @router.get(
     "/tests",
@@ -143,6 +146,7 @@ async def list_test_attempts(
     """
     Возвращает историю попыток тестов.
     """
+    logger.debug(f"Fetching test attempts, user_id: {claims['sub']}, requested: {user_id}")
     uid = _resolve_user_id(user_id, claims)
 
     stmt = select(TestAttempt)
@@ -150,4 +154,5 @@ async def list_test_attempts(
         stmt = stmt.where(TestAttempt.user_id == uid)
 
     rows = (await session.execute(stmt)).scalars().all()
+    logger.debug(f"Retrieved {len(rows)} test attempt records")
     return rows

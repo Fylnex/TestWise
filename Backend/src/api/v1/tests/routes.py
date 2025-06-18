@@ -36,11 +36,9 @@ from .schemas import (
 router = APIRouter()
 logger = configure_logger()
 
-
 # ---------------------------------------------------------------------------#
 # CRUD (учителя / админы)                                                    #
 # ---------------------------------------------------------------------------#
-
 
 @router.post(
     "",
@@ -57,6 +55,7 @@ async def create_test_endpoint(
 
     Требуется указать **section_id** *или* **topic_id** (но не оба).
     """
+    logger.debug(f"Creating test with payload: {payload.model_dump()}")
     test = await create_test(
         session=session,
         title=payload.title,
@@ -66,8 +65,8 @@ async def create_test_endpoint(
         topic_id=payload.topic_id,
         question_ids=payload.question_ids,
     )
+    logger.debug(f"Test created with ID: {test.id}")
     return test
-
 
 @router.get(
     "/{test_id}",
@@ -79,8 +78,8 @@ async def get_test_endpoint(
         session: AsyncSession = Depends(get_db),
 ):
     """Возвращает тест по ID."""
+    logger.debug(f"Fetching test with ID: {test_id}")
     return await get_test(session, test_id)
-
 
 @router.put(
     "/{test_id}",
@@ -95,9 +94,10 @@ async def update_test_endpoint(
     """
     Обновляет тест. Передавайте только изменяемые поля.
     """
+    logger.debug(f"Updating test {test_id} with payload: {payload.model_dump()}")
     update_data = payload.model_dump(exclude_unset=True)
+    logger.debug(f"Update data: {update_data}")
     return await update_test(session, test_id, **update_data)
-
 
 @router.delete(
     "/{test_id}",
@@ -109,14 +109,13 @@ async def delete_test_endpoint(
         session: AsyncSession = Depends(get_db),
 ):
     """Удаляет тест и все связанные сущности."""
+    logger.debug(f"Deleting test with ID: {test_id}")
     await delete_test(session, test_id)
     return
-
 
 # ---------------------------------------------------------------------------#
 # Студенческие действия                                                      #
 # ---------------------------------------------------------------------------#
-
 
 @router.post(
     "/{test_id}/start",
@@ -131,20 +130,21 @@ async def start_test_endpoint(
     """
     Студент начинает тест — проверяем доступность (прогресс) и создаём попытку.
     """
+    logger.debug(f"Starting test {test_id} for user_id: {claims['sub']}")
     user_id = claims["sub"]
-    # Проверяем, может ли студент приступить к тесту
     if not await check_test_availability(session, user_id, test_id):
+        logger.debug(f"Test {test_id} unavailable for user_id: {user_id}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Тест недоступен")
 
     attempt = await start_test(session, user_id, test_id)
     test = await get_item(session, Test, test_id)
 
-    # Если у теста фиксированный набор вопросов
     questions_stmt = select(Question).where(Question.id.in_(test.question_ids)) if test.question_ids else \
         select(Question).where(Question.test_id == test_id)
     result = await session.execute(questions_stmt)
     questions = list(result.scalars().all())
 
+    logger.debug(f"Test {test_id} started, {len(questions)} questions retrieved")
     return {
         "attempt_id": attempt.id,
         "test_id": test.id,
@@ -152,7 +152,6 @@ async def start_test_endpoint(
         "start_time": datetime.now(tz=timezone.utc),
         "duration": test.duration,
     }
-
 
 @router.post(
     "/{test_id}/submit",
@@ -168,13 +167,14 @@ async def submit_test_endpoint(
     """
     Студент сдаёт тест — оцениваем, сохраняем и возвращаем попытку.
     """
+    logger.debug(f"Submitting test {test_id} for user_id: {claims['sub']} with payload: {payload.model_dump()}")
     user_id = claims["sub"]
 
-    # Считаем баллы
     correct = 0
     for a in payload.answers:
         q: Question = await get_item(session, Question, a["question_id"])
         if q.test_id != test_id:
+            logger.debug(f"Invalid test for question {a['question_id']}")
             raise HTTPException(status_code=400, detail="Не тот тест для вопроса")
         if q.correct_answer == a["answer"]:
             correct += 1
@@ -187,4 +187,5 @@ async def submit_test_endpoint(
         time_spent=payload.time_spent,
         answers=payload.answers,
     )
+    logger.debug(f"Test {test_id} submitted, score: {score}")
     return attempt

@@ -24,7 +24,6 @@ from .schemas import ProfileRead
 router = APIRouter()
 logger = configure_logger()
 
-
 @router.get("", response_model=ProfileRead, dependencies=[Depends(authenticated)])
 async def read_profile(
     session: AsyncSession = Depends(get_db),
@@ -35,6 +34,7 @@ async def read_profile(
 
     Доступ: любой авторизованный пользователь.
     """
+    logger.debug(f"Fetching profile for user_id: {claims['sub']}")
     user_id = claims["sub"]
 
     # Собираем все кусочки прогресса параллельно.
@@ -49,7 +49,7 @@ async def read_profile(
     attempts = (await session.execute(tests_stmt)).scalars().all()
 
     if not any((topics, sections, subsections, attempts)):
-        # Нет данных вовсе — либо новый пользователь, либо ошибка в user_id
+        logger.debug(f"No progress data found for user_id: {user_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Данные профиля не найдены"
         )
@@ -62,4 +62,5 @@ async def read_profile(
         tests=attempts,
         generated_at=datetime.now(tz=timezone.utc),
     )
+    logger.debug(f"Profile generated for user_id: {user_id} with {len(topics)} topics, {len(sections)} sections, {len(subsections)} subsections, {len(attempts)} attempts")
     return profile
