@@ -1,3 +1,4 @@
+# TestWise/Backend/src/api/v1/questions/routes.py
 # -*- coding: utf-8 -*-
 """
 Этот модуль определяет маршруты FastAPI для эндпоинтов, связанных с вопросами.
@@ -6,11 +7,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import create_question, delete_item, get_item, update_item
-from src.core.logger import configure_logger
-from src.core.security import require_roles
+from src.config.logger import configure_logger
+from src.domain.enums import Role
+from src.domain.models import Question
+from src.repository.base import get_item, update_item, archive_item, delete_item_permanently
+from src.repository.question import create_question
+from src.security.security import require_roles
 from src.database.db import get_db
-from src.database.models import Question, Role
 from .schemas import QuestionCreateSchema, QuestionReadSchema, QuestionUpdateSchema
 
 router = APIRouter()
@@ -78,7 +81,7 @@ async def get_question_endpoint(
         - NotFoundError: Если вопрос не найден.
     """
     logger.debug(f"Fetching question with ID: {question_id}")
-    return await get_item(session, Question, question_id)
+    return await get_item(session, Question, question_id, is_archived=False)
 
 @router.put(
     "/{question_id}",
@@ -128,7 +131,78 @@ async def delete_question_endpoint(
     Исключения:
         - NotFoundError: Если вопрос не найден.
     """
-    logger.debug(f"Deleting question with ID: {question_id}")
-    await delete_item(session, Question, question_id)
-    logger.info(f"Удалён вопрос {question_id}")
-    return {"detail": "Вопрос удалён"}
+    logger.debug(f"Archiving question with ID: {question_id}")
+    await archive_item(session, Question, question_id)
+    logger.info(f"Вопрос {question_id} архивирован")
+    return {"detail": "Вопрос архивирован"}
+
+@router.post(
+    "/{question_id}/archive",
+    dependencies=[Depends(require_roles(Role.ADMIN, Role.TEACHER))],
+)
+async def archive_question_endpoint(
+    question_id: int,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Архивирует вопрос.
+
+    Аргументы:
+        question_id (int): ID вопроса.
+        session (AsyncSession): Сессия базы данных.
+
+    Исключения:
+        - NotFoundError: Если вопрос не найден.
+    """
+    logger.debug(f"Archiving question with ID: {question_id}")
+    await archive_item(session, Question, question_id)
+    logger.info(f"Вопрос {question_id} архивирован")
+    return {"detail": "Вопрос архивирован"}
+
+@router.post(
+    "/{question_id}/restore",
+    dependencies=[Depends(require_roles(Role.ADMIN, Role.TEACHER))],
+)
+async def restore_question_endpoint(
+    question_id: int,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Восстанавливает архивированный вопрос.
+
+    Аргументы:
+        question_id (int): ID вопроса.
+        session (AsyncSession): Сессия базы данных.
+
+    Исключения:
+        - NotFoundError: Если вопрос не найден.
+    """
+    logger.debug(f"Restoring question with ID: {question_id}")
+    question = await get_item(session, Question, question_id, is_archived=True)
+    question.is_archived = False
+    await session.commit()
+    logger.info(f"Вопрос {question_id} восстановлен")
+    return {"detail": "Вопрос восстановлен"}
+
+@router.delete(
+    "/{question_id}/permanent",
+    dependencies=[Depends(require_roles(Role.ADMIN, Role.TEACHER))],
+)
+async def delete_question_permanently_endpoint(
+    question_id: int,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Окончательно удаляет архивированный вопрос.
+
+    Аргументы:
+        question_id (int): ID вопроса.
+        session (AsyncSession): Сессия базы данных.
+
+    Исключения:
+        - NotFoundError: Если вопрос не найден.
+    """
+    logger.debug(f"Permanently deleting question with ID: {question_id}")
+    await delete_item_permanently(session, Question, question_id)
+    logger.info(f"Вопрос {question_id} удалён окончательно")
+    return {"detail": "Вопрос удалён окончательно"}

@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/progress/routes.py
 # -*- coding: utf-8 -*-
 """
 Маршруты FastAPI для получения прогресса пользователей.
@@ -21,16 +20,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.logger import configure_logger
-from src.core.security import authenticated
+from src.config.logger import configure_logger
+from src.domain.enums import Role
+from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt
+from src.security.security import authenticated
 from src.database.db import get_db
-from src.database.models import (
-    Role,
-    TopicProgress,
-    SectionProgress,
-    SubsectionProgress,
-    TestAttempt,
-)
+
 from .schemas import (
     TopicProgressRead,
     SectionProgressRead,

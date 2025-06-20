@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/tests/schemas.py
 # -*- coding: utf-8 -*-
 """
 Pydantic-схемы для работы с тестами.
@@ -9,8 +8,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
-from src.database.models import QuestionType, TestType
-
+from src.domain.enums import TestType, QuestionType
 
 # ----------------------------- CRUD -----------------------------------------
 
@@ -42,6 +40,7 @@ class TestReadSchema(BaseModel):
     question_ids: Optional[List[int]]
     created_at: datetime
     updated_at: Optional[datetime]
+    is_archived: bool
 
     class Config:
         from_attributes = True

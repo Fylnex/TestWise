@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import get_user_by_username, get_item, update_item
-from src.core.logger import configure_logger
-from src.core.security import create_access_token, create_refresh_token, verify_token, authenticated
+from src.config.logger import configure_logger
+from src.domain.models import User
+from src.repository.base import update_item, get_item
+from src.repository.user import get_user_by_username
+from src.security.security import create_access_token, create_refresh_token, verify_token, authenticated
 from src.database.db import get_db
-from src.database.models import User
 from .schemas import LoginSchema, TokenSchema, UserReadSchema
 
 router = APIRouter()

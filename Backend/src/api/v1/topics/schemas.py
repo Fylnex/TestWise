@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/topics/schemas.py
 # -*- coding: utf-8 -*-
 """Pydantic schemas for Topic endpoints."""
 
@@ -7,8 +6,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from src.database.models import ProgressStatus
-
+from src.domain.enums import ProgressStatus
 
 class TopicCreateSchema(BaseModel):
     title: str
@@ -39,6 +37,7 @@ class TopicReadSchema(BaseModel):
     category: Optional[str] = None
     image: Optional[str] = None
     created_at: datetime
+    is_archived: bool
     progress: Optional[TopicProgressRead] = None
 
     class Config:

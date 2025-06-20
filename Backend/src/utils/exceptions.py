@@ -1,4 +1,3 @@
-# TestWise/Backend/src/utils/exceptions.py
 # -*- coding: utf-8 -*-
 """
 This module defines custom exceptions for the TestWise API.
@@ -18,10 +17,10 @@ class ErrorCode(str, Enum):
 class APIException(HTTPException):
     """Base class for custom API exceptions."""
     def __init__(self,
-        status_code: int,
-        detail: str,
-        error_code: str,
-        headers: dict | None = None):
+                 status_code: int,
+                 detail: str,
+                 error_code: str,
+                 headers: dict | None = None):
         """
         Initialize APIException with status code, detail, and error code.
 
@@ -38,18 +37,22 @@ class APIException(HTTPException):
 class NotFoundError(APIException):
     """Raised when a resource is not found."""
     def __init__(self,
-        resource_type: str,
-        resource_id: str | int = None):
+                 resource_type: str,
+                 resource_id: str | int = None,
+                 details: str | None = None):
         """
         Initialize NotFoundError.
 
         Args:
             resource_type (str): Type of resource (e.g., "User", "Topic").
             resource_id (str or int, optional): ID of the resource.
+            details (str, optional): Additional details about the error.
         """
         detail = f"{resource_type} not found"
         if resource_id:
             detail = f"{resource_type} with ID {resource_id} not found"
+        if details:
+            detail = f"{detail}: {details}"
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=detail,
@@ -59,7 +62,7 @@ class NotFoundError(APIException):
 class ConflictError(APIException):
     """Raised when a resource already exists or conflicts."""
     def __init__(self,
-        detail: str):
+                 detail: str):
         """
         Initialize ConflictError.
 
@@ -75,7 +78,7 @@ class ConflictError(APIException):
 class PermissionDeniedError(APIException):
     """Raised when the user lacks sufficient permissions."""
     def __init__(self,
-        detail: str = "Insufficient permissions"):
+                 detail: str = "Insufficient permissions"):
         """
         Initialize PermissionDeniedError.
 
@@ -91,7 +94,7 @@ class PermissionDeniedError(APIException):
 class ValidationError(APIException):
     """Raised when input data is invalid."""
     def __init__(self,
-        detail: str):
+                 detail: str):
         """
         Initialize ValidationError.
 

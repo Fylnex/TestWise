@@ -40,6 +40,7 @@ class SectionReadSchema(BaseModel):
     description: Optional[str]
     order: int
     created_at: datetime
+    is_archived: bool
 
     class Config:
         from_attributes = True
@@ -66,6 +67,7 @@ class SubsectionRead(BaseModel):
     title: str
     type: SubsectionType
     order: int
+    is_archived: bool
 
     class Config:
         from_attributes = True

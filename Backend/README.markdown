@@ -223,7 +223,7 @@ TestWise — это образовательная платформа для с�
 2. Выполните восстановление через Python:
    ```python
    import asyncio
-   from src.utils.backup import restore_backup
+   from src.database.backup import restore_backup
 
    async def main():
        await restore_backup("backups/backup_2025-06-16_12-00-00.sqlite")

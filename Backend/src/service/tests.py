@@ -1,12 +1,12 @@
-# TestWise/Backend/src/core/tests.py
 # -*- coding: utf-8 -*-
-"""core.tests
-~~~~~~~~~~~~~~~~
+"""
+TestWise/Backend/src/service/tests.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Dynamic test generation & attempt lifecycle helpers.
 
 This module focuses on **assembling** tests (as rows in the *tests* table)
 from available questions and delegating persistence of attempts to
-``core.crud``.  Scoring is extremely simple (percentage of correct answers)
+``repository``.  Scoring is extremely simple (percentage of correct answers)
 but is easy to replace with something more sophisticated later.
 """
 
@@ -19,14 +19,8 @@ from typing import Any, Dict, List
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import (
-    create_test,
-    create_test_attempt,
-    submit_test as crud_submit_test,
-)
-from src.core.logger import configure_logger
-from src.core.progress import check_test_availability
-from src.database.models import (
+from src.config.logger import configure_logger
+from src.domain.models import (
     Question,
     QuestionType,
     Section,
@@ -35,6 +29,12 @@ from src.database.models import (
     TestType,
     Topic,
 )
+from src.repository.test import (
+    create_test,
+    create_test_attempt,
+    submit_test as submit_test_crud,
+)
+from src.service.progress import check_test_availability
 from src.utils.exceptions import NotFoundError, ValidationError
 
 logger = configure_logger()
@@ -44,10 +44,10 @@ logger = configure_logger()
 # Question helpers
 # ---------------------------------------------------------------------------
 
-
 async def _fetch_questions(
         session: AsyncSession, stmt: Select, limit: int | None = None
 ) -> List[Question]:
+    """Fetch a list of questions based on the provided statement."""
     if limit is not None:
         stmt = stmt.limit(limit)
     res = await session.execute(stmt)
@@ -57,6 +57,7 @@ async def _fetch_questions(
 async def _random_sample_questions(
         questions: List[Question], num: int | None = None
 ) -> List[int]:
+    """Randomly sample question IDs from the given list."""
     if num is None or num >= len(questions):
         return [q.id for q in questions]
     return [q.id for q in random.sample(questions, num)]
@@ -65,7 +66,6 @@ async def _random_sample_questions(
 # ---------------------------------------------------------------------------
 # Test generators
 # ---------------------------------------------------------------------------
-
 
 async def generate_hinted_test(
         session: AsyncSession,
@@ -166,7 +166,6 @@ async def generate_global_final_test(
 # Attempt lifecycle wrappers (delegates to crud)
 # ---------------------------------------------------------------------------
 
-
 async def start_test(session: AsyncSession, user_id: int, test_id: int) -> TestAttempt:
     """Begin a test attempt after availability check."""
     if not await check_test_availability(session, user_id, test_id):
@@ -212,7 +211,7 @@ async def submit_test(
     score_percentage = (correct_count / len(questions)) * 100.0 if questions else 0.0
     time_spent = int((datetime.now() - attempt.started_at).total_seconds())
 
-    attempt = await crud_submit_test(
+    attempt = await submit_test_crud(
         session=session,
         attempt_id=attempt_id,
         score=round(score_percentage, 2),
@@ -220,10 +219,6 @@ async def submit_test(
         answers=answers,
     )
     logger.info(
-        "Attempt %s submitted: %s/%s correct (%.2f%%)",
-        attempt_id,
-        correct_count,
-        len(questions),
-        score_percentage,
-    )
+        f"Attempt {attempt_id} submitted: {correct_count}/{len(questions)} correct ({score_percentage:.2f}%)")
+
     return attempt

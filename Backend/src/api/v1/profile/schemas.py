@@ -1,11 +1,10 @@
-# TestWise/Backend/src/api/v1/profile/schemas.py
 # -*- coding: utf-8 -*-
 """
 Pydantic-схемы для агрегированного профиля пользователя.
 """
 
 from datetime import datetime
-from typing import List, Optional, Any
+from typing import List
 
 from pydantic import BaseModel
 

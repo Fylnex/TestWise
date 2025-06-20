@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/topics/routes.py
 # -*- coding: utf-8 -*-
 """API v1 › Topics routes with progress endpoints."""
 
@@ -7,15 +6,23 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import create_topic, delete_item, get_item, update_item
-from src.core.logger import configure_logger
-from src.core.progress import calculate_topic_progress
-from src.core.security import admin_or_teacher, authenticated
+from src.config.logger import configure_logger
+from src.domain.enums import Role
+from src.domain.models import Topic, TopicProgress
+from src.repository.topic import (
+    create_topic,
+    get_topic,
+    update_topic,
+    delete_topic,
+    archive_topic,
+    restore_topic,
+    delete_topic_permanently,
+)
+from src.security.security import admin_or_teacher, authenticated
 from src.database.db import get_db
-from src.database.models import Role, Topic, TopicProgress
+from src.service.progress import calculate_topic_progress
 from .schemas import (
     TopicCreateSchema,
     TopicProgressRead,
@@ -45,36 +52,7 @@ async def create_topic_endpoint(
         image=topic_data.image,
     )
     logger.debug(f"Topic created with ID: {topic.id}")
-    # Простая сериализация без попытки доступа к progress
-    topic_dict = {k: v for k, v in topic.__dict__.items() if not k.startswith('_')}
-    return TopicReadSchema(**topic_dict)
-
-@router.put("/{topic_id}", response_model=TopicReadSchema)
-async def update_topic_endpoint(
-    topic_id: int,
-    topic_data: TopicUpdateSchema,
-    session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
-):
-    logger.debug(f"Updating topic {topic_id} with data: {topic_data.model_dump()}")
-    topic = await update_item(session, Topic, topic_id, **topic_data.model_dump(exclude_unset=True))
-    logger.debug(f"Topic {topic_id} updated")
-    topic_dict = {k: v for k, v in topic.__dict__.items() if not k.startswith('_')}
-    return TopicReadSchema(**topic_dict)
-
-@router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_topic_endpoint(
-    topic_id: int,
-    session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
-):
-    logger.debug(f"Deleting topic with ID: {topic_id}")
-    await delete_item(session, Topic, topic_id)
-    logger.info(f"Удалена тема {topic_id}")
-
-# ---------------------------------------------------------------------------
-# Read with progress
-# ---------------------------------------------------------------------------
+    return TopicReadSchema.model_validate(topic)
 
 @router.get("", response_model=List[TopicReadSchema])
 async def list_topics_endpoint(
@@ -92,15 +70,11 @@ async def list_topics_endpoint(
         prog_res = await session.execute(progress_stmt)
         by_topic = {tp.topic_id: tp for tp in prog_res.scalars().all()}
         result = [
-            TopicReadSchema.model_validate({
-                                               k: v for k, v in t.__dict__.items() if not k.startswith('_')
-                                           } | {"progress": by_topic.get(t.id)})
+            TopicReadSchema.model_validate(t.__dict__ | {"progress": by_topic.get(t.id)})
             for t in topics
         ]
     else:
-        result = [TopicReadSchema.model_validate({
-            k: v for k, v in t.__dict__.items() if not k.startswith('_')
-        }) for t in topics]
+        result = [TopicReadSchema.model_validate(t.__dict__) for t in topics]
     logger.debug(f"Retrieved {len(result)} topics")
     return result
 
@@ -111,7 +85,7 @@ async def get_topic_endpoint(
     claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Fetching topic with ID: {topic_id} for user_id: {claims['sub']}")
-    topic = await get_item(session, Topic, topic_id)
+    topic = await get_topic(session, topic_id)
     user_role = Role(claims["role"])
     if user_role == Role.STUDENT:
         tp_stmt = select(TopicProgress).where(
@@ -120,13 +94,34 @@ async def get_topic_endpoint(
         tp_res = await session.execute(tp_stmt)
         tp = tp_res.scalar_one_or_none()
         logger.debug(f"Topic {topic_id} retrieved with progress: {tp.completion_percentage if tp else None}")
-        return TopicReadSchema.model_validate({
-                                                  k: v for k, v in topic.__dict__.items() if not k.startswith('_')
-                                              } | {"progress": tp if tp else None})
+        return TopicReadSchema.model_validate(topic.__dict__ | {"progress": tp if tp else None})
     logger.debug(f"Topic {topic_id} retrieved without progress")
-    return TopicReadSchema.model_validate({
-        k: v for k, v in topic.__dict__.items() if not k.startswith('_')
-    })
+    return TopicReadSchema.model_validate(topic.__dict__)
+
+@router.put("/{topic_id}", response_model=TopicReadSchema)
+async def update_topic_endpoint(
+    topic_id: int,
+    topic_data: TopicUpdateSchema,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Updating topic {topic_id} with data: {topic_data.model_dump()}")
+    topic = await update_topic(session, topic_id, **topic_data.model_dump(exclude_unset=True))
+    logger.debug(f"Topic {topic_id} updated")
+    return TopicReadSchema.model_validate(topic)
+
+@router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_topic_endpoint(
+    topic_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Archiving topic with ID: {topic_id}")
+    await delete_topic(session, topic_id)
+
+# ---------------------------------------------------------------------------
+# Progress
+# ---------------------------------------------------------------------------
 
 @router.get("/{topic_id}/progress", response_model=TopicProgressRead)
 async def get_topic_progress_endpoint(
@@ -146,3 +141,34 @@ async def get_topic_progress_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found")
     logger.debug(f"Progress retrieved for topic {topic_id}: {tp.completion_percentage}")
     return TopicProgressRead.model_validate(tp)
+
+# ---------------------------------------------------------------------------
+# Archive / Restore / Permanent Delete
+# ---------------------------------------------------------------------------
+
+@router.post("/{topic_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_topic_endpoint(
+    topic_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Archiving topic with ID: {topic_id}")
+    await archive_topic(session, topic_id)
+
+@router.post("/{topic_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_topic_endpoint(
+    topic_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Restoring topic with ID: {topic_id}")
+    await restore_topic(session, topic_id)
+
+@router.delete("/{topic_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_topic_permanently_endpoint(
+    topic_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Permanently deleting topic with ID: {topic_id}")
+    await delete_topic_permanently(session, topic_id)

@@ -1,26 +1,24 @@
-# TestWise/Backend/src/api/v1/subsections/routes.py
 # -*- coding: utf-8 -*-
 """API v1 › Subsections routes."""
 
 from __future__ import annotations
 
-from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import (
-    create_subsection,
-    delete_subsection,
-    get_subsection,
-    mark_subsection_viewed,
-    update_subsection,
-)
-from src.core.logger import configure_logger
-from src.core.security import admin_or_teacher, authenticated
+from src.config.logger import configure_logger
 from src.database.db import get_db
-from src.database.models import Role, Subsection, SubsectionProgress
+from src.repository.topic import (
+    create_subsection,
+    get_subsection,
+    update_subsection,
+    delete_subsection,
+    mark_subsection_viewed,
+    archive_subsection,
+    restore_subsection,
+    delete_subsection_permanently,
+)
+from src.security.security import admin_or_teacher, authenticated
 from .schemas import (
     SubsectionCreateSchema,
     SubsectionProgressRead,
@@ -82,7 +80,7 @@ async def delete_subsection_endpoint(
     session: AsyncSession = Depends(get_db),
     _claims: dict = Depends(admin_or_teacher),
 ):
-    logger.debug(f"Deleting subsection with ID: {subsection_id}")
+    logger.debug(f"Archiving subsection with ID: {subsection_id}")
     await delete_subsection(session, subsection_id)
 
 # ---------------------------------------------------------------------------
@@ -96,7 +94,41 @@ async def view_subsection_endpoint(
     claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Marking subsection {subsection_id} as viewed for user_id: {claims['sub']}")
-    user_id = claims["sub" or "id"]
+    user_id = claims.get("sub") or claims.get("id")
     progress = await mark_subsection_viewed(session, user_id, subsection_id)
-    logger.debug(f"Subsection {subsection_id} marked as viewed, progress: {progress.progress}")
+    logger.debug(f"Subsection {subsection_id} marked as viewed, progress: {progress.is_viewed}")
     return SubsectionProgressRead.model_validate(progress)
+
+
+# ---------------------------------------------------------------------------
+# Archive / Restore / Permanent Delete
+# ---------------------------------------------------------------------------
+
+@router.post("/{subsection_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_subsection_endpoint(
+        subsection_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Archiving subsection with ID: {subsection_id}")
+    await archive_subsection(session, subsection_id)
+
+
+@router.post("/{subsection_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_subsection_endpoint(
+        subsection_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Restoring subsection with ID: {subsection_id}")
+    await restore_subsection(session, subsection_id)
+
+
+@router.delete("/{subsection_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_subsection_permanently_endpoint(
+        subsection_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Permanently deleting subsection with ID: {subsection_id}")
+    await delete_subsection_permanently(session, subsection_id)

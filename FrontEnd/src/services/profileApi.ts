@@ -18,7 +18,7 @@ export interface Profile {
 
 export const profileApi = {
   getProfile: async (): Promise<Profile> => {
-    const response = await http.get<Profile>("/profile");
+    const response = await http.get<Profile>("/api/v1/profile");
     return response.data;
   },
 };

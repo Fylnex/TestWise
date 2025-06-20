@@ -1,16 +1,14 @@
-# TestWise/Backend/src/database/models.py
 # -*- coding: utf-8 -*-
 """
-SQLAlchemy models for the refactored TestWise backend.
+TestWise/Backend/src/domain/models.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Defining SQLAlchemy models for the TestWise backend.
 
-This version introduces a richer learning hierarchy with explicit progress
-tracking and flexible assessment definitions. New entities include
-Subsection, Test, GroupStudents, TopicProgress, SectionProgress,
-SubsectionProgress, and TestAttempt. Legacy fields related to the old test
-workflow have been removed or renamed for clarity.
+This module introduces a rich learning hierarchy with progress tracking and
+assessment definitions, including entities like Subsection, Test, GroupStudents,
+and TestAttempt, with legacy fields removed or renamed for clarity.
 """
 
-import enum
 from datetime import datetime
 
 from sqlalchemy import (
@@ -26,78 +24,28 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
+from src.domain.enums import Role, GroupStudentStatus, SubsectionType, TestType, QuestionType, ProgressStatus
+
 Base = declarative_base()
-
-
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-
-
-class Role(str, enum.Enum):
-    """Roles available in the system."""
-
-    ADMIN = "admin"
-    TEACHER = "teacher"
-    STUDENT = "student"
-
-
-class QuestionType(str, enum.Enum):
-    """Supported types of questions."""
-
-    SINGLE_CHOICE = "single_choice"
-    MULTIPLE_CHOICE = "multiple_choice"
-    OPEN_TEXT = "open_text"
-
-
-class TestType(str, enum.Enum):
-    """Types of tests delivered to students."""
-
-    HINTED = "hinted"  # tests with hints enabled
-    SECTION_FINAL = "section_final"  # final test for a single section
-    GLOBAL_FINAL = "global_final"  # cumulative test for an entire topic
-
-
-class SubsectionType(str, enum.Enum):
-    """Content delivery formats for subsections."""
-
-    TEXT = "text"
-    VIDEO = "video"
-    PDF = "pdf"
-
-
-class ProgressStatus(str, enum.Enum):
-    """Lifecycle states for topic/section progression."""
-
-    STARTED = "started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-
-
-class GroupStudentStatus(str, enum.Enum):
-    """Membership states within a group."""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
 
 
 # ---------------------------------------------------------------------------
 # Core domain models
 # ---------------------------------------------------------------------------
 
-
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
+    full_name = Column(String, nullable=False)
     password = Column(String, nullable=False)
     role = Column(Enum(Role), nullable=False, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
     last_login = Column(DateTime, nullable=True)
     refresh_token = Column(String, nullable=True)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     group_students = relationship("GroupStudents", back_populates="user", cascade="all, delete-orphan")
@@ -105,7 +53,6 @@ class User(Base):
     section_progress = relationship("SectionProgress", back_populates="user", cascade="all, delete-orphan")
     subsection_progress = relationship("SubsectionProgress", back_populates="user", cascade="all, delete-orphan")
     test_attempts = relationship("TestAttempt", back_populates="user", cascade="all, delete-orphan")
-
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User(username={self.username!r}, role={self.role})>"
@@ -120,9 +67,11 @@ class Group(Base):
     end_year = Column(Integer, nullable=False)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     students = relationship("GroupStudents", back_populates="group", cascade="all, delete-orphan")
+    teachers = relationship("GroupTeachers", back_populates="group", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Group(name={self.name!r})>"
@@ -130,7 +79,6 @@ class Group(Base):
 
 class GroupStudents(Base):
     """Join table between groups and users with membership metadata."""
-
     __tablename__ = "group_students"
 
     group_id = Column(Integer, ForeignKey("groups.id"), primary_key=True)
@@ -140,30 +88,45 @@ class GroupStudents(Base):
     left_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     user = relationship("User", back_populates="group_students")
     group = relationship("Group", back_populates="students")
 
 
+class GroupTeachers(Base):
+    """Join table between groups and teachers with membership metadata."""
+    __tablename__ = "group_teachers"
+
+    group_id = Column(Integer, ForeignKey("groups.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    created_at = Column(DateTime, default=datetime.now)
+    is_archived = Column(Boolean, default=False)
+
+    # Relationships
+    user = relationship("User", back_populates="group_teachers")
+    group = relationship("Group", back_populates="teachers")
+
+
 class Topic(Base):
     __tablename__ = "topics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    category = Column(String, nullable=True, index=True)
+    category = Column(String, nullable=True)
     image = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     sections = relationship("Section", back_populates="topic", cascade="all, delete-orphan")
     global_tests = relationship("Test", back_populates="topic", cascade="all, delete-orphan")
-    progress = relationship("TopicProgress", back_populates="topic", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<Topic(title={self.title!r})>"
+        return f"<Topic(title={self.title!r}, is_archived={self.is_archived})>"
 
 
 class Section(Base):
@@ -177,6 +140,7 @@ class Section(Base):
     order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     topic = relationship("Topic", back_populates="sections")
@@ -200,6 +164,7 @@ class Subsection(Base):
     order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     section = relationship("Section", back_populates="subsections")
@@ -207,6 +172,23 @@ class Subsection(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Subsection(title={self.title!r}, section_id={self.section_id})>"
+
+
+class SubsectionProgress(Base):
+    __tablename__ = "subsection_progress"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    subsection_id = Column(Integer, ForeignKey("subsections.id"), nullable=False, index=True)
+    is_viewed = Column(Boolean, default=False, nullable=False)
+    viewed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship("User", back_populates="subsection_progress")
+    subsection = relationship("Subsection", back_populates="progress")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<SubsectionProgress(subsection_id={self.subsection_id!r}, user_id={self.user_id!r}, is_viewed={self.is_viewed})>"
 
 
 class Test(Base):
@@ -221,6 +203,7 @@ class Test(Base):
     type = Column(Enum(TestType), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     section = relationship("Section", back_populates="tests")
@@ -229,7 +212,7 @@ class Test(Base):
     attempts = relationship("TestAttempt", back_populates="test", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<Test(title={self.title!r}, type={self.type})>"
+        return f"<Test(title={self.title!r}, type={self.type}, is_archived={self.is_archived})>"
 
 
 class Question(Base):
@@ -247,6 +230,7 @@ class Question(Base):
     image = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     section = relationship("Section", back_populates="questions")
@@ -259,7 +243,6 @@ class Question(Base):
 # ---------------------------------------------------------------------------
 # Progress tracking models
 # ---------------------------------------------------------------------------
-
 
 class TopicProgress(Base):
     __tablename__ = "topic_progress"

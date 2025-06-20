@@ -1,7 +1,16 @@
-# TestWise/Backend/src/core/logger.py
+# -*- coding: utf-8 -*-
+"""
+TestWise/Backend/src/config/logger.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Setting up logging configuration with Loguru.
+
+This module configures a logger with file and console output, including custom
+formatting, rotation, and color schemes for different log levels.
+"""
+
 from pathlib import Path
 from loguru import logger
-from src.core.config import settings
+from .settings import settings
 
 def configure_logger(prefix: str = "TESTWISE") -> logger:
     """
@@ -48,10 +57,10 @@ def configure_logger(prefix: str = "TESTWISE") -> logger:
             "<cyan>{name}:{function}:{line}</cyan> | "
             f"{prefix} <b>{{message}}</b>"
         ),
-        colorize=True,  # Включаем цветовую поддержку
+        colorize=True,  # Enabling color support
     )
 
-    # Устанавливаем цвета для уровней логирования
+    # Setting colors for log levels
     logger.level("DEBUG", color="<blue>")
     logger.level("INFO", color="<green>")
     logger.level("WARNING", color="<yellow>")

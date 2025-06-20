@@ -1,6 +1,6 @@
 // TestWise/src/services/sectionApi.ts
 // -*- coding: utf-8 -*-
-// """API для управления секциями в TestWise.
+// """API для управления секциями и подсекциями в TestWise.
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 // Содержит методы для работы с секциями, включая получение,
 // обновление, удаление, прогресс и подсекции.
@@ -16,6 +16,7 @@ export interface Section {
   description?: string;
   order: number;
   created_at?: string;
+  is_archived: boolean;
 }
 
 export interface SectionProgress {
@@ -37,6 +38,7 @@ export interface Subsection {
   type: string;
   order: number;
   created_at?: string;
+  is_archived: boolean;
 }
 
 export interface SectionWithSubsections {
@@ -47,10 +49,16 @@ export interface SectionWithSubsections {
   description?: string;
   order: number;
   created_at?: string;
+  is_archived: boolean;
   subsections: Subsection[];
 }
 
 export const sectionApi = {
+  getSections: async (topicId?: number): Promise<Section[]> => {
+    const response = await http.get<Section[]>("/sections", {params: {topic_id: topicId}});
+    return response.data;
+  },
+
   getSection: async (sectionId: number): Promise<Section> => {
     const response = await http.get<Section>(`/sections/${sectionId}`);
     return response.data;
@@ -65,6 +73,18 @@ export const sectionApi = {
     await http.delete(`/sections/${sectionId}`);
   },
 
+  archiveSection: async (sectionId: number): Promise<void> => {
+    await http.post(`/sections/${sectionId}/archive`);
+  },
+
+  restoreSection: async (sectionId: number): Promise<void> => {
+    await http.post(`/sections/${sectionId}/restore`);
+  },
+
+  deleteSectionPermanently: async (sectionId: number): Promise<void> => {
+    await http.delete(`/sections/${sectionId}/permanent`);
+  },
+
   getSectionProgress: async (sectionId: number): Promise<SectionProgress> => {
     const response = await http.get<SectionProgress>(`/sections/${sectionId}/progress`);
     return response.data;
@@ -72,6 +92,43 @@ export const sectionApi = {
 
   getSectionSubsections: async (sectionId: number): Promise<SectionWithSubsections> => {
     const response = await http.get<SectionWithSubsections>(`/sections/${sectionId}/subsections`);
+    return response.data;
+  },
+
+  // Новые методы для подсекций
+  createSubsection: async (sectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
+    const response = await http.post<Subsection>(`/api/v1/subsections`, data);
+    return response.data;
+  },
+
+  getSubsection: async (subsectionId: number): Promise<Subsection> => {
+    const response = await http.get<Subsection>(`/api/v1/subsections/${subsectionId}`);
+    return response.data;
+  },
+
+  updateSubsection: async (subsectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
+    const response = await http.put<Subsection>(`/api/v1/subsections/${subsectionId}`, data);
+    return response.data;
+  },
+
+  archiveSubsection: async (subsectionId: number): Promise<void> => {
+    await http.post(`/api/v1/subsections/${subsectionId}/archive`);
+  },
+
+  restoreSubsection: async (subsectionId: number): Promise<void> => {
+    await http.post(`/api/v1/subsections/${subsectionId}/restore`);
+  },
+
+  deleteSubsection: async (subsectionId: number): Promise<void> => {
+    await http.delete(`/api/v1/subsections/${subsectionId}`);
+  },
+
+  deleteSubsectionPermanently: async (subsectionId: number): Promise<void> => {
+    await http.delete(`/api/v1/subsections/${subsectionId}/permanent`);
+  },
+
+  viewSubsection: async (subsectionId: number): Promise<any> => { // Замените 'any' на конкретный тип, если есть
+    const response = await http.post<any>(`/api/v1/subsections/${subsectionId}/view`);
     return response.data;
   },
 };

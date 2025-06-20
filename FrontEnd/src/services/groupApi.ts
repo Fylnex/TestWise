@@ -3,7 +3,7 @@
 // """API для управления группами и студентами в группах в TestWise.
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 // Содержит методы для работы с группами, включая создание, получение,
-// добавление студентов и управление их статусом.
+// добавление студентов, учителей и управление их статусом.
 // """
 
 import http from "./apiConfig";
@@ -15,6 +15,7 @@ export interface Group {
   end_year: number;
   description?: string;
   created_at?: string;
+  is_archived: boolean;
 }
 
 export interface GroupStudent {
@@ -23,6 +24,13 @@ export interface GroupStudent {
   status: "active" | "inactive";
   joined_at: string;
   left_at?: string;
+  is_archived: boolean;
+}
+
+export interface GroupTeacher {
+  group_id: number;
+  user_id: number;
+  is_archived: boolean;
 }
 
 export const groupApi = {
@@ -39,6 +47,23 @@ export const groupApi = {
   createGroup: async (data: Partial<Group>): Promise<Group> => {
     const response = await http.post<Group>("/groups", data);
     return response.data;
+  },
+
+  updateGroup: async (groupId: number, data: Partial<Group>): Promise<Group> => {
+    const response = await http.put<Group>(`/groups/${groupId}`, data);
+    return response.data;
+  },
+
+  archiveGroup: async (groupId: number): Promise<void> => {
+    await http.post(`/groups/${groupId}/archive`);
+  },
+
+  restoreGroup: async (groupId: number): Promise<void> => {
+    await http.post(`/groups/${groupId}/restore`);
+  },
+
+  deleteGroupPermanently: async (groupId: number): Promise<void> => {
+    await http.delete(`/groups/${groupId}/permanent`);
   },
 
   getGroupStudents: async (groupId: number): Promise<GroupStudent[]> => {
@@ -62,5 +87,19 @@ export const groupApi = {
   ): Promise<GroupStudent> => {
     const response = await http.put<GroupStudent>(`/groups/${groupId}/students/${userId}/status`, { status });
     return response.data;
+  },
+
+  addGroupTeachers: async (groupId: number, user_ids: number[]): Promise<GroupTeacher[]> => {
+    const response = await http.post<GroupTeacher[]>(`/groups/${groupId}/teachers`, { user_ids });
+    return response.data;
+  },
+
+  getGroupTeachers: async (groupId: number): Promise<GroupTeacher[]> => {
+    const response = await http.get<GroupTeacher[]>(`/groups/${groupId}/teachers`);
+    return response.data;
+  },
+
+  removeGroupTeacher: async (groupId: number, userId: number): Promise<void> => {
+    await http.delete(`/groups/${groupId}/teachers/${userId}`);
   },
 };

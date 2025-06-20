@@ -9,17 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
-from src.core.crud import (
-    create_section,
-    delete_item,
-    get_item,
-    update_item,
-)
-from src.core.logger import configure_logger
-from src.core.progress import calculate_section_progress
-from src.core.security import admin_or_teacher, authenticated
+from src.config.logger import configure_logger
+from src.domain.models import Section, SectionProgress, Subsection
+from src.repository.base import list_items, get_item, update_item, archive_item, delete_item_permanently
+from src.repository.topic import create_section
+from src.security.security import admin_or_teacher, authenticated
 from src.database.db import get_db
-from src.database.models import Section, SectionProgress, Subsection
+from src.service.progress import calculate_section_progress
 from .schemas import (
     SectionCreateSchema,
     SectionProgressRead,
@@ -31,6 +27,7 @@ from .schemas import (
 
 router = APIRouter()
 logger = configure_logger()
+
 
 # ---------------------------------------------------------------------------
 # CRUD
@@ -54,6 +51,22 @@ async def create_section_endpoint(
     logger.debug(f"Section created with ID: {section.id}")
     return SectionReadSchema.model_validate(section)
 
+
+@router.get("", response_model=List[SectionReadSchema])
+async def list_sections_endpoint(
+        topic_id: Optional[int] = None,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(authenticated),
+):
+    logger.debug(f"Fetching sections with topic_id: {topic_id}")
+    filters = {"is_archived": False}
+    if topic_id:
+        filters["topic_id"] = topic_id
+    sections = await list_items(session, Section, **filters)
+    logger.debug(f"Retrieved {len(sections)} sections")
+    return [SectionReadSchema.model_validate(s) for s in sections]
+
+
 @router.get("/{section_id}", response_model=SectionReadSchema)
 async def get_section_endpoint(
         section_id: int,
@@ -61,9 +74,10 @@ async def get_section_endpoint(
         _claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Fetching section with ID: {section_id}")
-    section = await get_item(session, Section, section_id)
+    section = await get_item(session, Section, section_id, is_archived=False)
     logger.debug(f"Section retrieved: {section.title}")
     return SectionReadSchema.model_validate(section)
+
 
 @router.put("/{section_id}", response_model=SectionReadSchema)
 async def update_section_endpoint(
@@ -77,15 +91,52 @@ async def update_section_endpoint(
     logger.debug(f"Section {section_id} updated")
     return SectionReadSchema.model_validate(section)
 
+
 @router.delete("/{section_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_section_endpoint(
         section_id: int,
         session: AsyncSession = Depends(get_db),
         _claims: dict = Depends(admin_or_teacher),
 ):
-    logger.debug(f"Deleting section with ID: {section_id}")
-    await delete_item(session, Section, section_id)
-    logger.info(f"Удален раздел {section_id}")
+    logger.debug(f"Archiving section with ID: {section_id}")
+    await archive_item(session, Section, section_id)
+    logger.info(f"Раздел {section_id} архивирован")
+
+
+@router.post("/{section_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_section_endpoint(
+        section_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Archiving section with ID: {section_id}")
+    await archive_item(session, Section, section_id)
+    logger.info(f"Раздел {section_id} архивирован")
+
+
+@router.post("/{section_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_section_endpoint(
+        section_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Restoring section with ID: {section_id}")
+    section = await get_item(session, Section, section_id, is_archived=True)
+    section.is_archived = False
+    await session.commit()
+    logger.info(f"Раздел {section_id} восстановлен")
+
+
+@router.delete("/{section_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_section_permanently_endpoint(
+        section_id: int,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(admin_or_teacher),
+):
+    logger.debug(f"Permanently deleting section with ID: {section_id}")
+    await delete_item_permanently(session, Section, section_id)
+    logger.info(f"Раздел {section_id} удален окончательно")
+
 
 # ---------------------------------------------------------------------------
 # Nested resources
@@ -98,7 +149,7 @@ async def get_section_progress_endpoint(
         claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Fetching progress for section {section_id}, user_id: {claims['sub']}")
-    user_id = claims["sub" or "id"]
+    user_id = claims["sub"] or claims["id"]
     await calculate_section_progress(session, user_id, section_id, commit=True)
 
     stmt = select(SectionProgress).where(SectionProgress.user_id == user_id, SectionProgress.section_id == section_id)
@@ -110,6 +161,7 @@ async def get_section_progress_endpoint(
     logger.debug(f"Progress retrieved for section {section_id}")
     return SectionProgressRead.model_validate(progress)
 
+
 @router.get("/{section_id}/subsections", response_model=SectionWithSubsections)
 async def list_subsections_endpoint(
         section_id: int,
@@ -117,8 +169,9 @@ async def list_subsections_endpoint(
         _claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Listing subsections for section {section_id}")
-    section = await get_item(session, Section, section_id)
-    stmt = select(Subsection).where(Subsection.section_id == section_id).order_by(Subsection.order)
+    section = await get_item(session, Section, section_id, is_archived=False)
+    stmt = select(Subsection).where(Subsection.section_id == section_id, Subsection.is_archived == False).order_by(
+        Subsection.order)
     res = await session.execute(stmt)
     subs = res.scalars().all()
     logger.debug(f"Retrieved {len(subs)} subsections for section {section_id}")

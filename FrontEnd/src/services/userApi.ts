@@ -12,12 +12,12 @@ import http from "./apiConfig";
 export interface User {
   id: number;
   username: string;
-  email?: string;
+  full_name: string;
   role: "admin" | "student" | "teacher";
-  avatar?: string;
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+  is_archived: boolean;
 }
 
 export const userApi = {
@@ -34,7 +34,7 @@ export const userApi = {
 
   createUser: async (userData: {
     username: string;
-    email: string;
+    full_name: string;
     password: string;
     role: string;
     isActive?: boolean;
@@ -46,12 +46,9 @@ export const userApi = {
   updateUser: async (
     id: number,
     userData: {
-      username?: string;
-      email?: string;
-      password?: string;
-      role?: string;
-      isActive?: boolean;
-    }
+      full_name?: string;
+      last_login?: string;
+    },
   ): Promise<User> => {
     const response = await http.put<User>(`/users/${id}`, userData);
     return response.data;
@@ -61,18 +58,41 @@ export const userApi = {
     await http.delete(`/users/${id}`);
   },
 
-  resetPassword: async (id: number): Promise<{ message: string; new_password: string }> => {
+  archiveUser: async (id: number): Promise<void> => {
+    await http.post(`/users/${id}/archive`);
+  },
+
+  restoreUser: async (id: number): Promise<void> => {
+    await http.post(`/users/${id}/restore`);
+  },
+
+  deleteUserPermanently: async (id: number): Promise<void> => {
+    await http.delete(`/users/${id}/permanent`);
+  },
+
+  resetPassword: async (
+    id: number,
+  ): Promise<{ message: string; new_password: string }> => {
     const response = await http.post(`/users/${id}/reset-password`);
     return response.data;
   },
 
   bulkUpdateRoles: async (userIds: number[], role: string): Promise<User[]> => {
-    const response = await http.put<User[]>("/users/bulk/roles", { userIds, role });
+    const response = await http.put<User[]>("/users/bulk/roles", {
+      userIds,
+      role,
+    });
     return response.data;
   },
 
-  bulkUpdateStatus: async (userIds: number[], isActive: boolean): Promise<User[]> => {
-    const response = await http.put<User[]>("/users/bulk/status", { userIds, isActive });
+  bulkUpdateStatus: async (
+    userIds: number[],
+    isActive: boolean,
+  ): Promise<User[]> => {
+    const response = await http.put<User[]>("/users/bulk/status", {
+      userIds,
+      isActive,
+    });
     return response.data;
   },
 

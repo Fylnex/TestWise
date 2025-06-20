@@ -1,30 +1,32 @@
-# TestWise/Backend/src/api/v1/tests/routes.py
 # -*- coding: utf-8 -*-
 """
 Маршруты FastAPI для работы с тестами.
 """
 
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.crud import (
+from src.config.logger import configure_logger
+from src.domain.enums import Role
+from src.domain.models import Question
+from src.repository.base import get_item
+from src.repository.test import (
     create_test,
-    delete_test,
-    get_item,
     get_test,
-    start_test,
-    submit_test,
     update_test,
+    delete_test,
+    archive_test,
+    restore_test,
+    delete_test_permanently,
 )
-from src.core.logger import configure_logger
-from src.core.progress import check_test_availability
-from src.core.security import admin_or_teacher, authenticated, require_roles
+from src.security.security import admin_or_teacher, authenticated, require_roles
 from src.database.db import get_db
-from src.database.models import Question, Role, Test
+from src.service.progress import check_test_availability
+from src.service.tests import start_test, submit_test
 from .schemas import (
     TestAttemptRead,
     TestCreateSchema,
@@ -108,10 +110,9 @@ async def delete_test_endpoint(
         test_id: int,
         session: AsyncSession = Depends(get_db),
 ):
-    """Удаляет тест и все связанные сущности."""
-    logger.debug(f"Deleting test with ID: {test_id}")
+    """Архивирует тест."""
+    logger.debug(f"Archiving test with ID: {test_id}")
     await delete_test(session, test_id)
-    return
 
 # ---------------------------------------------------------------------------#
 # Студенческие действия                                                      #
@@ -137,7 +138,7 @@ async def start_test_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Тест недоступен")
 
     attempt = await start_test(session, user_id, test_id)
-    test = await get_item(session, Test, test_id)
+    test = await get_test(session, test_id)
 
     questions_stmt = select(Question).where(Question.id.in_(test.question_ids)) if test.question_ids else \
         select(Question).where(Question.test_id == test_id)
@@ -170,22 +171,53 @@ async def submit_test_endpoint(
     logger.debug(f"Submitting test {test_id} for user_id: {claims['sub']} with payload: {payload.model_dump()}")
     user_id = claims["sub"]
 
-    correct = 0
+    # Валидация соответствия теста и вопросов
+    test = await get_test(session, test_id)
     for a in payload.answers:
-        q: Question = await get_item(session, Question, a["question_id"])
+        q = await get_item(session, Question, a["question_id"])
         if q.test_id != test_id:
             logger.debug(f"Invalid test for question {a['question_id']}")
             raise HTTPException(status_code=400, detail="Не тот тест для вопроса")
-        if q.correct_answer == a["answer"]:
-            correct += 1
 
-    score = (correct / len(payload.answers)) * 100 if payload.answers else 0.0
+    # Передаем только attempt_id и answers в сервис, расчет выполняется там
     attempt = await submit_test(
         session=session,
         attempt_id=payload.attempt_id,
-        score=score,
-        time_spent=payload.time_spent,
-        answers=payload.answers,
+        answers={a["question_id"]: a["answer"] for a in payload.answers},
     )
-    logger.debug(f"Test {test_id} submitted, score: {score}")
+    logger.debug(f"Test {test_id} submitted, score: {attempt.score}")
     return attempt
+
+# ---------------------------------------------------------------------------#
+# Archive / Restore / Permanent Delete                                       #
+# ---------------------------------------------------------------------------#
+
+@router.post("/{test_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_test_endpoint(
+    test_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    """Архивирует тест."""
+    logger.debug(f"Archiving test with ID: {test_id}")
+    await archive_test(session, test_id)
+
+@router.post("/{test_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_test_endpoint(
+    test_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    """Восстанавливает архивированный тест."""
+    logger.debug(f"Restoring test with ID: {test_id}")
+    await restore_test(session, test_id)
+
+@router.delete("/{test_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_test_permanently_endpoint(
+    test_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    """Окончательно удаляет архивированный тест."""
+    logger.debug(f"Permanently deleting test with ID: {test_id}")
+    await delete_test_permanently(session, test_id)

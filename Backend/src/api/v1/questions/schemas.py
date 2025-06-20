@@ -56,6 +56,7 @@ class QuestionReadSchema(BaseModel):
     image: Optional[str]
     created_at: datetime
     updated_at: datetime
+    is_archived: bool
 
     class Config:
         from_attributes = True

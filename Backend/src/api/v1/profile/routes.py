@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/profile/routes.py
 # -*- coding: utf-8 -*-
 """
 Маршрут `/api/v1/profile` — агрегированные данные прогресса текущего пользователя.
@@ -9,15 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.logger import configure_logger
-from src.core.security import authenticated
+from src.config.logger import configure_logger
+from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt
+from src.security.security import authenticated
 from src.database.db import get_db
-from src.database.models import (
-    TopicProgress,
-    SectionProgress,
-    SubsectionProgress,
-    TestAttempt,
-)
 
 from .schemas import ProfileRead
 

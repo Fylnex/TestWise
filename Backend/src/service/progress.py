@@ -1,23 +1,24 @@
-# TestWise/Backend/src/core/progress.py
 # -*- coding: utf-8 -*-
-"""core.progress
-~~~~~~~~~~~~~~~~
-Progress‑calculation utilities for TestWise.
+"""
+TestWise/Backend/src/service/progress.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Progress-calculation utilities for TestWise.
 
-The rules are intentionally simple and easy to tweak later:
+This module defines business logic for calculating progress based on simple
+rules:
 
-* **Subsection** is considered *viewed* when the learner opens it; nothing
+* Subsection is considered *viewed* when the learner opens it; nothing
   else is required.
-* **Section** completion percentage is the proportion of viewed subsections.
+* Section completion percentage is the proportion of viewed subsections.
   If the section has a *section_final* test, that test **must** be passed
   (>= 60 % score) for the percentage to reach 100 %.
-* **Topic** completion percentage is the arithmetic mean of its sections'
+* Topic completion percentage is the arithmetic mean of its sections'
   completion percentages.
-* **Global‑final** tests are available only when their parent topic's
+* Global-final tests are available only when their parent topic's
   completion is ≥ 90 %.
-* **Section‑final** tests are available only when their parent section's
+* Section-final tests are available only when their parent section's
   completion is ≥ 90 %.
-* **Hinted** tests are always available; they never gate progress.
+* Hinted tests are always available; they never gate progress.
 
 All functions are ``async`` and expect an ``AsyncSession`` following the
 SQLAlchemy 2.0 style.
@@ -31,19 +32,18 @@ from typing import Any, Dict, List
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.logger import configure_logger
-from src.database.models import (
+from src.config.logger import configure_logger
+from src.domain.models import (
     ProgressStatus,
     Section,
     SectionProgress,
-    Subsection,
-    SubsectionProgress,
     Test,
     TestAttempt,
     TestType,
     Topic,
-    TopicProgress,
+    TopicProgress, SubsectionProgress,
 )
+from src.repository.base import get_item
 from src.utils.exceptions import NotFoundError, ValidationError
 
 logger = configure_logger()
@@ -55,6 +55,7 @@ logger = configure_logger()
 
 
 async def _ensure_topic_progress(session: AsyncSession, user_id: int, topic_id: int) -> TopicProgress:
+    """Ensure a topic progress entry exists, creating it if necessary."""
     stmt: Select = select(TopicProgress).where(
         TopicProgress.user_id == user_id, TopicProgress.topic_id == topic_id
     )
@@ -69,6 +70,7 @@ async def _ensure_topic_progress(session: AsyncSession, user_id: int, topic_id: 
 
 
 async def _ensure_section_progress(session: AsyncSession, user_id: int, section_id: int) -> SectionProgress:
+    """Ensure a section progress entry exists, creating it if necessary."""
     stmt: Select = select(SectionProgress).where(
         SectionProgress.user_id == user_id, SectionProgress.section_id == section_id
     )
@@ -85,6 +87,7 @@ async def _ensure_section_progress(session: AsyncSession, user_id: int, section_
 async def _ensure_subsection_progress(
         session: AsyncSession, user_id: int, subsection_id: int
 ) -> SubsectionProgress:
+    """Ensure a subsection progress entry exists, creating it if necessary."""
     stmt: Select = select(SubsectionProgress).where(
         SubsectionProgress.user_id == user_id, SubsectionProgress.subsection_id == subsection_id
     )
@@ -103,26 +106,6 @@ async def _ensure_subsection_progress(
 # ---------------------------------------------------------------------------
 
 
-async def mark_subsection_viewed(session: AsyncSession, user_id: int, subsection_id: int) -> SubsectionProgress:
-    """Mark a subsection as viewed and cascade progress updates upstream."""
-    subsection: Subsection | None = await session.get(Subsection, subsection_id)
-    if subsection is None:
-        raise NotFoundError(resource_type="Subsection", resource_id=subsection_id)
-
-    progress = await _ensure_subsection_progress(session, user_id, subsection_id)
-    if not progress.is_viewed:
-        progress.is_viewed = True
-        progress.viewed_at = datetime.now()
-        await session.commit()
-        await session.refresh(progress)
-        logger.info("User %s viewed subsection %s", user_id, subsection_id)
-
-        # Recalculate section & topic
-        await calculate_section_progress(session, user_id, subsection.section_id, commit=True)
-
-    return progress
-
-
 async def calculate_section_progress(
         session: AsyncSession,
         user_id: int,
@@ -133,14 +116,14 @@ async def calculate_section_progress(
 
     Returns the new percentage (0–100).
     """
-    section: Section | None = await session.get(Section, section_id)
+    section: Section | None = await get_item(session, Section, section_id)
     if section is None:
         raise NotFoundError(resource_type="Section", resource_id=section_id)
 
     # 1. Subsection completion ratio
     total_subsections: int = len(section.subsections)
     if total_subsections == 0:
-        subsection_ratio = 1.0  # edge‑case: treat as fully complete
+        subsection_ratio = 1.0  # edge-case: treat as fully complete
     else:
         stmt = select(func.count(SubsectionProgress.id)).where(
             SubsectionProgress.user_id == user_id,
@@ -153,7 +136,7 @@ async def calculate_section_progress(
 
     percentage = subsection_ratio * 100.0
 
-    # 2. If there is a section‑final test, cap until it is passed
+    # 2. If there is a section-final test, cap until it is passed
     final_tests: List[Test] = [t for t in section.tests if t.type == TestType.SECTION_FINAL]
     passed_final_test = False
     if final_tests:
@@ -195,7 +178,7 @@ async def calculate_topic_progress(
         commit: bool = False,
 ) -> float:
     """Recalculate topic completion percentage and persist it."""
-    topic: Topic | None = await session.get(Topic, topic_id)
+    topic: Topic | None = await get_item(session, Topic, topic_id)
     if topic is None:
         raise NotFoundError(resource_type="Topic", resource_id=topic_id)
 
@@ -233,7 +216,7 @@ async def calculate_topic_progress(
 
 async def check_test_availability(session: AsyncSession, user_id: int, test_id: int) -> bool:
     """Return *True* if the user may start the given test."""
-    test: Test | None = await session.get(Test, test_id)
+    test: Test | None = await get_item(session, Test, test_id)
     if test is None:
         raise NotFoundError(resource_type="Test", resource_id=test_id)
 
@@ -251,7 +234,7 @@ async def check_test_availability(session: AsyncSession, user_id: int, test_id: 
 
     if test.type == TestType.GLOBAL_FINAL:
         if test.topic_id is None:
-            raise ValidationError(detail="Global‑final test must be linked to a topic")
+            raise ValidationError(detail="Global-final test must be linked to a topic")
         await calculate_topic_progress(session, user_id, test.topic_id, commit=False)
         stmt = select(TopicProgress.completion_percentage).where(
             TopicProgress.user_id == user_id, TopicProgress.topic_id == test.topic_id
@@ -301,7 +284,7 @@ async def get_user_profile(session: AsyncSession, user_id: int) -> Dict[str, Any
         "test_attempts": [ta for ta in attempts_res.scalars().all()],
     }
 
-    # Optionally return a human‑friendly overall KPI
+    # Optionally return a human-friendly overall KPI
     if profile["topics"]:
         overall = sum(tp.completion_percentage for tp in profile["topics"]) / len(
             profile["topics"]

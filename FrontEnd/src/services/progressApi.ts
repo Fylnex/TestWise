@@ -101,28 +101,28 @@ export const progressApi = {
   },
 
   getTopicProgressList: async (userId?: number): Promise<TopicProgress[]> => {
-    const response = await http.get<TopicProgress[]>("/progress/topics", {
+    const response = await http.get<TopicProgress[]>("/api/v1/progress/topics", {
       params: userId ? { user_id: userId } : {},
     });
     return response.data;
   },
 
   getSectionProgressList: async (userId?: number): Promise<SectionProgress[]> => {
-    const response = await http.get<SectionProgress[]>("/progress/sections", {
+    const response = await http.get<SectionProgress[]>("/api/v1/progress/sections", {
       params: userId ? { user_id: userId } : {},
     });
     return response.data;
   },
 
   getSubsectionProgressList: async (userId?: number): Promise<SubsectionProgress[]> => {
-    const response = await http.get<SubsectionProgress[]>("/progress/subsections", {
+    const response = await http.get<SubsectionProgress[]>("/api/v1/progress/subsections", {
       params: userId ? { user_id: userId } : {},
     });
     return response.data;
   },
 
   getTestAttempts: async (userId?: number): Promise<TestAttempt[]> => {
-    const response = await http.get<TestAttempt[]>("/progress/tests", {
+    const response = await http.get<TestAttempt[]>("/api/v1/progress/tests", {
       params: userId ? { user_id: userId } : {},
     });
     return response.data;

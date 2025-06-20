@@ -1,11 +1,14 @@
-# TestWise/Backend/src/api/v1/progress/schemas.py
+# -*- coding: utf-8 -*-
+"""
+Pydantic-схемы для прогресса пользователей.
+"""
+
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
 
-from src.database.models import ProgressStatus
-
+from src.domain.enums import ProgressStatus
 
 class TopicProgressRead(BaseModel):
     id: int

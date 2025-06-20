@@ -5,8 +5,9 @@ from datetime import datetime
 from src.database.models import Role
 
 class UserCreateSchema(BaseModel):
+    """Схема для создания пользователя."""
     username: str
-    email: EmailStr
+    full_name: str
     password: str
     role: Role  # Используем enum Role напрямую
     is_active: bool = True
@@ -15,7 +16,7 @@ class UserCreateSchema(BaseModel):
         json_schema_extra = {
             "example": {
                 "username": "newuser",
-                "email": "user@example.com",
+                "full_name": "New User",
                 "password": "securepassword123",
                 "role": "student",
                 "is_active": True
@@ -23,31 +24,28 @@ class UserCreateSchema(BaseModel):
         }
 
 class UserUpdateSchema(BaseModel):
-    username: Optional[str] = None
-    email: Optional[EmailStr] = None
-    password: Optional[str] = None
-    role: Optional[Role] = None
-    is_active: Optional[bool] = None
+    """Схема для обновления пользователя."""
+    full_name: Optional[str] = None
+    last_login: Optional[datetime] = None
 
     class Config:
         json_schema_extra = {
             "example": {
-                "username": "updateduser",
-                "email": "updated@example.com",
-                "password": "newpassword123",
-                "role": "teacher",
-                "is_active": False
+                "full_name": "Updated User",
+                "last_login": "2025-06-20T15:42:00"
             }
         }
 
 class UserReadSchema(BaseModel):
+    """Схема для чтения данных пользователя."""
     id: int
     username: str
-    email: EmailStr
+    full_name: str
     role: Role
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
+    is_archived: bool
 
     class Config:
         from_attributes = True
