@@ -31,8 +31,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 async def create_user(
     session: AsyncSession,
     username: str,
-    email: str,
-    password: str,
+    password: str,  # Removed email parameter
     role: Role,
     is_active: bool = True,
 ) -> User:
@@ -42,7 +41,6 @@ async def create_user(
         session,
         User,
         username=username,
-        email=email,
         password=hashed_password,
         role=role,
         is_active=is_active,

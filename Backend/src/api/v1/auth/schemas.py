@@ -26,15 +26,15 @@ class TokenSchema(BaseModel):
     token_type: str
 
 class UserReadSchema(BaseModel):
-    """
-    Schema for reading user data.
-    """
     id: int
     username: str
-    email: EmailStr
+    full_name: str
     role: Role
     is_active: bool
     created_at: datetime
+    last_login: datetime | None
+    refresh_token: str | None
+    is_archived: bool
 
     class Config:
-        from_attributes = True
+        orm_mode = True

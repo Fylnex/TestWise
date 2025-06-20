@@ -1,6 +1,7 @@
-# TestWise/Backend/src/database/db.py
 # -*- coding: utf-8 -*-
 """
+TestWise/Backend/src/database/db.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This module configures the database connection for the TestWise application using SQLAlchemy with an asynchronous SQLite driver.
 It provides an async engine, session factory, and dependency for FastAPI to manage database sessions.
 """
@@ -36,10 +37,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """
-    Initializes the database by creating all defined tables.
+    Initializes the database by creating all defined tables and configuring mappers.
 
     Exceptions:
-        - Any SQLAlchemy-related exceptions if table creation fails.
+        - Any SQLAlchemy-related exceptions if table creation or configuration fails.
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        Base.registry.configure()  # Explicitly configure mappers

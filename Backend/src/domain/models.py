@@ -48,6 +48,7 @@ class User(Base):
     is_archived = Column(Boolean, default=False)
 
     # Relationships
+    group_teachers = relationship("GroupTeachers", back_populates="users")
     group_students = relationship("GroupStudents", back_populates="user", cascade="all, delete-orphan")
     topic_progress = relationship("TopicProgress", back_populates="user", cascade="all, delete-orphan")
     section_progress = relationship("SectionProgress", back_populates="user", cascade="all, delete-orphan")
@@ -105,7 +106,7 @@ class GroupTeachers(Base):
     is_archived = Column(Boolean, default=False)
 
     # Relationships
-    user = relationship("User", back_populates="group_teachers")
+    users = relationship("User", back_populates="group_teachers")
     group = relationship("Group", back_populates="teachers")
 
 
@@ -124,6 +125,7 @@ class Topic(Base):
     # Relationships
     sections = relationship("Section", back_populates="topic", cascade="all, delete-orphan")
     global_tests = relationship("Test", back_populates="topic", cascade="all, delete-orphan")
+    progress = relationship("TopicProgress", back_populates="topic")  # Changed to match TopicProgress
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Topic(title={self.title!r}, is_archived={self.is_archived})>"
@@ -147,7 +149,7 @@ class Section(Base):
     subsections = relationship("Subsection", back_populates="section", cascade="all, delete-orphan")
     tests = relationship("Test", back_populates="section", cascade="all, delete-orphan")
     questions = relationship("Question", back_populates="section", cascade="all, delete-orphan")
-    progress = relationship("SectionProgress", back_populates="section", cascade="all, delete-orphan")
+    progress = relationship("SectionProgress", back_populates="section")  # Changed to match SectionProgress
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Section(title={self.title!r}, topic_id={self.topic_id})>"
@@ -168,7 +170,7 @@ class Subsection(Base):
 
     # Relationships
     section = relationship("Section", back_populates="subsections")
-    progress = relationship("SubsectionProgress", back_populates="subsection", cascade="all, delete-orphan")
+    progress = relationship("SubsectionProgress", back_populates="subsection")  # Changed to match SubsectionProgress
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Subsection(title={self.title!r}, section_id={self.section_id})>"
@@ -241,7 +243,7 @@ class TopicProgress(Base):
 
     # Relationships
     user = relationship("User", back_populates="topic_progress")
-    topic = relationship("Topic", back_populates="progress")
+    topic = relationship("Topic", back_populates="progress")  # Changed to match Topic
 
 
 class SectionProgress(Base):
@@ -258,7 +260,7 @@ class SectionProgress(Base):
 
     # Relationships
     user = relationship("User", back_populates="section_progress")
-    section = relationship("Section", back_populates="progress")
+    section = relationship("Section", back_populates="progress")  # Changed to match Section
 
 
 class SubsectionProgress(Base):
@@ -274,7 +276,7 @@ class SubsectionProgress(Base):
 
     # Relationships
     user = relationship("User", back_populates="subsection_progress")
-    subsection = relationship("Subsection", back_populates="progress")
+    subsection = relationship("Subsection", back_populates="progress")  # Changed to match Subsection
 
 
 class TestAttempt(Base):

@@ -2,13 +2,13 @@ import asyncio
 from datetime import datetime
 
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
 
-from src.core.config import settings
-from src.database.models import User, Role, Base
+from src.config.settings import settings
+from src.domain.enums import Role
+from src.domain.models import Base, User
 
 # Настройка хеширования пароля
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -22,12 +22,17 @@ async def create_admin_user():
     # Настройка подключения к базе данных
     engine = create_async_engine(settings.database_url, echo=False)
 
-    # Создание таблиц, если они не существуют
+    # Создание таблиц, если они не существуют, и конфигурация мапперов
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        Base.registry.configure()  # Эксплицитная конфигурация мапперов
 
     # Настройка сессии
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
 
     async with async_session() as session:
         # Проверка, существует ли пользователь admin
@@ -40,14 +45,17 @@ async def create_admin_user():
             print("Пользователь admin уже существует.")
             return
 
-        # Создание нового пользователя
+        # Создание нового пользователя с учетом всех обязательных полей
         admin_user = User(
             username="admin",
-            email="admin@example.com",
+            full_name="Admin User",  # Добавлено, так как поле не допускает NULL
             password=hash_password("12345"),
             role=Role.ADMIN,
             is_active=True,
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            last_login=None,
+            refresh_token=None,
+            is_archived=False
         )
 
         session.add(admin_user)
