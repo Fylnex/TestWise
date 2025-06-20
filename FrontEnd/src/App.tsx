@@ -15,6 +15,7 @@ import { TopicProvider } from "./context/TopicContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import GroupManagement from "./pages/GroupManagement";
+import TopicPage from "./pages/TopicPage";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,14 @@ const App = () => (
                 }
               />
               <Route path="/about" element={<About />} />
+              <Route
+                path="/topic/:topicId"
+                element={
+                  <ProtectedRoute>
+                    <TopicPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

@@ -54,6 +54,14 @@ const TopicPage: React.FC = () => {
     Record<number, Subsection[]>
   >({});
 
+  const [openSubsection, setOpenSubsection] = useState<{ [sectionId: number]: boolean }>({});
+  const [subsectionForm, setSubsectionForm] = useState<{ [sectionId: number]: Partial<Subsection> }>({});
+  const [creatingSubsection, setCreatingSubsection] = useState<{ [sectionId: number]: boolean }>({});
+  const [errorSubsection, setErrorSubsection] = useState<{ [sectionId: number]: string | null }>({});
+
+  const [showAddBlock, setShowAddBlock] = useState(false);
+  const [addType, setAddType] = useState<'section' | 'test' | null>(null);
+
   useEffect(() => {
     if (!topicId) return;
     setLoading(true);
@@ -131,12 +139,47 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  const handleOpenSubsection = (sectionId: number) => {
+    setOpenSubsection((prev) => ({ ...prev, [sectionId]: true }));
+    setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'default', section_id: sectionId } }));
+    setErrorSubsection((prev) => ({ ...prev, [sectionId]: null }));
+  };
+
+  const handleCloseSubsection = (sectionId: number) => {
+    setOpenSubsection((prev) => ({ ...prev, [sectionId]: false }));
+  };
+
+  const handleCreateSubsection = async (e: React.FormEvent, sectionId: number) => {
+    e.preventDefault();
+    setCreatingSubsection((prev) => ({ ...prev, [sectionId]: true }));
+    setErrorSubsection((prev) => ({ ...prev, [sectionId]: null }));
+    try {
+      const newSubsection = await topicApi.createSubsection({
+        ...subsectionForm[sectionId],
+        section_id: sectionId,
+        order: Number(subsectionForm[sectionId]?.order) || 0,
+      });
+      setSubsectionsMap((prev) => ({
+        ...prev,
+        [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
+      }));
+      setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'default', section_id: sectionId } }));
+      setOpenSubsection((prev) => ({ ...prev, [sectionId]: false }));
+    } catch (err) {
+      setErrorSubsection((prev) => ({ ...prev, [sectionId]: 'Ошибка при создании подсекции' }));
+    } finally {
+      setCreatingSubsection((prev) => ({ ...prev, [sectionId]: false }));
+    }
+  };
+
   if (loading) {
     return <Layout><div className="text-center py-10">Загрузка...</div></Layout>;
   }
   if (!topic) {
     return <Layout><div className="text-center py-10">Тема не найдена</div></Layout>;
   }
+
+  const isEmpty = sections.length === 0 && tests.length === 0;
 
   return (
     <Layout>
@@ -149,171 +192,212 @@ const TopicPage: React.FC = () => {
         )}
       </div>
       {(user?.role === "admin" || user?.role === "teacher") && (
-        <div className="flex gap-4 justify-center mb-8">
-          <Dialog open={openSection} onOpenChange={setOpenSection}>
-            <DialogTrigger asChild>
-              <Button variant="outline">Добавить секцию</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Создать секцию</DialogTitle>
-                <DialogDescription>
-                  Введите данные для новой секции.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateSection} className="space-y-4">
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Название секции"
-                  value={sectionForm.title}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({ ...f, title: e.target.value }))
-                  }
-                  required
-                />
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Порядок (число)"
-                  type="number"
-                  value={sectionForm.order}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({
-                      ...f,
-                      order: Number(e.target.value),
-                    }))
-                  }
-                  required
-                />
-                <textarea
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Описание секции"
-                  value={sectionForm.description}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({
-                      ...f,
-                      description: e.target.value,
-                    }))
-                  }
-                />
-                <textarea
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Контент секции (необязательно)"
-                  value={sectionForm.content}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({ ...f, content: e.target.value }))
-                  }
-                />
-                {errorSection && (
-                  <div className="text-red-500 text-sm">{errorSection}</div>
-                )}
-                <DialogFooter>
-                  <Button type="submit" disabled={creatingSection}>
-                    {creatingSection ? "Создание..." : "Создать"}
-                  </Button>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Отмена
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={openTest} onOpenChange={setOpenTest}>
-            <DialogTrigger asChild>
-              <Button variant="outline">Добавить тест</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Создать тест</DialogTitle>
-                <DialogDescription>
-                  Введите данные для нового теста.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateTest} className="space-y-4">
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Название теста"
-                  value={testForm.title}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, title: e.target.value }))
-                  }
-                  required
-                />
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={testForm.type}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, type: e.target.value }))
-                  }
-                  required
-                >
-                  <option value="hinted">С подсказками</option>
-                  <option value="section_final">Финальный по секции</option>
-                  <option value="global_final">Глобальный финальный</option>
-                </select>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Длительность (сек, 0 — без лимита)"
-                  type="number"
-                  value={testForm.duration}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, duration: e.target.value }))
-                  }
-                />
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="ID вопросов через запятую (необязательно)"
-                  value={testForm.question_ids}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, question_ids: e.target.value }))
-                  }
-                />
-                {errorTest && (
-                  <div className="text-red-500 text-sm">{errorTest}</div>
-                )}
-                <DialogFooter>
-                  <Button type="submit" disabled={creatingTest}>
-                    {creatingTest ? "Создание..." : "Создать"}
-                  </Button>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Отмена
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <>
+          {(isEmpty || showAddBlock) && (
+            <div className="flex flex-col items-center mb-8">
+              {!addType ? (
+                <Button variant="outline" size="lg" onClick={() => setShowAddBlock(true)}>
+                  <span className="text-2xl mr-2">+</span> Добавить...
+                </Button>
+              ) : null}
+              {showAddBlock && !addType && (
+                <div className="flex gap-4 mt-4">
+                  <Button onClick={() => setAddType('section')}>Секция</Button>
+                  <Button onClick={() => setAddType('test')}>Глобальный тест</Button>
+                </div>
+              )}
+              {addType === 'section' && (
+                <Dialog open={true} onOpenChange={() => { setAddType(null); setShowAddBlock(false); }}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Создать секцию</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateSection} className="space-y-4">
+                      <input
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Название секции"
+                        value={sectionForm.title}
+                        onChange={(e) => setSectionForm((f) => ({ ...f, title: e.target.value }))}
+                        required
+                      />
+                      <input
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Порядок (число)"
+                        type="number"
+                        value={sectionForm.order}
+                        onChange={(e) => setSectionForm((f) => ({ ...f, order: Number(e.target.value) }))}
+                        required
+                      />
+                      <textarea
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Описание секции"
+                        value={sectionForm.description}
+                        onChange={(e) => setSectionForm((f) => ({ ...f, description: e.target.value }))}
+                      />
+                      <textarea
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Контент секции (необязательно)"
+                        value={sectionForm.content}
+                        onChange={(e) => setSectionForm((f) => ({ ...f, content: e.target.value }))}
+                      />
+                      {errorSection && (
+                        <div className="text-red-500 text-sm">{errorSection}</div>
+                      )}
+                      <DialogFooter>
+                        <Button type="submit" disabled={creatingSection}>
+                          {creatingSection ? "Создание..." : "Создать"}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => { setAddType(null); setShowAddBlock(false); }}>Отмена</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {addType === 'test' && (
+                <Dialog open={true} onOpenChange={() => { setAddType(null); setShowAddBlock(false); }}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Создать глобальный тест</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateTest} className="space-y-4">
+                      <input
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Название теста"
+                        value={testForm.title}
+                        onChange={(e) => setTestForm((f) => ({ ...f, title: e.target.value }))}
+                        required
+                      />
+                      <input
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Длительность (сек, 0 — без лимита)"
+                        type="number"
+                        value={testForm.duration}
+                        onChange={(e) => setTestForm((f) => ({ ...f, duration: e.target.value }))}
+                      />
+                      <input
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="ID вопросов через запятую (необязательно)"
+                        value={testForm.question_ids}
+                        onChange={(e) => setTestForm((f) => ({ ...f, question_ids: e.target.value }))}
+                      />
+                      <input type="hidden" value="global_final" />
+                      {errorTest && (
+                        <div className="text-red-500 text-sm">{errorTest}</div>
+                      )}
+                      <DialogFooter>
+                        <Button type="submit" disabled={creatingTest}>
+                          {creatingTest ? "Создание..." : "Создать"}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => { setAddType(null); setShowAddBlock(false); }}>Отмена</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          )}
+        </>
       )}
       <Accordion type="single" collapsible className="w-full max-w-2xl mx-auto">
-        {sections.map((section) => (
-          <AccordionItem key={section.id} value={section.id.toString()}>
-            <AccordionTrigger>
-              <span>{section.title}</span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="mb-2 text-slate-700">
-                {section.description || section.content}
-              </div>
-              {/* Подсекции */}
-              {subsectionsMap[section.id] &&
-                subsectionsMap[section.id].length > 0 && (
+        {sections.map((section, idx) => (
+          <React.Fragment key={section.id}>
+            <AccordionItem value={section.id.toString()}>
+              <AccordionTrigger>
+                <span>{section.title}</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="mb-2 text-slate-700">
+                  {section.description || section.content}
+                </div>
+                {/* Подсекции */}
+                {subsectionsMap[section.id] &&
+                  subsectionsMap[section.id].length > 0 && (
+                    <div className="mt-4">
+                      <div className="font-semibold mb-2">Подсекции:</div>
+                      <ul className="list-disc pl-6">
+                        {subsectionsMap[section.id].map((sub) => (
+                          <li key={sub.id}>{sub.title}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                {/* Кнопка и модалка для создания подсекции */}
+                {(user?.role === "admin" || user?.role === "teacher") && (
                   <div className="mt-4">
-                    <div className="font-semibold mb-2">Подсекции:</div>
-                    <ul className="list-disc pl-6">
-                      {subsectionsMap[section.id].map((sub) => (
-                        <li key={sub.id}>{sub.title}</li>
-                      ))}
-                    </ul>
+                    <Dialog open={!!openSubsection[section.id]} onOpenChange={(open) => open ? handleOpenSubsection(section.id) : handleCloseSubsection(section.id)}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">Добавить подсекцию</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Создать подсекцию</DialogTitle>
+                          <DialogDescription>
+                            Введите данные для новой подсекции.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={(e) => handleCreateSubsection(e, section.id)} className="space-y-4">
+                          <input
+                            className="w-full border rounded px-3 py-2"
+                            placeholder="Название подсекции"
+                            value={subsectionForm[section.id]?.title || ''}
+                            onChange={(e) => setSubsectionForm((f) => ({ ...f, [section.id]: { ...f[section.id], title: e.target.value } }))}
+                            required
+                          />
+                          <input
+                            className="w-full border rounded px-3 py-2"
+                            placeholder="Порядок (число)"
+                            type="number"
+                            value={subsectionForm[section.id]?.order || 0}
+                            onChange={(e) => setSubsectionForm((f) => ({ ...f, [section.id]: { ...f[section.id], order: Number(e.target.value) } }))}
+                            required
+                          />
+                          <textarea
+                            className="w-full border rounded px-3 py-2"
+                            placeholder="Контент подсекции (необязательно)"
+                            value={subsectionForm[section.id]?.content || ''}
+                            onChange={(e) => setSubsectionForm((f) => ({ ...f, [section.id]: { ...f[section.id], content: e.target.value } }))}
+                          />
+                          <select
+                            className="w-full border rounded px-3 py-2"
+                            value={subsectionForm[section.id]?.type || 'default'}
+                            onChange={(e) => setSubsectionForm((f) => ({ ...f, [section.id]: { ...f[section.id], type: e.target.value } }))}
+                            required
+                          >
+                            <option value="default">Обычная</option>
+                            <option value="info">Информационная</option>
+                            <option value="practice">Практическая</option>
+                          </select>
+                          {errorSubsection[section.id] && (
+                            <div className="text-red-500 text-sm">{errorSubsection[section.id]}</div>
+                          )}
+                          <DialogFooter>
+                            <Button type="submit" disabled={creatingSubsection[section.id]}>
+                              {creatingSubsection[section.id] ? "Создание..." : "Создать"}
+                            </Button>
+                            <DialogClose asChild>
+                              <Button type="button" variant="outline">
+                                Отмена
+                              </Button>
+                            </DialogClose>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 )}
-              <Link to={`/section/${section.id}`}>
-                <Button variant="outline">Перейти к секции</Button>
-              </Link>
-            </AccordionContent>
-          </AccordionItem>
+                <Link to={`/section/${section.id}`}>
+                  <Button variant="outline">Перейти к секции</Button>
+                </Link>
+              </AccordionContent>
+            </AccordionItem>
+            {(user?.role === "admin" || user?.role === "teacher") && idx === sections.length - 1 && (
+              <div className="flex flex-col items-center my-4">
+                <Button variant="outline" size="lg" onClick={() => { setShowAddBlock(true); setAddType(null); }}>
+                  <span className="text-2xl mr-2">+</span> Добавить...
+                </Button>
+              </div>
+            )}
+          </React.Fragment>
         ))}
         {tests.length > 0 && (
           <>

@@ -5,7 +5,7 @@
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -189,3 +189,21 @@ async def submit_test_endpoint(
     )
     logger.debug(f"Test {test_id} submitted, score: {score}")
     return attempt
+
+@router.get("", response_model=List[TestReadSchema])
+async def list_tests(
+    topic_id: Optional[int] = None,
+    section_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    logger.debug(f"Listing tests, topic_id={topic_id}, section_id={section_id}")
+    stmt = select(Test)
+    if topic_id is not None:
+        stmt = stmt.where(Test.topic_id == topic_id)
+    if section_id is not None:
+        stmt = stmt.where(Test.section_id == section_id)
+    res = await session.execute(stmt)
+    tests = res.scalars().all()
+    logger.debug(f"Retrieved {len(tests)} tests")
+    return [TestReadSchema.model_validate(t) for t in tests]

@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Optional
 
 from src.core.crud import (
     create_section,
@@ -124,3 +125,18 @@ async def list_subsections_endpoint(
     return SectionWithSubsections.model_validate(
         {**section.__dict__, "subsections": [SubsectionRead.model_validate(s) for s in subs]}
     )
+
+@router.get("", response_model=List[SectionReadSchema])
+async def list_sections(
+    topic_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    logger.debug(f"Listing sections, topic_id={topic_id}")
+    stmt = select(Section)
+    if topic_id is not None:
+        stmt = stmt.where(Section.topic_id == topic_id)
+    res = await session.execute(stmt)
+    sections = res.scalars().all()
+    logger.debug(f"Retrieved {len(sections)} sections")
+    return [SectionReadSchema.model_validate(s) for s in sections]
