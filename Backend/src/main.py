@@ -6,6 +6,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.v1.auth import router as auth_router
 from src.api.v1.groups import router as groups_router
@@ -27,6 +28,9 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Mount static files directory
+app.mount("/media", StaticFiles(directory="Backend/media"), name="media")
+
 # Настройка CORS
 origins = [
     "http://localhost:8080",
@@ -38,7 +42,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*", "Authorization"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 logger = configure_logger()
@@ -65,14 +69,3 @@ async def startup_event():
 async def root():
     """Проверка живости приложения."""
     return {"message": "TestWise API работает"}
-
-# Добавляем middleware для отладки CORS
-@app.middleware("http")
-async def add_cors_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:8080"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    logger.debug(f"Response headers: {dict(response.headers)}")
-    return response

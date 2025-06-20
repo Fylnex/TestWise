@@ -20,6 +20,18 @@ class TopicUpdateSchema(BaseModel):
     category: Optional[str] = None
     image: Optional[str] = None
 
+class TopicBaseReadSchema(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    image: Optional[str] = None
+    created_at: datetime
+    is_archived: bool
+
+    class Config:
+        from_attributes = True
+
 class TopicProgressRead(BaseModel):
     id: int
     topic_id: int

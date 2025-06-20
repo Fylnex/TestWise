@@ -132,6 +132,7 @@ async def create_subsection(
     content: str | None = None,
     type: SubsectionType = SubsectionType.TEXT,
     order: int = 0,
+    file_path: str | None = None,
 ) -> Subsection:
     """Create a new subsection under the specified section."""
     await get_item(session, Section, section_id)
@@ -143,6 +144,7 @@ async def create_subsection(
         content=content,
         type=type,
         order=order,
+        file_path=file_path,
     )
 
 async def get_subsection(session: AsyncSession, subsection_id: int) -> Subsection:

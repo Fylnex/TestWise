@@ -35,6 +35,7 @@ export interface Subsection {
   section_id: number;
   title: string;
   content?: string;
+  file_path?: string;
   type: string;
   order: number;
   created_at?: string;
@@ -97,38 +98,47 @@ export const sectionApi = {
 
   // Новые методы для подсекций
   createSubsection: async (sectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
-    const response = await http.post<Subsection>(`/api/v1/subsections`, data);
+    const response = await http.post<Subsection>(`/subsections`, data);
     return response.data;
   },
 
   getSubsection: async (subsectionId: number): Promise<Subsection> => {
-    const response = await http.get<Subsection>(`/api/v1/subsections/${subsectionId}`);
+    const response = await http.get<Subsection>(`/subsections/${subsectionId}`);
     return response.data;
   },
 
   updateSubsection: async (subsectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
-    const response = await http.put<Subsection>(`/api/v1/subsections/${subsectionId}`, data);
+    const response = await http.put<Subsection>(`/subsections/${subsectionId}`, data);
     return response.data;
   },
 
   archiveSubsection: async (subsectionId: number): Promise<void> => {
-    await http.post(`/api/v1/subsections/${subsectionId}/archive`);
+    await http.post(`/subsections/${subsectionId}/archive`);
   },
 
   restoreSubsection: async (subsectionId: number): Promise<void> => {
-    await http.post(`/api/v1/subsections/${subsectionId}/restore`);
+    await http.post(`/subsections/${subsectionId}/restore`);
   },
 
   deleteSubsection: async (subsectionId: number): Promise<void> => {
-    await http.delete(`/api/v1/subsections/${subsectionId}`);
+    await http.delete(`/subsections/${subsectionId}`);
   },
 
   deleteSubsectionPermanently: async (subsectionId: number): Promise<void> => {
-    await http.delete(`/api/v1/subsections/${subsectionId}/permanent`);
+    await http.delete(`/subsections/${subsectionId}/permanent`);
   },
 
   viewSubsection: async (subsectionId: number): Promise<any> => { // Замените 'any' на конкретный тип, если есть
-    const response = await http.post<any>(`/api/v1/subsections/${subsectionId}/view`);
+    const response = await http.post<any>(`/subsections/${subsectionId}/view`);
+    return response.data;
+  },
+
+  createSubsectionWithFile: async (formData: FormData): Promise<Subsection> => {
+    const response = await http.post<Subsection>(`/subsections`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 };

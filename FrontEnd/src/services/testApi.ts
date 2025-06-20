@@ -12,6 +12,7 @@ export interface Test {
   id: number;
   title: string;
   type: string;
+  order: number;
   duration?: number;
   section_id?: number;
   topic_id?: number;

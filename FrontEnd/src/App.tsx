@@ -97,6 +97,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/topic/:topicId"
+                element={
+                  <ProtectedRoute>
+                    <TopicPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/profile"
                 element={
                   <ProtectedRoute>

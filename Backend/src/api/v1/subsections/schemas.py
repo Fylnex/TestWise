@@ -28,6 +28,7 @@ class SubsectionReadSchema(BaseModel):
     section_id: int
     title: str
     content: Optional[str]
+    file_path: Optional[str] = None
     type: SubsectionType
     order: int
     created_at: datetime

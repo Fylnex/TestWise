@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { topicApi, Topic } from "@/services/topicApi";
 import {
@@ -20,6 +20,7 @@ import {
 
 export default function Topics() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -42,6 +43,7 @@ export default function Topics() {
       setTopics((prev) => [...prev, newTopic]);
       setForm({ title: '', description: '', category: '', image: '' });
       setOpen(false);
+      navigate(`/topic/${newTopic.id}`);
     } catch (err: any) {
       setError('Ошибка при создании темы');
     } finally {

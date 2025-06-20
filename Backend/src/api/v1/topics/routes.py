@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -28,6 +29,7 @@ from .schemas import (
     TopicProgressRead,
     TopicReadSchema,
     TopicUpdateSchema,
+    TopicBaseReadSchema,
 )
 
 router = APIRouter()
@@ -37,7 +39,7 @@ logger = configure_logger()
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=TopicReadSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TopicBaseReadSchema, status_code=status.HTTP_201_CREATED)
 async def create_topic_endpoint(
     topic_data: TopicCreateSchema,
     session: AsyncSession = Depends(get_db),
@@ -52,7 +54,7 @@ async def create_topic_endpoint(
         image=topic_data.image,
     )
     logger.debug(f"Topic created with ID: {topic.id}")
-    return TopicReadSchema.model_validate(topic)
+    return TopicBaseReadSchema.model_validate(topic)
 
 @router.get("", response_model=List[TopicReadSchema])
 async def list_topics_endpoint(

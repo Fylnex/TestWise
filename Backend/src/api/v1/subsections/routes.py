@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+import os
+import shutil
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
 from src.database.db import get_db
+from src.domain.enums import SubsectionType
 from src.repository.topic import (
     create_subsection,
     get_subsection,
@@ -20,7 +25,6 @@ from src.repository.topic import (
 )
 from src.security.security import admin_or_teacher, authenticated
 from .schemas import (
-    SubsectionCreateSchema,
     SubsectionProgressRead,
     SubsectionReadSchema,
     SubsectionUpdateSchema,
@@ -29,24 +33,59 @@ from .schemas import (
 router = APIRouter()
 logger = configure_logger()
 
+# Define the base path for media storage
+MEDIA_PATH = Path("Backend/media/subsections")
+PDF_PATH = MEDIA_PATH / "pdfs"
+
+# Ensure the directories exist
+os.makedirs(PDF_PATH, exist_ok=True)
+
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
 
 @router.post("", response_model=SubsectionReadSchema, status_code=status.HTTP_201_CREATED)
 async def create_subsection_endpoint(
-    payload: SubsectionCreateSchema,
+    section_id: int = Form(...),
+    title: str = Form(...),
+    type: SubsectionType = Form(...),
+    order: int = Form(0),
+    content: str = Form(None),
+    file: UploadFile | None = File(None),
     session: AsyncSession = Depends(get_db),
     _claims: dict = Depends(admin_or_teacher),
 ):
-    logger.debug(f"Creating subsection with payload: {payload.model_dump()}")
+    """
+    Create a new subsection.
+
+    - For **text** subsections, provide `content`.
+    - For **pdf** subsections, upload a `file`.
+    """
+    logger.debug(f"Creating subsection for section_id: {section_id}")
+
+    file_path = None
+    if type == SubsectionType.PDF:
+        if not file:
+            raise ValueError("File must be provided for PDF subsection type.")
+        # Sanitize filename to prevent security issues
+        safe_filename = Path(file.filename).name
+        file_location = PDF_PATH / safe_filename
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        file_path = str(file_location)
+        logger.debug(f"PDF file saved at: {file_path}")
+
+    elif type == SubsectionType.TEXT and not content:
+        raise ValueError("Content must be provided for TEXT subsection type.")
+
     subsection = await create_subsection(
         session,
-        section_id=payload.section_id,
-        title=payload.title,
-        content=payload.content,
-        type=payload.type,
-        order=payload.order,
+        section_id=section_id,
+        title=title,
+        content=content,
+        type=type,
+        order=order,
+        file_path=file_path,
     )
     logger.debug(f"Subsection created with ID: {subsection.id}")
     return SubsectionReadSchema.model_validate(subsection)
@@ -95,6 +134,9 @@ async def view_subsection_endpoint(
 ):
     logger.debug(f"Marking subsection {subsection_id} as viewed for user_id: {claims['sub']}")
     user_id = claims.get("sub") or claims.get("id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not identify user from token")
+
     progress = await mark_subsection_viewed(session, user_id, subsection_id)
     logger.debug(f"Subsection {subsection_id} marked as viewed, progress: {progress.is_viewed}")
     return SubsectionProgressRead.model_validate(progress)
