@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -29,7 +28,6 @@ from .schemas import (
     TopicProgressRead,
     TopicReadSchema,
     TopicUpdateSchema,
-    TopicBaseReadSchema,
 )
 
 router = APIRouter()
@@ -39,7 +37,7 @@ logger = configure_logger()
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=TopicBaseReadSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TopicReadSchema, status_code=status.HTTP_201_CREATED)
 async def create_topic_endpoint(
     topic_data: TopicCreateSchema,
     session: AsyncSession = Depends(get_db),
@@ -53,8 +51,21 @@ async def create_topic_endpoint(
         category=topic_data.category,
         image=topic_data.image,
     )
+    # Убедимся, что сессия зафиксирована перед валидацией
+    await session.refresh(topic)
     logger.debug(f"Topic created with ID: {topic.id}")
-    return TopicBaseReadSchema.model_validate(topic)
+    # Передаем только необходимые атрибуты для валидации
+    topic_dict = {
+        "id": topic.id,
+        "title": topic.title,
+        "description": topic.description,
+        "category": topic.category,
+        "image": topic.image,
+        "created_at": topic.created_at,
+        "is_archived": topic.is_archived,
+        "progress": None,  # Прогресс ещё не существует при создании
+    }
+    return TopicReadSchema.model_validate(topic_dict)
 
 @router.get("", response_model=List[TopicReadSchema])
 async def list_topics_endpoint(
@@ -72,11 +83,32 @@ async def list_topics_endpoint(
         prog_res = await session.execute(progress_stmt)
         by_topic = {tp.topic_id: tp for tp in prog_res.scalars().all()}
         result = [
-            TopicReadSchema.model_validate(t.__dict__ | {"progress": by_topic.get(t.id)})
+            TopicReadSchema.model_validate({
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "category": t.category,
+                "image": t.image,
+                "created_at": t.created_at,
+                "is_archived": t.is_archived,
+                "progress": by_topic.get(t.id) if by_topic.get(t.id) else None
+            })
             for t in topics
         ]
     else:
-        result = [TopicReadSchema.model_validate(t.__dict__) for t in topics]
+        result = [
+            TopicReadSchema.model_validate({
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "category": t.category,
+                "image": t.image,
+                "created_at": t.created_at,
+                "is_archived": t.is_archived,
+                "progress": None
+            })
+            for t in topics
+        ]
     logger.debug(f"Retrieved {len(result)} topics")
     return result
 
@@ -96,9 +128,27 @@ async def get_topic_endpoint(
         tp_res = await session.execute(tp_stmt)
         tp = tp_res.scalar_one_or_none()
         logger.debug(f"Topic {topic_id} retrieved with progress: {tp.completion_percentage if tp else None}")
-        return TopicReadSchema.model_validate(topic.__dict__ | {"progress": tp if tp else None})
+        return TopicReadSchema.model_validate({
+            "id": topic.id,
+            "title": topic.title,
+            "description": topic.description,
+            "category": topic.category,
+            "image": topic.image,
+            "created_at": topic.created_at,
+            "is_archived": topic.is_archived,
+            "progress": tp if tp else None
+        })
     logger.debug(f"Topic {topic_id} retrieved without progress")
-    return TopicReadSchema.model_validate(topic.__dict__)
+    return TopicReadSchema.model_validate({
+        "id": topic.id,
+        "title": topic.title,
+        "description": topic.description,
+        "category": topic.category,
+        "image": topic.image,
+        "created_at": topic.created_at,
+        "is_archived": topic.is_archived,
+        "progress": None
+    })
 
 @router.put("/{topic_id}", response_model=TopicReadSchema)
 async def update_topic_endpoint(
@@ -109,8 +159,18 @@ async def update_topic_endpoint(
 ):
     logger.debug(f"Updating topic {topic_id} with data: {topic_data.model_dump()}")
     topic = await update_topic(session, topic_id, **topic_data.model_dump(exclude_unset=True))
+    await session.refresh(topic)
     logger.debug(f"Topic {topic_id} updated")
-    return TopicReadSchema.model_validate(topic)
+    return TopicReadSchema.model_validate({
+        "id": topic.id,
+        "title": topic.title,
+        "description": topic.description,
+        "category": topic.category,
+        "image": topic.image,
+        "created_at": topic.created_at,
+        "is_archived": topic.is_archived,
+        "progress": None
+    })
 
 @router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_topic_endpoint(
