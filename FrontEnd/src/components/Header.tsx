@@ -81,10 +81,10 @@ const Header = () => {
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-9 w-9">
                         <AvatarImage src="/placeholder.svg" alt={user.username} />
-                        <AvatarFallback>
+                    <AvatarFallback>
                           {user.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || user.username.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                    </AvatarFallback>
+                  </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -118,22 +118,22 @@ const Header = () => {
                             <LogOut className="mr-2 h-4 w-4" />
                             <span>Выйти</span>
                         </DropdownMenuItem>
-                       </AlertDialogTrigger>
-                       <AlertDialogContent>
-                         <AlertDialogHeader>
-                           <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
-                           <AlertDialogDescription>
-                             Вы уверены, что хотите выйти из своего аккаунта?
-                           </AlertDialogDescription>
-                         </AlertDialogHeader>
-                         <AlertDialogFooter>
-                           <AlertDialogCancel>Отмена</AlertDialogCancel>
-                           <AlertDialogAction onClick={handleLogout}>
-                             Выйти
-                           </AlertDialogAction>
-                         </AlertDialogFooter>
-                       </AlertDialogContent>
-                    </AlertDialog>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Вы уверены, что хотите выйти из своего аккаунта?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLogout}>
+                        Выйти
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

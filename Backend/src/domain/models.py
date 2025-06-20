@@ -161,8 +161,7 @@ class Subsection(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
-    content = Column(String, nullable=True)  # Allow null for non-text types
-    file_path = Column(String, nullable=True)  # For PDF or other file-based content
+    content = Column(String, nullable=True)
     type = Column(Enum(SubsectionType), default=SubsectionType.TEXT, nullable=False)
     order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
@@ -187,7 +186,6 @@ class Test(Base):
     duration = Column(Integer, nullable=True)  # duration in minutes
     question_ids = Column(JSON, nullable=True)  # cached list of question IDs for faster retrieval
     type = Column(Enum(TestType), nullable=False, index=True)
-    order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)

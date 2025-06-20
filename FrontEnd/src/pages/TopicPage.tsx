@@ -73,7 +73,7 @@ const TopicPage: React.FC = () => {
     if (!topicId) return;
 
     const fetchTopicData = async () => {
-      setLoading(true);
+    setLoading(true);
       try {
         const topicData = await topicApi.getTopic(Number(topicId));
         setTopic(topicData);
@@ -192,7 +192,7 @@ const TopicPage: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto py-8">
-        <div className="mb-8 text-center">
+      <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold">{topic.title}</h1>
           {topic.description && <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">{topic.description}</p>}
         </div>
@@ -279,7 +279,7 @@ const TopicPage: React.FC = () => {
               }
             })}
           </Accordion>
-        </div>
+      </div>
 
         {/* --- Dialogs for creating content --- */}
         {currentSectionId && (
@@ -292,71 +292,71 @@ const TopicPage: React.FC = () => {
         )}
         
         <Dialog open={openSectionDialog} onOpenChange={setOpenSectionDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Создать секцию</DialogTitle>
-              <DialogDescription>Введите данные для новой секции.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateSection} className="space-y-4">
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Название секции"
-                value={sectionForm.title}
-                onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
-                required
-              />
-              <textarea
-                className="w-full border rounded px-3 py-2"
-                placeholder="Описание секции"
-                value={sectionForm.description}
-                onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
-              />
-              {errorSection && <div className="text-red-500 text-sm">{errorSection}</div>}
-              <DialogFooter>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Создать секцию</DialogTitle>
+                <DialogDescription>Введите данные для новой секции.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateSection} className="space-y-4">
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Название секции"
+                  value={sectionForm.title}
+                  onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
+                  required
+                />
+                <textarea
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Описание секции"
+                  value={sectionForm.description}
+                  onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
+                />
+                {errorSection && <div className="text-red-500 text-sm">{errorSection}</div>}
+                <DialogFooter>
                 <Button type="submit" disabled={isSubmittingSection}>
                   {isSubmittingSection ? 'Создание...' : 'Создать'}
-                </Button>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Отмена</Button>
-                </DialogClose>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                  </Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Отмена</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
 
         <Dialog open={openTestDialog} onOpenChange={setOpenTestDialog}>
-          <DialogContent>
-            <DialogHeader>
+            <DialogContent>
+              <DialogHeader>
               <DialogTitle>Создать итоговый тест</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateTest} className="space-y-4">
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Название теста"
-                value={testForm.title}
-                onChange={e => setTestForm(f => ({ ...f, title: e.target.value }))}
-                required
-              />
-              <input
-                className="w-full border rounded px-3 py-2"
+              </DialogHeader>
+              <form onSubmit={handleCreateTest} className="space-y-4">
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Название теста"
+                  value={testForm.title}
+                  onChange={e => setTestForm(f => ({ ...f, title: e.target.value }))}
+                  required
+                />
+                <input
+                  className="w-full border rounded px-3 py-2"
                 placeholder="Продолжительность (в минутах)"
-                type="number"
-                value={testForm.duration}
-                onChange={e => setTestForm(f => ({ ...f, duration: e.target.value }))}
-              />
-              {errorTest && <div className="text-red-500 text-sm">{errorTest}</div>}
-              <DialogFooter>
+                  type="number"
+                  value={testForm.duration}
+                  onChange={e => setTestForm(f => ({ ...f, duration: e.target.value }))}
+                />
+                {errorTest && <div className="text-red-500 text-sm">{errorTest}</div>}
+                <DialogFooter>
                 <Button type="submit" disabled={isSubmittingTest}>
                   {isSubmittingTest ? 'Создание...' : 'Создать'}
-                </Button>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Отмена</Button>
-                </DialogClose>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+                  </Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Отмена</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
     </Layout>
   );
 };
