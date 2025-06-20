@@ -5,7 +5,7 @@
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select

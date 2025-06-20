@@ -50,9 +50,7 @@ const TopicPage: React.FC = () => {
   const [errorSection, setErrorSection] = useState<string | null>(null);
   const [errorTest, setErrorTest] = useState<string | null>(null);
 
-  const [subsectionsMap, setSubsectionsMap] = useState<
-    Record<number, Subsection[]>
-  >({});
+  const [subsectionsMap, setSubsectionsMap] = useState<Record<number, any[]>>({});
 
   useEffect(() => {
     if (!topicId) return;
@@ -131,12 +129,47 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  const handleOpenSubsection = (sectionId: number) => {
+    setOpenSubsection((prev) => ({ ...prev, [sectionId]: true }));
+    setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'default', section_id: sectionId } }));
+    setErrorSubsection((prev) => ({ ...prev, [sectionId]: null }));
+  };
+
+  const handleCloseSubsection = (sectionId: number) => {
+    setOpenSubsection((prev) => ({ ...prev, [sectionId]: false }));
+  };
+
+  const handleCreateSubsection = async (e: React.FormEvent, sectionId: number) => {
+    e.preventDefault();
+    setCreatingSubsection((prev) => ({ ...prev, [sectionId]: true }));
+    setErrorSubsection((prev) => ({ ...prev, [sectionId]: null }));
+    try {
+      const newSubsection = await topicApi.createSubsection({
+        ...subsectionForm[sectionId],
+        section_id: sectionId,
+        order: Number(subsectionForm[sectionId]?.order) || 0,
+      });
+      setSubsectionsMap((prev) => ({
+        ...prev,
+        [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
+      }));
+      setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'default', section_id: sectionId } }));
+      setOpenSubsection((prev) => ({ ...prev, [sectionId]: false }));
+    } catch (err) {
+      setErrorSubsection((prev) => ({ ...prev, [sectionId]: 'Ошибка при создании подсекции' }));
+    } finally {
+      setCreatingSubsection((prev) => ({ ...prev, [sectionId]: false }));
+    }
+  };
+
   if (loading) {
     return <Layout><div className="text-center py-10">Загрузка...</div></Layout>;
   }
   if (!topic) {
     return <Layout><div className="text-center py-10">Тема не найдена</div></Layout>;
   }
+
+  const isEmpty = sections.length === 0 && tests.length === 0;
 
   return (
     <Layout>
@@ -148,7 +181,7 @@ const TopicPage: React.FC = () => {
           </p>
         )}
       </div>
-      {(user?.role === "admin" || user?.role === "teacher") && (
+      {(user?.role === 'admin' || user?.role === 'teacher') && (
         <div className="flex gap-4 justify-center mb-8">
           <Dialog open={openSection} onOpenChange={setOpenSection}>
             <DialogTrigger asChild>
@@ -157,18 +190,14 @@ const TopicPage: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать секцию</DialogTitle>
-                <DialogDescription>
-                  Введите данные для новой секции.
-                </DialogDescription>
+                <DialogDescription>Введите данные для новой секции.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateSection} className="space-y-4">
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="Название секции"
                   value={sectionForm.title}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({ ...f, title: e.target.value }))
-                  }
+                  onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
                   required
                 />
                 <input
@@ -176,44 +205,28 @@ const TopicPage: React.FC = () => {
                   placeholder="Порядок (число)"
                   type="number"
                   value={sectionForm.order}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({
-                      ...f,
-                      order: Number(e.target.value),
-                    }))
-                  }
+                  onChange={e => setSectionForm(f => ({ ...f, order: Number(e.target.value) }))}
                   required
                 />
                 <textarea
                   className="w-full border rounded px-3 py-2"
                   placeholder="Описание секции"
                   value={sectionForm.description}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({
-                      ...f,
-                      description: e.target.value,
-                    }))
-                  }
+                  onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
                 />
                 <textarea
                   className="w-full border rounded px-3 py-2"
                   placeholder="Контент секции (необязательно)"
                   value={sectionForm.content}
-                  onChange={(e) =>
-                    setSectionForm((f) => ({ ...f, content: e.target.value }))
-                  }
+                  onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
                 />
-                {errorSection && (
-                  <div className="text-red-500 text-sm">{errorSection}</div>
-                )}
+                {errorSection && <div className="text-red-500 text-sm">{errorSection}</div>}
                 <DialogFooter>
                   <Button type="submit" disabled={creatingSection}>
-                    {creatingSection ? "Создание..." : "Создать"}
+                    {creatingSection ? 'Создание...' : 'Создать'}
                   </Button>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Отмена
-                    </Button>
+                    <Button type="button" variant="outline">Отмена</Button>
                   </DialogClose>
                 </DialogFooter>
               </form>
@@ -226,26 +239,20 @@ const TopicPage: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать тест</DialogTitle>
-                <DialogDescription>
-                  Введите данные для нового теста.
-                </DialogDescription>
+                <DialogDescription>Введите данные для нового теста.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateTest} className="space-y-4">
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="Название теста"
                   value={testForm.title}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, title: e.target.value }))
-                  }
+                  onChange={e => setTestForm(f => ({ ...f, title: e.target.value }))}
                   required
                 />
                 <select
                   className="w-full border rounded px-3 py-2"
                   value={testForm.type}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, type: e.target.value }))
-                  }
+                  onChange={e => setTestForm(f => ({ ...f, type: e.target.value }))}
                   required
                 >
                   <option value="hinted">С подсказками</option>
@@ -257,29 +264,21 @@ const TopicPage: React.FC = () => {
                   placeholder="Длительность (сек, 0 — без лимита)"
                   type="number"
                   value={testForm.duration}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, duration: e.target.value }))
-                  }
+                  onChange={e => setTestForm(f => ({ ...f, duration: e.target.value }))}
                 />
                 <input
                   className="w-full border rounded px-3 py-2"
                   placeholder="ID вопросов через запятую (необязательно)"
                   value={testForm.question_ids}
-                  onChange={(e) =>
-                    setTestForm((f) => ({ ...f, question_ids: e.target.value }))
-                  }
+                  onChange={e => setTestForm(f => ({ ...f, question_ids: e.target.value }))}
                 />
-                {errorTest && (
-                  <div className="text-red-500 text-sm">{errorTest}</div>
-                )}
+                {errorTest && <div className="text-red-500 text-sm">{errorTest}</div>}
                 <DialogFooter>
                   <Button type="submit" disabled={creatingTest}>
-                    {creatingTest ? "Создание..." : "Создать"}
+                    {creatingTest ? 'Создание...' : 'Создать'}
                   </Button>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Отмена
-                    </Button>
+                    <Button type="button" variant="outline">Отмена</Button>
                   </DialogClose>
                 </DialogFooter>
               </form>
@@ -294,21 +293,18 @@ const TopicPage: React.FC = () => {
               <span>{section.title}</span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="mb-2 text-slate-700">
-                {section.description || section.content}
-              </div>
+              <div className="mb-2 text-slate-700">{section.description || section.content}</div>
               {/* Подсекции */}
-              {subsectionsMap[section.id] &&
-                subsectionsMap[section.id].length > 0 && (
-                  <div className="mt-4">
-                    <div className="font-semibold mb-2">Подсекции:</div>
-                    <ul className="list-disc pl-6">
-                      {subsectionsMap[section.id].map((sub) => (
-                        <li key={sub.id}>{sub.title}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              {subsectionsMap[section.id] && subsectionsMap[section.id].length > 0 && (
+                <div className="mt-4">
+                  <div className="font-semibold mb-2">Подсекции:</div>
+                  <ul className="list-disc pl-6">
+                    {subsectionsMap[section.id].map((sub) => (
+                      <li key={sub.id}>{sub.title}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <Link to={`/section/${section.id}`}>
                 <Button variant="outline">Перейти к секции</Button>
               </Link>
