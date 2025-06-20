@@ -13,7 +13,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { api, User } from "@/services/api";
+import { authApi } from "@/services/authApi";
+import { User } from "@/services/userApi";
 
 interface AuthContextType {
   user: User | null;
@@ -39,7 +40,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (savedToken && savedRefreshToken) {
         try {
           console.log("Validating token:", savedToken);
-          const userData = await api.getCurrentUser();
+          const userData = await authApi.getCurrentUser();
           setUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
           console.log("User loaded:", userData);
@@ -48,12 +49,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           if (savedRefreshToken) {
             try {
               const { access_token, refresh_token } =
-                await api.refreshToken(savedRefreshToken);
+                await authApi.refreshToken(savedRefreshToken);
               localStorage.setItem("token", access_token);
               if (refresh_token) {
                 localStorage.setItem("refresh_token", refresh_token);
               }
-              const userData = await api.getCurrentUser();
+              const userData = await authApi.getCurrentUser();
               setUser(userData);
               localStorage.setItem("user", JSON.stringify(userData));
               console.log("Token refreshed, user reloaded:", userData);
@@ -82,7 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         if (refreshToken) {
           try {
             const { access_token, refresh_token } =
-              await api.refreshToken(refreshToken);
+              await authApi.refreshToken(refreshToken);
             localStorage.setItem("token", access_token);
             if (refresh_token) {
               localStorage.setItem("refresh_token", refresh_token);
@@ -111,7 +112,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   ): Promise<boolean> => {
     try {
       console.log("Attempting login with API:", { username, password });
-      const response = await api.login(username, password);
+      const response = await authApi.login(username, password);
       const { access_token, refresh_token, user: userData } = response;
       if (access_token && refresh_token && userData) {
         localStorage.setItem("token", access_token);

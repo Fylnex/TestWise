@@ -10,9 +10,9 @@
 import React, {useEffect, useState} from "react";
 import {Link, useParams} from "react-router-dom";
 import Layout from "@/components/Layout";
-import { Section, Topic, topicApi } from "@/services/topicApi";
+import { Topic, topicApi } from "@/services/topicApi";
+import { Section, sectionApi, Subsection } from "@/services/sectionApi";
 import { Test, testApi } from "@/services/testApi";
-import { sectionApi, Subsection } from "@/services/sectionApi";
 import {
   Accordion,
   AccordionContent,
@@ -78,7 +78,7 @@ const TopicPage: React.FC = () => {
         const topicData = await topicApi.getTopic(Number(topicId));
         setTopic(topicData);
 
-        const sectionsData = await topicApi.getSectionsByTopic(Number(topicId));
+        const sectionsData = await sectionApi.getSectionsByTopic(Number(topicId));
         const testsData = await testApi.getTestsByTopic(Number(topicId));
         
         const combinedContent: TopicContent[] = [
@@ -141,7 +141,7 @@ const TopicPage: React.FC = () => {
     setIsSubmittingSection(true);
     setErrorSection(null);
     try {
-      const newSection = await topicApi.createSection({
+      const newSection = await sectionApi.createSection({
         ...sectionForm,
         topic_id: Number(topicId),
         order: topicContent.length, // Assign order at the end

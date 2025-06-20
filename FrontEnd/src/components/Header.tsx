@@ -16,6 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RotateCcw, LogOut, Settings, User } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -75,36 +76,66 @@ const Header = () => {
                     </Button>
                   </Link>
                 )}
-                <Link to="/profile">
-                  <Avatar className="h-8 w-8 cursor-pointer">
-                    <AvatarImage src={user.avatar || `https://avatar.vercel.sh/${user.username}`} alt={user.username} />
-                    <AvatarFallback>
-                      {user.username.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <LogOut className="h-5 w-5" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src="/placeholder.svg" alt={user.username} />
+                        <AvatarFallback>
+                          {user.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || user.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Вы уверены, что хотите выйти из своего аккаунта?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Отмена</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout}>
-                        Выйти
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.full_name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.username}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <Link to="/profile">
+                        <DropdownMenuItem>
+                            <User className="mr-2 h-4 w-4" />
+                            <span>Профиль</span>
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link to="/settings">
+                         <DropdownMenuItem>
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Настройки</span>
+                        </DropdownMenuItem>
+                      </Link>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                       <AlertDialogTrigger asChild>
+                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Выйти</span>
+                        </DropdownMenuItem>
+                       </AlertDialogTrigger>
+                       <AlertDialogContent>
+                         <AlertDialogHeader>
+                           <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
+                           <AlertDialogDescription>
+                             Вы уверены, что хотите выйти из своего аккаунта?
+                           </AlertDialogDescription>
+                         </AlertDialogHeader>
+                         <AlertDialogFooter>
+                           <AlertDialogCancel>Отмена</AlertDialogCancel>
+                           <AlertDialogAction onClick={handleLogout}>
+                             Выйти
+                           </AlertDialogAction>
+                         </AlertDialogFooter>
+                       </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>

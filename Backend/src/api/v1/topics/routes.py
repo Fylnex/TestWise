@@ -29,6 +29,7 @@ from .schemas import (
     TopicProgressRead,
     TopicReadSchema,
     TopicUpdateSchema,
+    TopicBaseReadSchema,
 )
 
 router = APIRouter()
@@ -38,7 +39,7 @@ logger = configure_logger()
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=TopicReadSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TopicBaseReadSchema, status_code=status.HTTP_201_CREATED)
 async def create_topic_endpoint(
     topic_data: TopicCreateSchema,
     session: AsyncSession = Depends(get_db),
@@ -52,21 +53,8 @@ async def create_topic_endpoint(
         category=topic_data.category,
         image=topic_data.image,
     )
-    # Убедимся, что сессия зафиксирована перед валидацией
-    await session.refresh(topic)
     logger.debug(f"Topic created with ID: {topic.id}")
-    # Передаем только необходимые атрибуты для валидации
-    topic_dict = {
-        "id": topic.id,
-        "title": topic.title,
-        "description": topic.description,
-        "category": topic.category,
-        "image": topic.image,
-        "created_at": topic.created_at,
-        "is_archived": topic.is_archived,
-        "progress": None,  # Прогресс ещё не существует при создании
-    }
-    return TopicReadSchema.model_validate(topic_dict)
+    return TopicBaseReadSchema.model_validate(topic)
 
 @router.get("", response_model=List[TopicReadSchema])
 async def list_topics_endpoint(

@@ -55,6 +55,16 @@ export interface SectionWithSubsections {
 }
 
 export const sectionApi = {
+  getSectionsByTopic: async (topicId: number): Promise<Section[]> => {
+    const response = await http.get<Section[]>(`/sections`, { params: { topic_id: topicId } });
+    return response.data;
+  },
+
+  createSection: async (data: Partial<Section>): Promise<Section> => {
+    const response = await http.post<Section>("/sections", data);
+    return response.data;
+  },
+
   getSections: async (topicId?: number): Promise<Section[]> => {
     const response = await http.get<Section[]>("/sections", {params: {topic_id: topicId}});
     return response.data;
