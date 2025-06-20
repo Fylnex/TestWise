@@ -33,12 +33,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
+from src.database.db import get_db
 from src.domain.enums import Role
 from src.domain.models import User
 from src.repository.base import get_item, update_item, archive_item, delete_item_permanently
 from src.repository.user import create_user
 from src.security.security import admin_only, admin_or_teacher
-from src.database.db import get_db
 from .schemas import UserCreateSchema, UserReadSchema, UserUpdateSchema
 
 router = APIRouter()
@@ -156,6 +156,9 @@ async def list_users_endpoint(
 
     res = await session.execute(stmt)
     users = list(res.scalars().all())
+    # logger.debug(f"Retrieved List of users: {[(users[i].username, users[i].full_name,
+    #                                            users[i].role, users[i].is_active, users[i].created_at,
+    #                                            users[i].last_login,) for i in range(len(users))]}")
     logger.debug(f"Retrieved {len(users)} users")
     return users
 
@@ -357,7 +360,7 @@ async def export_users(
 
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(["ID", "Username", "FullName", "Role", "IsActive", "CreatedAt"])
+    writer.writerow(["ID", "Username", "FullName", "Role", "IsActive", "CreatedAt", "LastLogin"])
     for user in users:
         writer.writerow([
             user.id,
@@ -365,7 +368,8 @@ async def export_users(
             user.full_name,
             user.role.value,
             user.is_active,
-            user.created_at,
+            user.created_at.isoformat() if user.created_at else "",
+            user.last_login.isoformat() if user.last_login else "",
         ])
     output.seek(0)
 

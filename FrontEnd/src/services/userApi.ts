@@ -15,9 +15,9 @@ export interface User {
   full_name: string;
   role: "admin" | "student" | "teacher";
   isActive: boolean;
-  createdAt: string;
-  lastLogin?: string;
-  refresh_token?: string; // Added to match backend
+  createdAt: string; // Ensure this is a string in ISO format
+  lastLogin?: string; // Ensure this is a string in ISO format
+  refresh_token?: string;
   is_archived: boolean;
 }
 
@@ -30,7 +30,14 @@ export const userApi = {
     endDate?: string;
   }): Promise<User[]> => {
     const response = await http.get<User[]>("/users", { params: filters });
-    return response.data;
+    // Ensure dates are returned as ISO strings
+    return response.data.map((user) => ({
+      ...user,
+      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : "",
+      lastLogin: user.lastLogin
+        ? new Date(user.lastLogin).toISOString()
+        : undefined,
+    }));
   },
 
   createUser: async (userData: {
@@ -47,10 +54,10 @@ export const userApi = {
   updateUser: async (
     id: number,
     userData: {
-      username?: string; // Added to allow username updates
+      username?: string;
       full_name?: string;
       last_login?: string;
-      isActive?: boolean; // Added to support block/unblock
+      isActive?: boolean;
     },
   ): Promise<User> => {
     const response = await http.put<User>(`/users/${id}`, userData);
