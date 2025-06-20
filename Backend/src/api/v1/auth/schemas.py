@@ -4,7 +4,7 @@
 This module defines Pydantic schemas for authentication-related API endpoints.
 """
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import datetime
 
 from src.domain.enums import Role

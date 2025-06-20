@@ -8,7 +8,7 @@
 // """
 
 import React, { useEffect, useState } from "react";
-import { userApi, User } from "@/services/userApi";
+import { User, userApi } from "@/services/userApi";
 import { useAuth } from "@/context/AuthContext";
 import {
   Table,
@@ -90,7 +90,7 @@ export function UserManagement() {
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [formData, setFormData] = useState({
     username: "",
-    email: "",
+    full_name: "",
     password: "",
     role: "student",
     isActive: true,
@@ -131,7 +131,7 @@ export function UserManagement() {
     try {
       await userApi.createUser({
         username: formData.username,
-        email: formData.email,
+        full_name: formData.full_name,
         password: formData.password,
         role: formData.role,
         isActive: formData.isActive,
@@ -140,7 +140,7 @@ export function UserManagement() {
       setIsCreateDialogOpen(false);
       setFormData({
         username: "",
-        email: "",
+        full_name: "",
         password: "",
         role: "student",
         isActive: true,
@@ -156,11 +156,8 @@ export function UserManagement() {
 
     try {
       const updatedUser = await userApi.updateUser(selectedUser.id, {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password || undefined,
-        role: formData.role,
-        isActive: formData.isActive,
+        full_name: formData.full_name,
+        last_login: selectedUser.lastLogin, // Align with updateUser interface
       });
 
       if (currentUser?.id === selectedUser.id) {
@@ -280,7 +277,7 @@ export function UserManagement() {
     setSelectedUser(user);
     setFormData({
       username: user.username,
-      email: user.email || "",
+      full_name: user.full_name || "",
       password: "",
       role: user.role,
       isActive: user.isActive,
@@ -345,13 +342,12 @@ export function UserManagement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Email</label>
+                    <label className="text-sm font-medium">Полное имя</label>
                     <Input
-                      type="email"
-                      placeholder="Введите email"
-                      value={formData.email}
+                      placeholder="Введите полное имя"
+                      value={formData.full_name}
                       onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
+                        setFormData({ ...formData, full_name: e.target.value })
                       }
                     />
                   </div>
@@ -568,7 +564,7 @@ export function UserManagement() {
                 </TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Имя пользователя</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Полное имя</TableHead>
                 <TableHead>Роль</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Дата регистрации</TableHead>
@@ -587,7 +583,7 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell className="font-medium">{user.id}</TableCell>
                   <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email || "-"}</TableCell>
+                  <TableCell>{user.full_name || "-"}</TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -705,13 +701,12 @@ export function UserManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
+                <label className="text-sm font-medium">Полное имя</label>
                 <Input
-                  type="email"
-                  placeholder="Введите email"
-                  value={formData.email}
+                  placeholder="Введите полное имя"
+                  value={formData.full_name}
                   onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
+                    setFormData({ ...formData, full_name: e.target.value })
                   }
                 />
               </div>

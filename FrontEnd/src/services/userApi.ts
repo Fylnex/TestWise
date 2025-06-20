@@ -17,6 +17,7 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+  refresh_token?: string; // Added to match backend
   is_archived: boolean;
 }
 
@@ -46,8 +47,10 @@ export const userApi = {
   updateUser: async (
     id: number,
     userData: {
+      username?: string; // Added to allow username updates
       full_name?: string;
       last_login?: string;
+      isActive?: boolean; // Added to support block/unblock
     },
   ): Promise<User> => {
     const response = await http.put<User>(`/users/${id}`, userData);
