@@ -2,7 +2,9 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-from src.database.models import Role
+
+from src.domain.enums import Role
+
 
 class UserCreateSchema(BaseModel):
     """Схема для создания пользователя."""

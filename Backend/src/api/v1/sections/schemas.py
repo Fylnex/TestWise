@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from src.database.models import ProgressStatus, SubsectionType
+from src.domain.enums import SubsectionType, ProgressStatus
 
 
 # ---------------------------------------------------------------------------

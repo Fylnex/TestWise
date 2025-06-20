@@ -174,23 +174,6 @@ class Subsection(Base):
         return f"<Subsection(title={self.title!r}, section_id={self.section_id})>"
 
 
-class SubsectionProgress(Base):
-    __tablename__ = "subsection_progress"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    subsection_id = Column(Integer, ForeignKey("subsections.id"), nullable=False, index=True)
-    is_viewed = Column(Boolean, default=False, nullable=False)
-    viewed_at = Column(DateTime, nullable=True)
-
-    # Relationships
-    user = relationship("User", back_populates="subsection_progress")
-    subsection = relationship("Subsection", back_populates="progress")
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<SubsectionProgress(subsection_id={self.subsection_id!r}, user_id={self.user_id!r}, is_viewed={self.is_viewed})>"
-
-
 class Test(Base):
     __tablename__ = "tests"
 

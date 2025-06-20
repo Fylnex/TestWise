@@ -17,8 +17,8 @@ from src.api.v1.tests import router as tests_router
 from src.api.v1.topics import router as topics_router
 from src.api.v1.users import router as users_router
 from src.api.v1.profile import router as profile_router
+from src.config.logger import configure_logger
 
-from src.core.logger import configure_logger
 from src.database.db import init_db
 
 app = FastAPI(

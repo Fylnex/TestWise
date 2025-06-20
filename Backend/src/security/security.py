@@ -23,9 +23,10 @@ from typing import Callable, List, Sequence
 from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 
-from src.core.config import settings  # type: ignore
-from src.core.logger import configure_logger
-from src.database.models import Role
+
+from src.config.logger import configure_logger
+from src.config.settings import settings
+from src.domain.enums import Role
 
 logger = configure_logger()
 
@@ -39,7 +40,7 @@ REFRESH_TOKEN_SECRET = settings.jwt_secret + "_refresh"
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    expire = datetime.now() + (
         expires_delta
         if expires_delta is not None
         else timedelta(minutes=settings.access_token_expire_minutes)
@@ -52,7 +53,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    expire = datetime.now() + (
         expires_delta
         if expires_delta is not None
         else timedelta(days=7)  # Refresh Token действует 7 дней

@@ -8,7 +8,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
-from src.database.models import QuestionType
+from src.domain.enums import QuestionType
 
 
 class QuestionCreateSchema(BaseModel):

@@ -8,8 +8,9 @@ It provides an async engine, session factory, and dependency for FastAPI to mana
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from src.core.config import settings
-from src.database.models import Base
+
+from src.config.settings import settings
+from src.domain.models import Base
 
 # Create async engine for SQLite
 engine = create_async_engine(settings.database_url, echo=False)
