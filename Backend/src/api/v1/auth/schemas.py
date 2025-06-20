@@ -6,6 +6,7 @@ This module defines Pydantic schemas for authentication-related API endpoints.
 
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 from src.domain.enums import Role
 
@@ -26,15 +27,16 @@ class TokenSchema(BaseModel):
     token_type: str
 
 class UserReadSchema(BaseModel):
+    """Схема для чтения данных пользователя, используемая в auth."""
     id: int
     username: str
     full_name: str
     role: Role
     is_active: bool
     created_at: datetime
-    last_login: datetime | None
-    refresh_token: str | None
+    last_login: Optional[datetime] = None
+    refresh_token: Optional[str] = None
     is_archived: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True

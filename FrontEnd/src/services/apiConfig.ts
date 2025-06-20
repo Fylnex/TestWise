@@ -7,9 +7,15 @@
 // """
 
 import axios from "axios";
-import { authApi } from "./authApi";
 
 const API_URL = "http://localhost:8000/api/v1";
+
+export const authHttp = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 const http = axios.create({
   baseURL: API_URL,
@@ -23,12 +29,17 @@ http.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh') {
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
-          const { access_token, refresh_token } = await authApi.refreshToken(refreshToken);
+          const { data } = await authHttp.post('/auth/refresh', {}, {
+            headers: { Authorization: `Bearer ${refreshToken}` },
+          });
+
+          const { access_token, refresh_token } = data;
+
           localStorage.setItem("token", access_token);
           if (refresh_token) {
             localStorage.setItem("refresh_token", refresh_token);

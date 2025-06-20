@@ -20,6 +20,7 @@ import { User } from "@/services/userApi";
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserData: (userData: User) => void;
@@ -113,17 +114,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   ): Promise<boolean> => {
     try {
       console.log("Attempting login with API:", { username, password });
+      // Шаг 1: Логинимся и получаем токены
       const response = await authApi.login(username, password);
-      const { access_token, refresh_token, user: userData } = response;
-      if (access_token && refresh_token && userData) {
+      const { access_token, refresh_token } = response;
+
+      if (access_token && refresh_token) {
         localStorage.setItem("token", access_token);
         localStorage.setItem("refresh_token", refresh_token);
+        
+        // Шаг 2: Получаем данные пользователя
+        const userData = await authApi.getCurrentUser();
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
-        console.log("Login successful, token:", access_token);
+        
+        console.log("Login successful, user:", userData);
         return true;
       } else {
-        console.error("Login failed: Invalid response", response);
+        console.error("Login failed: Invalid token response", response);
         return false;
       }
     } catch (error) {
@@ -152,7 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated, login, logout, updateUserData }}
+      value={{ user, isAuthenticated, isLoading, login, logout, updateUserData }}
     >
       {children}
     </AuthContext.Provider>
