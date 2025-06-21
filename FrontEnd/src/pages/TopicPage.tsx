@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CreateSubsectionDialog from "@/components/admin/CreateSubsectionDialog";
+import { PlusCircleIcon, PencilIcon, XCircleIcon } from 'lucide-react';
 
 type TopicContent = (Section | Test) & { itemType: 'section' | 'test' };
 
@@ -46,6 +47,7 @@ const TopicPage: React.FC = () => {
   const { user } = useAuth();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Unified content state
   const [topicContent, setTopicContent] = useState<TopicContent[]>([]);
@@ -69,48 +71,47 @@ const TopicPage: React.FC = () => {
   const [openSubsectionDialog, setOpenSubsectionDialog] = useState(false);
   const [currentSectionId, setCurrentSectionId] = useState<number | null>(null);
 
-  useEffect(() => {
+  const fetchTopicData = async () => {
     if (!topicId) return;
-
-    const fetchTopicData = async () => {
     setLoading(true);
-      try {
-        const topicData = await topicApi.getTopic(Number(topicId));
+    try {
+      const topicData = await topicApi.getTopic(Number(topicId));
         setTopic(topicData);
 
-        const sectionsData = await sectionApi.getSectionsByTopic(Number(topicId));
-        const testsData = await testApi.getTestsByTopic(Number(topicId));
-        
-        const combinedContent: TopicContent[] = [
-          ...sectionsData.map(s => ({ ...s, itemType: 'section' as const })),
-          ...testsData.map(t => ({ ...t, order: t.order ?? 999, itemType: 'test' as const })),
-        ];
+      const sectionsData = await sectionApi.getSectionsByTopic(Number(topicId));
+      const testsData = await testApi.getTestsByTopic(Number(topicId));
+      
+      const combinedContent: TopicContent[] = [
+        ...sectionsData.map(s => ({ ...s, itemType: 'section' as const })),
+        ...testsData.map(t => ({ ...t, order: t.order ?? 999, itemType: 'test' as const })),
+      ];
 
-        combinedContent.sort((a, b) => a.order - b.order);
-        setTopicContent(combinedContent);
+      combinedContent.sort((a, b) => a.order - b.order);
+      setTopicContent(combinedContent);
 
-        // Fetch subsections for each section
+      // Fetch subsections for each section
         const subsMap: Record<number, Subsection[]> = {};
         await Promise.all(
           sectionsData.map(async (section) => {
             try {
               const res = await sectionApi.getSectionSubsections(section.id);
-              subsMap[section.id] = (res.subsections || []).sort((a,b) => a.order - b.order);
+            subsMap[section.id] = (res.subsections || []).sort((a,b) => a.order - b.order);
             } catch (error) {
-              console.error(`Failed to load subsections for section ${section.id}:`, error);
+            console.error(`Failed to load subsections for section ${section.id}:`, error);
               subsMap[section.id] = [];
             }
-          })
+        })
         );
         setSubsectionsMap(subsMap);
 
-      } catch (error) {
-        console.error("Error loading topic data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error("Error loading topic data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchTopicData();
   }, [topicId]);
 
@@ -138,19 +139,22 @@ const TopicPage: React.FC = () => {
 
   const handleCreateSection = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!topicId) return;
+
     setIsSubmittingSection(true);
     setErrorSection(null);
     try {
-      const newSection = await sectionApi.createSection({
+      await sectionApi.createSection({
         ...sectionForm,
         topic_id: Number(topicId),
-        order: topicContent.length, // Assign order at the end
+        order: topicContent.length + 1,
       });
-      setTopicContent(prev => [...prev, { ...newSection, itemType: 'section' as const }].sort((a, b) => a.order - b.order));
       setSectionForm({ title: '', description: '', content: '' });
       setOpenSectionDialog(false);
+      await fetchTopicData();
     } catch (err) {
-      setErrorSection('Ошибка при создании секции');
+      console.error("Failed to create section:", err);
+      setErrorSection('Ошибка при создании секции. Попробуйте снова.');
     } finally {
       setIsSubmittingSection(false);
     }
@@ -158,23 +162,24 @@ const TopicPage: React.FC = () => {
 
   const handleCreateTest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!topicId) return;
+
     setIsSubmittingTest(true);
     setErrorTest(null);
     try {
-      const newTest = await testApi.createTest({
+      await testApi.createTest({
         title: testForm.title,
         type: 'GLOBAL_FINAL',
         duration: testForm.duration ? Number(testForm.duration) : undefined,
         topic_id: Number(topicId),
-        order: topicContent.length, // Assign order at the end
+        order: topicContent.length + 1,
       });
-      // Assuming 'order' is part of the response object, even if not in the type
-      const newTestTyped = { ...newTest, order: newTest.order ?? topicContent.length, itemType: 'test' as const};
-      setTopicContent(prev => [...prev, newTestTyped].sort((a,b) => a.order - b.order));
       setTestForm({ title: '', type: 'GLOBAL_FINAL', duration: '' });
       setOpenTestDialog(false);
+      await fetchTopicData();
     } catch (err) {
-      setErrorTest('Ошибка при создании теста');
+      console.error("Failed to create test:", err);
+      setErrorTest('Ошибка при создании теста. Попробуйте снова.');
     } finally {
       setIsSubmittingTest(false);
     }
@@ -192,35 +197,23 @@ const TopicPage: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto py-8">
-      <div className="mb-8 text-center">
+        <div className="mb-8 text-center relative">
           <h1 className="text-4xl font-bold">{topic.title}</h1>
           {topic.description && <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">{topic.description}</p>}
+          {isTeacherOrAdmin && (
+            <div className="absolute top-0 right-0">
+              <Button onClick={() => setIsEditMode(!isEditMode)} variant="outline" size="icon">
+                {isEditMode ? <XCircleIcon className="h-5 w-5" /> : <PencilIcon className="h-5 w-5" />}
+                <span className="sr-only">{isEditMode ? 'Завершить редактирование' : 'Редактировать'}</span>
+              </Button>
+            </div>
+          )}
         </div>
 
-        {isTeacherOrAdmin && (
-          <div className="flex justify-center mb-8">
-            <Dialog>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button>Add Block</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => setOpenSectionDialog(true)}>
-                    Добавить секцию
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setOpenTestDialog(true)}>
-                    Добавить итоговый тест
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Dialog>
-          </div>
-        )}
-
-        {topicContent.length === 0 && !loading && (
+        {topicContent.length === 0 && !loading && !isEditMode && (
           <div className="text-center text-muted-foreground py-10">
             <p>В этой теме пока нет материалов.</p>
-            <p>Нажмите "Add Block", чтобы добавить секцию или итоговый тест.</p>
+            {isTeacherOrAdmin && <p>Нажмите кнопку "Редактировать", чтобы добавить секцию или итоговый тест.</p>}
           </div>
         )}
 
@@ -231,7 +224,7 @@ const TopicPage: React.FC = () => {
                 const section = item as Section;
                 const sectionSubsections = subsectionsMap[section.id] || [];
                 return (
-                  <AccordionItem value={`section-${section.id}`} key={`section-${section.id}`} className="border rounded-lg">
+                  <AccordionItem value={`section-${section.id}`} key={`item-section-${section.id}`} className="border rounded-lg bg-white shadow-sm">
                     <AccordionTrigger className="px-6 py-4 hover:no-underline">
                       <div className="flex items-center gap-4">
                         <span className="text-lg font-semibold">{section.title}</span>
@@ -241,56 +234,62 @@ const TopicPage: React.FC = () => {
                       <p className="text-muted-foreground mb-4">{section.description}</p>
                       <div className="space-y-2">
                         {sectionSubsections.map(sub => (
-                           <div key={sub.id} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
-                             <Link to={sub.file_path ? `http://localhost:8000${sub.file_path.replace(/\\/g, '/').replace('Backend', '')}`: `/subsection/${sub.id}`} target={sub.file_path ? "_blank" : "_self"} className="text-blue-600 hover:underline">{sub.title}</Link>
+                           <div key={sub.id} className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 transition-colors">
+                             <Link to={sub.file_path ? `http://localhost:8000${sub.file_path.replace(/\\/g, '/').replace('Backend', '')}`: `/subsection/${sub.id}`} target={sub.file_path ? "_blank" : "_self"} className="text-blue-600 hover:underline flex-grow">{sub.title}</Link>
                            </div>
                         ))}
                       </div>
-                       {isTeacherOrAdmin && (
-                         <div className="mt-4">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">Add Block</Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem onSelect={() => handleOpenSubsectionDialog(section.id)}>
-                                  Добавить подсекцию
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => alert(`Создание теста для секции ${section.id}`)}>
-                                  Добавить тест
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                       {isEditMode && (
+                         <div className="mt-4 pt-4 border-t">
+                           <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => handleOpenSubsectionDialog(section.id)}>
+                             <PlusCircleIcon className="h-4 w-4" />
+                             Добавить подсекцию
+                           </Button>
                          </div>
                        )}
                     </AccordionContent>
                   </AccordionItem>
                 );
-              } else {
+              } else if (item.itemType === 'test') {
                 const test = item as Test;
                 return (
-                  <div key={`test-${test.id}`} className="border rounded-lg px-6 py-4 flex justify-between items-center">
+                  <div key={`item-test-${test.id}`} className="border rounded-lg bg-white shadow-sm px-6 py-4 flex items-center justify-between">
                     <span className="text-lg font-semibold">{test.title}</span>
-                    <Link to={`/test/${test.id}`}>
-                      <Button variant="secondary">Начать тест</Button>
-                    </Link>
+                    <Button asChild>
+                      <Link to={`/test/${test.id}`}>Начать тест</Link>
+                    </Button>
                   </div>
                 );
               }
+              return null;
             })}
           </Accordion>
+
+          {isEditMode && (
+            <div className="mt-4">
+              <Dialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full py-6 border-dashed hover:border-solid">
+                      <PlusCircleIcon className="h-5 w-5 mr-2" />
+                      Add Block
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuItem onSelect={() => setOpenSectionDialog(true)}>
+                      Добавить секцию
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setOpenTestDialog(true)}>
+                      Добавить итоговый тест
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Dialog>
+            </div>
+        )}
       </div>
 
-        {/* --- Dialogs for creating content --- */}
-        {currentSectionId && (
-          <CreateSubsectionDialog
-            open={openSubsectionDialog}
-            onOpenChange={setOpenSubsectionDialog}
-            sectionId={currentSectionId}
-            onSubsectionCreated={handleSubsectionCreated}
-          />
-        )}
-        
+        {/* Dialog for creating a new section */}
         <Dialog open={openSectionDialog} onOpenChange={setOpenSectionDialog}>
             <DialogContent>
               <DialogHeader>
