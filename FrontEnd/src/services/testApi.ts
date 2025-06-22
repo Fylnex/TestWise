@@ -24,50 +24,50 @@ export interface Test {
 
 export const testApi = {
   getTest: async (testId: number): Promise<Test> => {
-    const response = await http.get<Test>(`/api/v1/tests/${testId}`);
+    const response = await http.get<Test>(`/tests/${testId}`);
     return response.data;
   },
 
   updateTest: async (testId: number, data: Partial<Test>): Promise<Test> => {
-    const response = await http.put<Test>(`/api/v1/tests/${testId}`, data);
+    const response = await http.put<Test>(`/tests/${testId}`, data);
     return response.data;
   },
 
   deleteTest: async (testId: number): Promise<void> => {
-    await http.delete(`/api/v1/tests/${testId}`);
+    await http.delete(`/tests/${testId}`);
   },
 
   startTest: async (testId: number): Promise<any> => {
-    const response = await http.post(`/api/v1/tests/${testId}/start`);
+    const response = await http.post(`/tests/${testId}/start`);
     return response.data;
   },
 
   submitTest: async (testId: number, data: any): Promise<any> => {
-    const response = await http.post(`/api/v1/tests/${testId}/submit`, data);
+    const response = await http.post(`/tests/${testId}/submit`, data);
     return response.data;
   },
 
   getTestsByTopic: async (topicId: number): Promise<Test[]> => {
-    const response = await http.get<Test[]>(`/api/v1/tests`, { params: { topic_id: topicId } });
+    const response = await http.get<Test[]>(`/tests`, { params: { topic_id: topicId } });
     return response.data;
   },
 
   createTest: async (data: Partial<Test>): Promise<Test> => {
-    const response = await http.post<Test>("/api/v1/tests", data);
+    const response = await http.post<Test>("/tests", data);
     return response.data;
   },
 
   // Новые методы для архивации
   archiveTest: async (testId: number): Promise<void> => {
-    await http.post(`/api/v1/tests/${testId}/archive`);
+    await http.post(`/tests/${testId}/archive`);
   },
 
   restoreTest: async (testId: number): Promise<void> => {
-    await http.post(`/api/v1/tests/${testId}/restore`);
+    await http.post(`/tests/${testId}/restore`);
   },
 
   deleteTestPermanently: async (testId: number): Promise<void> => {
-    await http.delete(`/api/v1/tests/${testId}/permanent`);
+    await http.delete(`/tests/${testId}/permanent`);
   },
 
   // TODO (backend): Требуется реализовать GET /api/v1/tests?topic_id=... для получения тестов по теме (FastAPI)
