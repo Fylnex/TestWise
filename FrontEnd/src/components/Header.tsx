@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   AlertDialog,
@@ -21,10 +21,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigg
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+    window.location.reload();
   };
 
   return (
@@ -38,19 +40,19 @@ const Header = () => {
             <nav className="hidden md:flex space-x-6">
               <Link
                 to="/"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname === '/' ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
               >
                 Главная
               </Link>
               <Link
                 to="/topics"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname.startsWith('/topics') ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
               >
                 Темы
               </Link>
               <Link
                 to="/about"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname.startsWith('/about') ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
               >
                 О нас
               </Link>
@@ -72,7 +74,7 @@ const Header = () => {
                   <Link to="/teacher">
                     <Button variant="ghost" size="sm">
                       <Settings className="w-4 h-4 mr-2" />
-                      Панель учителя
+                      Панель преподавателя
                     </Button>
                   </Link>
                 )}
@@ -80,11 +82,10 @@ const Header = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src="/placeholder.svg" alt={user.username} />
-                    <AvatarFallback>
+                        <AvatarFallback>
                           {user.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || user.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                        </AvatarFallback>
+                      </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end" forceMount>

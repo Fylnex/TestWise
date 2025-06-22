@@ -17,6 +17,7 @@ export interface Topic {
   created_at?: string;
   is_archived: boolean;
   progress?: any;
+  creator_id?: number;
 }
 
 export interface Section {

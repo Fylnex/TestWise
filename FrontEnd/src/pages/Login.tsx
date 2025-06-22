@@ -24,8 +24,8 @@ const Login = () => {
       console.log("Attempting login with", { username, password });
       const success = await login(username, password);
       if (success) {
-        console.log("Login successful, navigating to /profile");
-        navigate("/profile", { replace: true });
+        console.log("Login successful, navigating to /");
+        navigate("/", { replace: true });
       } else {
         setError("Неверное имя пользователя или пароль");
       }

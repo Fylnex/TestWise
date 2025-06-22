@@ -1,6 +1,7 @@
 // TestWise/src/components/Layout.tsx
 
 import Header from "@/components/Header";
+import Breadcrumbs from "./Breadcrumbs";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,8 +11,9 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Header />
+      <Breadcrumbs />
 
-      <main className="container mx-auto px-6 py-8 flex-grow">
+      <main className="container mx-auto px-6 pt-4 pb-8 flex-grow">
         {children}
       </main>
 

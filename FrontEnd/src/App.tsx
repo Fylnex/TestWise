@@ -16,6 +16,11 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import GroupManagement from "./pages/GroupManagement";
 import TopicPage from "./pages/TopicPage";
+import Settings from "./pages/Settings";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Contact from "./pages/Contact";
+import CreateTopic from "./pages/CreateTopic";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +126,25 @@ const App = () => (
                 }
               />
               <Route path="/about" element={<About />} />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route
+                path="/topics/create"
+                element={
+                  <AdminRoute>
+                    <CreateTopic />
+                  </AdminRoute>
+                }
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

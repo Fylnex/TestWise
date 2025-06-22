@@ -158,6 +158,8 @@ export function UserManagement() {
       const updatedUser = await userApi.updateUser(selectedUser.id, {
         full_name: formData.full_name,
         last_login: selectedUser.lastLogin, // Align with updateUser interface
+        isActive: formData.isActive,
+        role: formData.role,
       });
 
       if (currentUser?.id === selectedUser.id) {
@@ -280,7 +282,7 @@ export function UserManagement() {
       full_name: user.full_name || "",
       password: "",
       role: user.role,
-      isActive: user.isActive,
+      isActive: user.isActive === undefined ? true : !!user.isActive,
     });
     setIsEditDialogOpen(true);
   };
@@ -375,7 +377,7 @@ export function UserManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Администратор</SelectItem>
-                        <SelectItem value="teacher">Учитель</SelectItem>
+                        <SelectItem value="teacher">Преподаватель</SelectItem>
                         <SelectItem value="student">Студент</SelectItem>
                       </SelectContent>
                     </Select>
@@ -443,7 +445,7 @@ export function UserManagement() {
                 <SelectContent>
                   <SelectItem value="all">Все роли</SelectItem>
                   <SelectItem value="admin">Администратор</SelectItem>
-                  <SelectItem value="teacher">Учитель</SelectItem>
+                  <SelectItem value="teacher">Преподаватель</SelectItem>
                   <SelectItem value="student">Студент</SelectItem>
                 </SelectContent>
               </Select>
@@ -520,7 +522,7 @@ export function UserManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Администратор</SelectItem>
-                    <SelectItem value="teacher">Учитель</SelectItem>
+                    <SelectItem value="teacher">Преподаватель</SelectItem>
                     <SelectItem value="student">Студент</SelectItem>
                   </SelectContent>
                 </Select>
@@ -597,32 +599,22 @@ export function UserManagement() {
                       {user.role === "admin"
                         ? "Администратор"
                         : user.role === "teacher"
-                          ? "Учитель"
+                          ? "Преподаватель"
                           : "Студент"}
                     </span>
                   </TableCell>
                   <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${user.isActive === true ? "bg-green-100 text-green-800" : user.isActive === false ? "bg-red-100 text-red-800" : "bg-gray-200 text-gray-500"}`}
                     >
-                      {user.isActive ? "Активен" : "Заблокирован"}
+                      {user.isActive === true ? "Активен" : user.isActive === false ? "Заблокирован" : "Неизвестно"}
                     </span>
                   </TableCell>
                   <TableCell>
-                    {user.createdAt &&
-                    !isNaN(new Date(user.createdAt).getTime())
-                      ? format(new Date(user.createdAt), "dd.MM.yyyy")
-                      : "-"}
+                    {user.createdAt ? format(new Date(user.createdAt), "dd.MM.yyyy") : "-"}
                   </TableCell>
                   <TableCell>
-                    {user.lastLogin &&
-                    !isNaN(new Date(user.lastLogin).getTime())
-                      ? format(new Date(user.lastLogin), "dd.MM.yyyy HH:mm")
-                      : "-"}
+                    {user.lastLogin ? format(new Date(user.lastLogin), "dd.MM.yyyy HH:mm") : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -684,7 +676,13 @@ export function UserManagement() {
         </div>
 
         {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setSelectedUser(null);
+            setFormData({ username: '', full_name: '', password: '', role: 'student', isActive: true });
+          }
+        }}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Редактировать пользователя</DialogTitle>
@@ -695,9 +693,8 @@ export function UserManagement() {
                 <Input
                   placeholder="Введите имя пользователя"
                   value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  disabled={!selectedUser}
                 />
               </div>
               <div className="space-y-2">
@@ -705,9 +702,8 @@ export function UserManagement() {
                 <Input
                   placeholder="Введите полное имя"
                   value={formData.full_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, full_name: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  disabled={!selectedUser}
                 />
               </div>
               <div className="space-y-2">
@@ -716,25 +712,23 @@ export function UserManagement() {
                   type="password"
                   placeholder="Оставьте пустым, чтобы сохранить текущий"
                   value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  disabled={!selectedUser}
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Роль</label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, role: value })
-                  }
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  disabled={!selectedUser}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите роль" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Администратор</SelectItem>
-                    <SelectItem value="teacher">Учитель</SelectItem>
+                    <SelectItem value="teacher">Преподаватель</SelectItem>
                     <SelectItem value="student">Студент</SelectItem>
                   </SelectContent>
                 </Select>
@@ -743,12 +737,8 @@ export function UserManagement() {
                 <label className="text-sm font-medium">Статус</label>
                 <Select
                   value={formData.isActive.toString()}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      isActive: value === "true",
-                    })
-                  }
+                  onValueChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
+                  disabled={!selectedUser}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите статус" />
@@ -764,10 +754,13 @@ export function UserManagement() {
               <Button
                 variant="outline"
                 onClick={() => setIsEditDialogOpen(false)}
+                disabled={!selectedUser}
               >
                 Отмена
               </Button>
-              <Button onClick={handleUpdateUser}>Сохранить</Button>
+              <Button onClick={handleUpdateUser} disabled={!selectedUser}>
+                Сохранить
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

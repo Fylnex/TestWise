@@ -13,6 +13,7 @@ export interface User {
   id: number;
   username: string;
   full_name: string;
+  patronymic?: string;
   role: "admin" | "student" | "teacher";
   isActive: boolean;
   createdAt: string; // Ensure this is a string in ISO format
@@ -58,6 +59,7 @@ export const userApi = {
       full_name?: string;
       last_login?: string;
       isActive?: boolean;
+      role?: string;
     },
   ): Promise<User> => {
     const response = await http.put<User>(`/users/${id}`, userData);

@@ -85,19 +85,16 @@ export function StudentProgress() {
             <SelectValue placeholder="Выберите студента" />
           </SelectTrigger>
           <SelectContent>
-            {users.length === 0 ? (
-              <SelectItem value="" disabled>
-                Нет доступных студентов
+            {users.map((user) => (
+              <SelectItem key={user.id} value={user.id.toString()}>
+                {user.username}
               </SelectItem>
-            ) : (
-              users.map((user) => (
-                <SelectItem key={user.id} value={user.id.toString()}>
-                  {user.username}
-                </SelectItem>
-              ))
-            )}
+            ))}
           </SelectContent>
         </Select>
+        {users.length === 0 && (
+          <div className="text-muted-foreground text-sm mt-2">Нет доступных студентов</div>
+        )}
       </div>
 
       {isLoading ? (

@@ -55,4 +55,9 @@ export const questionApi = {
   deleteQuestionPermanently: async (questionId: number): Promise<void> => {
     await http.delete(`/questions/${questionId}/permanent`);
   },
+
+  getQuestionsByTestId: async (testId: number): Promise<Question[]> => {
+    const response = await http.get<Question[]>(`/questions?test_id=${testId}`);
+    return response.data;
+  },
 };

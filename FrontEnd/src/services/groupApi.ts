@@ -16,6 +16,8 @@ export interface Group {
   description?: string;
   created_at?: string;
   is_archived: boolean;
+  demo_students?: { id: number; full_name: string; patronymic: string; username: string }[];
+  demo_teacher?: { id: number; full_name: string; patronymic: string; username: string };
 }
 
 export interface GroupStudent {
@@ -101,5 +103,10 @@ export const groupApi = {
 
   removeGroupTeacher: async (groupId: number, userId: number): Promise<void> => {
     await http.delete(`/groups/${groupId}/teachers/${userId}`);
+  },
+
+  getMyGroups: async (): Promise<Group[]> => {
+    const response = await http.get<Group[]>("/groups/my");
+    return response.data;
   },
 };
