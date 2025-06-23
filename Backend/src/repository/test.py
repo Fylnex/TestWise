@@ -102,6 +102,17 @@ async def delete_test_permanently(session: AsyncSession, test_id: int) -> None:
     await delete_item(session, Test, test_id)
     logger.info(f"Permanently deleted test {test_id}")
 
+
+# ----------------------------- Test listing --------------------------------
+
+async def list_tests(session: AsyncSession, model: type[Test], **filters: Any) -> list[Test]:
+    """Retrieve a list of tests with applied filters."""
+    stmt = select(model).where(model.is_archived == False)
+    for key, value in filters.items():
+        stmt = stmt.where(getattr(model, key) == value)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
 # ----------------------------- Test attempts --------------------------------
 
 async def _next_attempt_number(session: AsyncSession, user_id: int, test_id: int) -> int:

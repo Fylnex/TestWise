@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from src.domain.enums import GroupStudentStatus
 
-
 # ---------------------------------------------------------------------------
 # Base group schemas
 # ---------------------------------------------------------------------------
@@ -59,8 +58,10 @@ class GroupReadSchema(BaseModel):
     start_year: int
     end_year: int
     description: Optional[str] = None
-    created_at: datetime
+    created_at: str  # Изменили на str для соответствия клиенту
     is_archived: bool
+    demo_students: Optional[List[dict]] = None  # Добавлено для совместимости
+    demo_teacher: Optional[dict] = None  # Добавлено для совместимости
 
     class Config:
         from_attributes = True
@@ -103,7 +104,6 @@ class GroupWithStudentsRead(GroupReadSchema):
     """Схема для чтения группы с списком студентов."""
     students: List[GroupStudentRead]
 
-
 # ---------------------------------------------------------------------------
 # Teacher membership schemas
 # ---------------------------------------------------------------------------
@@ -116,7 +116,6 @@ class GroupTeacherCreate(BaseModel):
         json_schema_extra = {
             "example": {"user_ids": [4, 5]}
         }
-
 
 class GroupTeacherRead(BaseModel):
     """Схема для чтения данных связи учителя с группой."""

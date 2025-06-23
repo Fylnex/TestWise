@@ -4,15 +4,16 @@
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
+from src.database.db import get_db
 from src.domain.enums import Role
-from src.domain.models import Question
+from src.domain.models import Question, Test
 from src.repository.base import get_item
 from src.repository.test import (
     create_test,
@@ -22,9 +23,9 @@ from src.repository.test import (
     archive_test,
     restore_test,
     delete_test_permanently,
+    list_tests,  # Предполагаем, что добавим этот метод в repository
 )
 from src.security.security import admin_or_teacher, authenticated, require_roles
-from src.database.db import get_db
 from src.service.progress import check_test_availability
 from src.service.tests import start_test, submit_test
 from .schemas import (
@@ -90,7 +91,7 @@ async def get_test_endpoint(
 )
 async def update_test_endpoint(
         test_id: int,
-        payload: TestCreateSchema,  # переиспользуем, все поля опциональны?
+        payload: TestCreateSchema,
         session: AsyncSession = Depends(get_db),
 ):
     """
@@ -113,6 +114,36 @@ async def delete_test_endpoint(
     """Архивирует тест."""
     logger.debug(f"Archiving test with ID: {test_id}")
     await delete_test(session, test_id)
+
+
+# ---------------------------------------------------------------------------#
+# Новый эндпоинт для списка тестов                                           #
+# ---------------------------------------------------------------------------#
+
+@router.get("", response_model=List[TestReadSchema])
+async def list_tests_endpoint(
+        topic_id: Optional[int] = None,
+        section_id: Optional[int] = None,
+        session: AsyncSession = Depends(get_db),
+        _claims: dict = Depends(authenticated),
+):
+    """
+    Возвращает список тестов, отфильтрованных по topic_id или section_id (но не оба).
+    """
+    logger.debug(f"Fetching tests with topic_id: {topic_id}, section_id: {section_id}")
+    if (topic_id is None) == (section_id is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Either topic_id or section_id must be provided (but not both)"
+        )
+    filters = {"is_archived": False}
+    if topic_id:
+        filters["topic_id"] = topic_id
+    elif section_id:
+        filters["section_id"] = section_id
+    tests = await list_tests(session, Test, **filters)
+    logger.debug(f"Retrieved {len(tests)} tests")
+    return [TestReadSchema.model_validate(t) for t in tests]
 
 # ---------------------------------------------------------------------------#
 # Студенческие действия                                                      #
