@@ -28,6 +28,7 @@ export interface Section {
   description?: string;
   order: number;
   created_at?: string;
+  tests?: any[];
 }
 
 export interface Subsection {

@@ -1,6 +1,6 @@
 // TestWise/src/pages/TopicSection.tsx
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { topicData } from "@/components/TopicAccordion";
@@ -54,6 +54,11 @@ const TopicSection = () => {
           Назад
         </Button>
         <h1 className="text-3xl font-bold mb-4">{section.title}</h1>
+        {('pdfUrl' in section) && section.pdfUrl && (
+          <Link to={`/section/${section.id}/pdf`}>
+            <Button variant="outline" className="mb-4">Открыть PDF-файл</Button>
+          </Link>
+        )}
         {section.isTest ? (
           <Test
             testType={section.testType || "final"}
