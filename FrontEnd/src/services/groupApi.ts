@@ -106,7 +106,7 @@ export const groupApi = {
   },
 
   getMyGroups: async (): Promise<Group[]> => {
-    const response = await http.get<Group[]>("/groups/my");
+    const response = await http.get<Group[]>("/profile/my-groups"); // Обновлённый путь
     return response.data;
   },
 };

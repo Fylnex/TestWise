@@ -105,7 +105,7 @@ async def get_group_endpoint(
         "demo_teacher": None
     })
 
-@router.get("/my", response_model=List[GroupReadSchema])
+@router.get("/my", response_model=List[GroupReadSchema], dependencies=[Depends(authenticated)])
 async def get_my_groups_endpoint(
     session: AsyncSession = Depends(get_db),
     claims: dict = Depends(authenticated),

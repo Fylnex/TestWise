@@ -4,16 +4,18 @@
 """
 
 from datetime import datetime, timezone
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.v1.profile.schemas import ProfileRead
 from src.config.logger import configure_logger
-from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt
+from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt, Group, GroupTeachers
 from src.security.security import authenticated
 from src.database.db import get_db
-
-from .schemas import ProfileRead
+from src.api.v1.groups.schemas import GroupReadSchema  # Импорт схемы групп
 
 router = APIRouter()
 logger = configure_logger()
@@ -58,3 +60,62 @@ async def read_profile(
     )
     logger.debug(f"Profile generated for user_id: {user_id} with {len(topics)} topics, {len(sections)} sections, {len(subsections)} subsections, {len(attempts)} attempts")
     return profile
+
+@router.get("/my-groups", response_model=List[GroupReadSchema], dependencies=[Depends(authenticated)])
+async def get_my_groups_endpoint(
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    """Возвращает список групп, где текущий пользователь является учителем.
+
+    Args:
+        session (AsyncSession): Асинхронная сессия базы данных.
+        claims (dict): Данные из JWT токена (содержит user_id и role).
+
+    Returns:
+        List[GroupReadSchema]: Список групп текущего учителя.
+
+    Raises:
+        HTTPException: Если пользователь не является учителем (403).
+    """
+    # Лог до обработки
+    logger.debug("Entering get_my_groups_endpoint")
+    logger.debug(f"Received claims: {claims}")
+
+    user_id = claims["sub"]
+    logger.debug(f"Extracted user_id: {user_id}")
+
+    # Проверяем, что пользователь является учителем или админом
+    if claims.get("role") not in ["admin", "teacher"]:
+        logger.debug(f"Access denied for role: {claims.get('role')}")
+        raise HTTPException(status_code=403, detail="Доступ запрещен: только учителя и админы могут просматривать свои группы")
+
+    # Получаем группы, где пользователь является учителем
+    logger.debug(f"Executing query for user_id: {user_id}")
+    stmt = (
+        select(Group)
+        .join(GroupTeachers, Group.id == GroupTeachers.group_id)
+        .where(GroupTeachers.user_id == user_id, GroupTeachers.is_archived == False, Group.is_archived == False)
+    )
+    res = await session.execute(stmt)
+    groups = res.scalars().all()
+    logger.debug(f"Query result: {len(groups)} groups found")
+
+    # Преобразуем datetime в строку для соответствия клиентской схеме
+    result = [
+        GroupReadSchema.model_validate({
+            "id": group.id,
+            "name": group.name,
+            "start_year": group.start_year,
+            "end_year": group.end_year,
+            "description": group.description,
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+            "is_archived": group.is_archived,
+            "demo_students": None,
+            "demo_teacher": None
+        })
+        for group in groups
+    ]
+
+    logger.debug(f"Retrieved {len(result)} groups for teacher {user_id}")
+    return result

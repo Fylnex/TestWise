@@ -10,17 +10,11 @@ import axios from "axios";
 
 const API_URL = "http://localhost:8000/api/v1";
 
-export const authHttp = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
 const http = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
+    // withCredentials: true,
   },
 });
 
@@ -34,7 +28,7 @@ http.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
-          const { data } = await authHttp.post('/auth/refresh', {}, {
+          const { data } = await http.post('/auth/refresh', {}, {
             headers: { Authorization: `Bearer ${refreshToken}` },
           });
 
@@ -64,7 +58,9 @@ http.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("Adding token to request:", token); // Для отладки
+      console.log("Request to", config.url, "with token:", token); // Улучшенная отладка
+    } else {
+      console.warn("No token found in localStorage for request to", config.url);
     }
     return config;
   },
