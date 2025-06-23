@@ -8,7 +8,7 @@
 // """
 
 import React, {useEffect, useState} from "react";
-import {Link, useParams} from "react-router-dom";
+import {Link, useParams, useNavigate} from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Section, Topic, topicApi } from "@/services/topicApi";
 import { Test, testApi } from "@/services/testApi";
@@ -46,6 +46,9 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import Header from '@/components/Header';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import Footer from '@/components/Layout';
 
 const TopicPage: React.FC = () => {
   const { topicId } = useParams<{ topicId: string }>();
@@ -83,6 +86,8 @@ const TopicPage: React.FC = () => {
 
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!topicId) return;
@@ -249,434 +254,160 @@ const TopicPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Layout><div className="text-center py-10">Загрузка...</div></Layout>;
+    return <div className="min-h-screen bg-gray-50"><Header /><div className="container mx-auto py-10 text-center text-gray-400">Загрузка...</div></div>;
   }
   if (!topic) {
-    return <Layout><div className="text-center py-10">Тема не найдена</div></Layout>;
+    return <div className="min-h-screen bg-gray-50"><Header /><div className="container mx-auto py-10 text-center text-gray-400">Тема не найдена</div></div>;
   }
 
   const isEmpty = sections.length === 0 && tests.length === 0;
 
   return (
-    <Layout>
-      <div className="mb-8 text-center flex flex-col items-center">
-        <div className="flex items-center gap-2">
-          <h1 className="text-3xl font-bold text-slate-800">{topic.title}</h1>
-          {(user?.role === 'admin' || user?.id === topic.creator_id) && (
-            <Button size="sm" variant={editMode ? "default" : "outline"} className="ml-2" onClick={() => setEditMode(e => !e)}>
-              {editMode ? 'Завершить редактирование' : 'Редактировать'}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header />
+      <div className="container mx-auto w-full max-w-4xl px-4 flex flex-col flex-1 mb-16">
+        <div className="pt-6 pb-2 flex items-center justify-between">
+          <Breadcrumbs />
+          {(user?.role === 'admin' || user?.role === 'teacher' || user?.id === topic.creator_id) && (
+            <Button size="sm" variant={editMode ? 'default' : 'outline'} onClick={() => setEditMode(e => !e)}>
+              {editMode ? 'Завершить' : 'Редактировать'}
             </Button>
           )}
         </div>
-        {topic.description && (
-          <p className="text-slate-600 mt-2 max-w-2xl mx-auto">
-            {topic.description}
-          </p>
+        <div className="mb-8 mt-2">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-sans mb-2">{topic.title}</h1>
+          {topic.description && <p className="text-lg text-gray-600 max-w-2xl font-sans mb-2">{topic.description}</p>}
+        </div>
+        {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
+          <div className="mb-8 flex gap-4 flex-wrap">
+            <Button variant="outline" className="rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => setOpenSection(true)}>
+              <PlusCircle className="mr-2 h-5 w-5" /> Добавить секцию
+            </Button>
+            <Button variant="outline" className="rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/test/create/topic/${topic.id}`)}>
+              <PlusCircle className="mr-2 h-5 w-5" /> Добавить тест
+            </Button>
+          </div>
+        )}
+        <Accordion type="multiple" className="bg-transparent" defaultValue={sections.map(s => String(s.id))}>
+          {sections.map((section) => (
+            <AccordionItem key={section.id} value={String(section.id)} className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-200">
+              <AccordionTrigger className="text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none flex items-center gap-2">
+                <span className="flex-1 cursor-pointer select-none hover:underline" onClick={e => { e.stopPropagation(); navigate(`/section/tree/${section.id}`); }}>{section.title}</span>
+                {/* Иконка раскрытия/сворачивания */}
+                <span className="ml-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  {/* Иконка будет автоматически добавлена AccordionTrigger */}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-4">
+                {section.description && <p className="text-gray-600 mb-2">{section.description}</p>}
+                {/* Подсекции */}
+                {subsectionsMap[section.id]?.length > 0 && (
+                  <div className="mb-2">
+                    <div className="font-semibold text-gray-700 mb-1">Подразделы:</div>
+                    <ul className="flex flex-col gap-2">
+                      {subsectionsMap[section.id].map(sub => (
+                        <li key={sub.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
+                          <span className="text-gray-800 font-sans">{sub.title}</span>
+                          {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
+                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSubsection(sub.id, section.id)} title="Удалить подсекцию">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* Тесты секции */}
+                {section.tests?.length > 0 && (
+                  <div className="mb-2">
+                    <div className="font-semibold text-gray-700 mb-1">Тесты:</div>
+                    <ul className="flex flex-col gap-2">
+                      {section.tests.map(test => (
+                        <li key={test.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
+                          <span className="text-gray-800 font-sans">{test.title}</span>
+                          {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
+                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSectionTest(test.id, section.id)} title="Удалить тест">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* Кнопки добавления в секцию */}
+                {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
+                  <div className="mt-2 flex gap-3 flex-wrap">
+                    <Button variant="outline" className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/subsection/create/${section.id}`)}>
+                      <PlusCircle className="h-4 w-4" /> <span>Секцию</span>
+                    </Button>
+                    <Button variant="outline" className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/test/create/section/${section.id}`)}>
+                      <PlusCircle className="h-4 w-4" /> <span>Тест</span>
+                    </Button>
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+        {/* Тесты по теме */}
+        {tests.length > 0 && (
+          <div className="mt-10">
+            <div className="font-semibold text-gray-700 mb-2 text-lg">Тесты по теме:</div>
+            <div className="space-y-4">
+              {tests.map(test => (
+                <div key={test.id} className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between border border-gray-200">
+                  <div>
+                    <div className="font-semibold text-lg text-gray-900 font-sans">{test.title}</div>
+                    <div className="text-gray-500 text-sm">Тип: {test.type}</div>
+                  </div>
+                  {(user?.role === 'admin' || user?.role === 'teacher') && (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => setOpenQuestionsEditor(test.id)}>
+                        Редактировать вопросы
+                      </Button>
+                      {editMode && (
+                        <Button size="icon" variant="ghost" className="text-destructive" onClick={async () => { await testApi.deleteTest(test.id); setTests(prev => prev.filter(t => t.id !== test.id)); }} title="Удалить тест">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-      {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-        <div className="flex justify-center mb-8">
-          <Card className="w-full max-w-xl mx-auto border-2 border-dashed border-primary/40 bg-muted/40 shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle>Добавить новый элемент</CardTitle>
-              <CardDescription>Создайте новую секцию или тест для этой темы</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setOpenSection(true)}>
-                  <PlusCircle className="mr-2 h-5 w-5" />
-                  Добавить секцию
-                </Button>
-                <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setOpenTest(true)}>
-                  <PlusCircle className="mr-2 h-5 w-5" />
-                  Добавить тест
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Dialog open={openSection} onOpenChange={setOpenSection}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Создать секцию</DialogTitle>
-                <DialogDescription>Введите данные для новой секции.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateSection} className="space-y-4">
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Название секции"
-                  value={sectionForm.title}
-                  onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
-                  required
-                />
-                <textarea
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Описание секции"
-                  value={sectionForm.description}
-                  onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
-                />
-                <textarea
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Контент секции (необязательно)"
-                  value={sectionForm.content}
-                  onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
-                />
-                {errorSection && <div className="text-red-500 text-sm">{errorSection}</div>}
-                <DialogFooter>
-                  <Button type="submit" disabled={creatingSection}>
-                    {creatingSection ? 'Создание...' : 'Создать'}
-                  </Button>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">Отмена</Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={openTest} onOpenChange={setOpenTest}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Создать тест</DialogTitle>
-                <DialogDescription>Введите данные для нового теста.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateTest} className="space-y-4">
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Название теста"
-                  value={testForm.title}
-                  onChange={e => setTestForm(f => ({ ...f, title: e.target.value }))}
-                  required
-                />
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={testForm.type}
-                  onChange={e => setTestForm(f => ({ ...f, type: e.target.value }))}
-                  required
-                >
-                  <option value="hinted">С подсказками</option>
-                  <option value="section_final">Финальный по секции</option>
-                  <option value="global_final">Глобальный финальный</option>
-                </select>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Длительность (сек, 0 — без лимита)"
-                  type="number"
-                  value={testForm.duration}
-                  onChange={e => setTestForm(f => ({ ...f, duration: e.target.value }))}
-                />
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="ID вопросов через запятую (необязательно)"
-                  value={testForm.question_ids}
-                  onChange={e => setTestForm(f => ({ ...f, question_ids: e.target.value }))}
-                />
-                {errorTest && <div className="text-red-500 text-sm">{errorTest}</div>}
-                <DialogFooter>
-                  <Button type="submit" disabled={creatingTest}>
-                    {creatingTest ? 'Создание...' : 'Создать'}
-                  </Button>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">Отмена</Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+      <footer className="bg-slate-900 text-white py-6 mt-auto">
+        <div className="container mx-auto px-6 text-center">
+          <p className="text-sm text-slate-400 mb-4">
+            © 2025. Все права защищены.
+          </p>
+          <div className="flex justify-center space-x-6 text-sm">
+            <a
+              href="/privacy"
+              className="text-purple-300 hover:text-purple-200 transition-colors"
+            >
+              Политика конфиденциальности
+            </a>
+            <a
+              href="/terms"
+              className="text-purple-300 hover:text-purple-200 transition-colors"
+            >
+              Условия использования
+            </a>
+            <a
+              href="/contact"
+              className="text-purple-300 hover:text-purple-200 transition-colors"
+            >
+              Контакты
+            </a>
+          </div>
         </div>
-      )}
-      <Accordion type="single" collapsible className="w-full max-w-2xl mx-auto">
-        {sections.map((section) => (
-          <AccordionItem key={section.id} value={section.id.toString()}>
-            <AccordionTrigger>
-              <span>{section.title}</span>
-              {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="ml-2 text-destructive" title="Удалить секцию">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Удалить секцию?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Это действие необратимо. Все вложенные подсекции и тесты будут удалены.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Отмена</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDeleteSection(section.id)}>Удалить</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="mb-2 text-slate-700">{section.description || section.content}</div>
-              {/* Add-блок для вложенных секций и тестов */}
-              {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-                <div className="my-4">
-                  <Card className="border border-dashed border-primary/30 bg-background/80 shadow-sm transition-shadow hover:shadow-md p-3 flex flex-col items-center gap-2">
-                    <div className="w-full flex items-center gap-2 mb-1">
-                      <span className="text-xs text-primary font-semibold tracking-wide uppercase">Добавить в секцию</span>
-                    </div>
-                    <div className="flex gap-3 w-full justify-center">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md transition-colors h-9"
-                        onClick={() => handleOpenSubsection(section.id)}
-                        aria-label="Добавить вложенную секцию"
-                        title="Добавить вложенную секцию"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                        <span>Секцию</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md transition-colors h-9"
-                        onClick={() => setOpenSectionTestId(section.id)}
-                        aria-label="Добавить тест к секции"
-                        title="Добавить тест к секции"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                        <span>Тест</span>
-                      </Button>
-                    </div>
-                  </Card>
-                  {/* Диалог создания подсекции */}
-                  <Dialog open={!!openSubsection[section.id]} onOpenChange={v => { if (!v) handleCloseSubsection(section.id); }}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Создать вложенную секцию</DialogTitle>
-                        <DialogDescription>Введите данные для новой вложенной секции.</DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={e => handleCreateSubsection(e, section.id)} className="space-y-4">
-                        <input
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="Название вложенной секции"
-                          value={subsectionForm[section.id]?.title || ''}
-                          onChange={e => setSubsectionForm(f => ({ ...f, [section.id]: { ...f[section.id], title: e.target.value } }))}
-                          required
-                        />
-                        <textarea
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="Контент вложенной секции (необязательно)"
-                          value={subsectionForm[section.id]?.content || ''}
-                          onChange={e => setSubsectionForm(f => ({ ...f, [section.id]: { ...f[section.id], content: e.target.value } }))}
-                        />
-                        {errorSubsection[section.id] && <div className="text-red-500 text-sm">{errorSubsection[section.id]}</div>}
-                        <DialogFooter>
-                          <Button type="submit" disabled={creatingSubsection[section.id]}>
-                            {creatingSubsection[section.id] ? 'Создание...' : 'Создать'}
-                          </Button>
-                          <DialogClose asChild>
-                            <Button type="button" variant="outline">Отмена</Button>
-                          </DialogClose>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                  {/* Диалог создания теста для секции */}
-                  <Dialog open={openSectionTestId === section.id} onOpenChange={v => { if (!v) setOpenSectionTestId(null); }}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Создать тест для секции</DialogTitle>
-                        <DialogDescription>Введите данные для нового теста этой секции.</DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={e => handleCreateSectionTest(e, section.id)} className="space-y-4">
-                        <input
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="Название теста"
-                          value={sectionTestForm.title}
-                          onChange={e => setSectionTestForm(f => ({ ...f, title: e.target.value }))}
-                          required
-                        />
-                        <select
-                          className="w-full border rounded px-3 py-2"
-                          value={sectionTestForm.type}
-                          onChange={e => setSectionTestForm(f => ({ ...f, type: e.target.value }))}
-                          required
-                        >
-                          <option value="hinted">С подсказками</option>
-                          <option value="section_final">Финальный по секции</option>
-                        </select>
-                        <input
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="Длительность (сек, 0 — без лимита)"
-                          type="number"
-                          value={sectionTestForm.duration}
-                          onChange={e => setSectionTestForm(f => ({ ...f, duration: e.target.value }))}
-                        />
-                        <input
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="ID вопросов через запятую (необязательно)"
-                          value={sectionTestForm.question_ids}
-                          onChange={e => setSectionTestForm(f => ({ ...f, question_ids: e.target.value }))}
-                        />
-                        {errorSectionTest && <div className="text-red-500 text-sm">{errorSectionTest}</div>}
-                        <DialogFooter>
-                          <Button type="submit" disabled={creatingSectionTest}>
-                            {creatingSectionTest ? 'Создание...' : 'Создать'}
-                          </Button>
-                          <DialogClose asChild>
-                            <Button type="button" variant="outline">Отмена</Button>
-                          </DialogClose>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
-              {/* Подсекции */}
-              {subsectionsMap[section.id] && subsectionsMap[section.id].length > 0 && (
-                <div className="mt-4">
-                  <div className="font-semibold mb-2">Подсекции:</div>
-                  <ul className="list-disc pl-6">
-                    {subsectionsMap[section.id].map((sub) => (
-                      <li key={sub.id} className="flex items-center gap-2">
-                        {sub.title}
-                        {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSubsection(sub.id, section.id)} title="Удалить подсекцию">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {/* Тесты секции */}
-              {section.tests && section.tests.length > 0 && (
-                <div className="mt-4">
-                  <div className="font-semibold mb-2">Тесты секции:</div>
-                  <ul className="list-disc pl-6">
-                    {section.tests.map((test) => (
-                      <li key={test.id} className="flex items-center gap-2">
-                        {test.title}
-                        {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSectionTest(test.id, section.id)} title="Удалить тест">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-        {tests.length > 0 && (
-          <>
-            <div className="mt-6 mb-2 font-semibold text-slate-700">
-              Тесты по теме
-            </div>
-            <div className="mb-8">
-              <h2 className="text-xl font-bold mb-4">Тесты</h2>
-              <div className="space-y-4">
-                {tests.map(test => (
-                  <div key={test.id} className="p-4 border rounded flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-lg">{test.title}</div>
-                      <div className="text-muted-foreground text-sm">Тип: {test.type}</div>
-                    </div>
-                    {(user?.role === 'admin' || user?.role === 'teacher') && (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setOpenQuestionsEditor(test.id)}>
-                          Редактировать вопросы
-                        </Button>
-                        {editMode && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="icon" variant="ghost" className="text-destructive" title="Удалить тест">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Удалить тест?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Это действие необратимо. Тест и все его вопросы будут удалены.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                <AlertDialogAction onClick={async () => {
-                                  await testApi.deleteTest(test.id);
-                                  setTests(prev => prev.filter(t => t.id !== test.id));
-                                }}>Удалить</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </Accordion>
-      {/* Модалка редактора вопросов */}
-      <Modal open={!!openQuestionsEditor} onOpenChange={v => { if (!v) setOpenQuestionsEditor(null); }}>
-        <ModalContent className="max-w-2xl w-full">
-          <ModalHeader>
-            <ModalTitle>Редактор вопросов теста</ModalTitle>
-          </ModalHeader>
-          {openQuestionsEditor && (
-            <div className="py-4">
-              <QuestionEditor testId={openQuestionsEditor} />
-            </div>
-          )}
-          <DialogFooter className="flex justify-end">
-            <ModalClose asChild>
-              <Button variant="outline">Закрыть</Button>
-            </ModalClose>
-          </DialogFooter>
-        </ModalContent>
-      </Modal>
-      {(user?.role === 'admin' || user?.id === topic.creator_id) && editMode && (
-        <div className="flex justify-center mt-12">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="lg" variant="destructive" className="gap-2">
-                <Trash2 className="h-5 w-5" />
-                Удалить тему
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Вы уверены, что хотите удалить тему?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Это действие необратимо. Будут удалены все секции, подсекции и тесты этой темы.<br/>
-                  Для подтверждения введите <b>УДАЛИТЬ</b> в поле ниже:
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <input
-                className="w-full border rounded px-3 py-2 my-2 text-center text-lg tracking-widest"
-                placeholder="УДАЛИТЬ"
-                value={deleteInput}
-                onChange={e => setDeleteInput(e.target.value)}
-                autoFocus
-              />
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteLoading}>Отмена</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={deleteInput !== 'УДАЛИТЬ' || deleteLoading}
-                  onClick={async () => {
-                    setDeleteLoading(true);
-                    await topicApi.deleteTopicPermanently(topic.id);
-                    window.location.href = '/topics';
-                  }}
-                >
-                  {deleteLoading ? 'Удаление...' : 'Удалить'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
-    </Layout>
+      </footer>
+    </div>
   );
 };
 

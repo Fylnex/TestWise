@@ -21,6 +21,8 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import CreateTopic from "./pages/CreateTopic";
+import TopicSectionTree from "./pages/TopicSectionTree";
+import CreateSubsection from "./pages/CreateSubsection";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +88,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/section/tree/:sectionId"
+                element={
+                  <ProtectedRoute>
+                    <TopicSectionTree />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/admin"
                 element={
                   <AdminRoute>
@@ -143,6 +153,14 @@ const App = () => (
                   <AdminRoute>
                     <CreateTopic />
                   </AdminRoute>
+                }
+              />
+              <Route
+                path="/subsection/create/:sectionId"
+                element={
+                  <ProtectedRoute>
+                    <CreateSubsection />
+                  </ProtectedRoute>
                 }
               />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
