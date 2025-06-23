@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+TestWise/Backend/src/api/v1/profile/schemas.py
 Pydantic-схемы для агрегированного профиля пользователя.
 """
 
@@ -14,7 +15,7 @@ from src.api.v1.progress.schemas import (
     SubsectionProgressRead,
     TestAttemptRead,
 )
-
+from src.api.v1.groups.schemas import GroupReadSchema  # Импорт схемы групп
 
 class ProfileRead(BaseModel):
     """
@@ -26,6 +27,16 @@ class ProfileRead(BaseModel):
     subsections: List[SubsectionProgressRead]
     tests: List[TestAttemptRead]
     generated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Опционально: можно добавить схему для my-groups
+class MyGroupsResponse(BaseModel):
+    """
+    Ответ с данными групп текущего пользователя.
+    """
+    groups: List[GroupReadSchema]
 
     class Config:
         from_attributes = True

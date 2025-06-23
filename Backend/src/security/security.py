@@ -103,15 +103,22 @@ def require_roles(*allowed_roles: Role) -> Callable[[Request], dict]:
     allowed: set[Role] = set(allowed_roles)
 
     async def checker(request: Request) -> dict:
+        logger.debug(f"Checking roles for path: {request.url.path}")
         token = _extract_token(request)
-        payload = verify_token(token, "access")  # Только access токен для ролей
+        logger.debug(f"Extracted token: {token[:20]}...")  # Логируем начало токена
+        payload = verify_token(token, "access")
+        logger.debug(f"Decoded payload: {payload}")
         try:
             role = Role(payload["role"])
+            logger.debug(f"User role: {role}")
         except (KeyError, ValueError) as exc:
+            logger.error(f"Invalid role in payload: {payload}", exc_info=True)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload") from exc
 
         if role not in allowed:
+            logger.debug(f"Role {role} not in allowed roles: {allowed}")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        logger.debug(f"Role {role} authorized for path: {request.url.path}")
         return payload
 
     return checker
