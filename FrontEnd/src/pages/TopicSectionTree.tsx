@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams, Navigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2, ChevronDown, ChevronRight, Menu, ChevronLeft } from 'lucide-react';
@@ -17,7 +17,7 @@ function TreeItem({ item, level = 0, onSelect = undefined, onAdd, onDelete, onAd
   const handleItemClick = (e) => {
     e.stopPropagation();
     if (item.type === 'section') navigate(`/section/tree/${item.id}`);
-    else if (item.type === 'subsection') navigate(`/subsection/${item.id}`);
+    else if (item.type === 'subsection') navigate(`/section/tree/${item.section_id}?sub=${item.id}`);
     else if (item.type === 'test') navigate(`/test/${item.id}`);
   };
 
@@ -51,6 +51,11 @@ function TreeItem({ item, level = 0, onSelect = undefined, onAdd, onDelete, onAd
 export default function TopicSectionTree() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const subId = searchParams.get('sub');
+
+  // Если sectionId отсутствует, редирект на 404
+  if (!sectionId) return <Navigate to="/404" />;
 
   // --- Хлебные крошки ---
   const [topicTitle, setTopicTitle] = useState<string | null>(null);
@@ -61,6 +66,10 @@ export default function TopicSectionTree() {
   // --- Данные для дерева ---
   const [sections, setSections] = useState<any[]>([]);
   const [loadingTree, setLoadingTree] = useState(false);
+
+  // --- Данные для выбранного подраздела ---
+  const [selectedSub, setSelectedSub] = useState<any | null>(null);
+  const [loadingSub, setLoadingSub] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -97,6 +106,21 @@ export default function TopicSectionTree() {
       })
       .finally(() => setLoadingTree(false));
   }, [topicId]);
+
+  // Получить контент подраздела, если subId задан
+  useEffect(() => {
+    if (!subId || !sectionId) {
+      setSelectedSub(null);
+      return;
+    }
+    setLoadingSub(true);
+    sectionApi.getSectionSubsections(Number(sectionId))
+      .then((data) => {
+        const found = data.subsections?.find((s: any) => String(s.id) === String(subId));
+        setSelectedSub(found || null);
+      })
+      .finally(() => setLoadingSub(false));
+  }, [subId, sectionId]);
 
   // Логика добавления/удаления (заглушка)
   const handleAdd = (item) => {
@@ -166,13 +190,13 @@ export default function TopicSectionTree() {
       <Header />
       <div className="flex flex-1 min-h-0">
         {sidebarOpen && (
-          <aside className="w-80 bg-[#F5F7FA] border-r border-[#E0E4EA] p-4 overflow-y-auto transition-all duration-300 h-full min-h-screen flex-shrink-0">
+          <aside className="w-80 bg-[#F5F7FA] border-r border-[#E0E4EA] p-4 overflow-y-auto transition-all duration-300 h-full min-h-screen flex-shrink-0 z-10 relative">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Структура темы</h2>
+              <h2 className="text-lg font-bold"> - </h2>
             </div>
             {loadingTree ? (
               <div className="text-gray-400 text-center py-10">Загрузка...</div>
-            ) : sections.length === 0 ? (
+            ) : sections.length === 0 && !subId ? (
               <div className="text-gray-400 text-center py-10">Нет секций</div>
             ) : (
               <ul>
@@ -191,18 +215,18 @@ export default function TopicSectionTree() {
             )}
           </aside>
         )}
-        <main className="flex-1 p-8 flex flex-col items-center justify-center relative">
-          {/* Кнопка скрытия/открытия меню — внутри main, как на Solvit */}
-          <button
-            className="absolute left-0 top-0 mt-2 ml-2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white/80 border border-[#E0E4EA] shadow-lg hover:bg-white transition backdrop-blur-sm"
-            onClick={() => setSidebarOpen(o => !o)}
-            title={sidebarOpen ? 'Скрыть меню' : 'Показать меню'}
-            style={{ boxShadow: '0 4px 24px 0 rgba(60, 80, 120, 0.10)' }}
-          >
-            {sidebarOpen ? <ChevronLeft size={24} /> : <Menu size={24} />}
-          </button>
-          {/* Хлебные крошки теперь только здесь */}
-          <div className="w-full flex items-center justify-center mb-6">
+        {/* Кнопка скрытия/открытия сайдбара */}
+        <button
+          className="fixed left-0 top-24 z-20 w-10 h-10 flex items-center justify-center rounded-r-full bg-white/80 border border-[#E0E4EA] shadow-lg hover:bg-white transition backdrop-blur-sm"
+          onClick={() => setSidebarOpen((o) => !o)}
+          title={sidebarOpen ? 'Скрыть меню' : 'Показать меню'}
+          style={{ boxShadow: '0 4px 24px 0 rgba(60, 80, 120, 0.10)' }}
+        >
+          {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
+        </button>
+        <main className="flex-1 p-8 flex flex-col items-center items-center pt-6 relative">
+          {/* Хлебные крошки теперь внутри main, не влияют на sidebar */}
+          <div className="w-full flex items-center justify-center mt-0 mb-4">
             <nav className="text-sm text-gray-500 flex items-center gap-2 justify-center">
               <Link to="/" className="hover:underline">Главная</Link>
               <span className="mx-1">/</span>
@@ -221,6 +245,21 @@ export default function TopicSectionTree() {
               )}
             </nav>
           </div>
+          {/* Контент выбранного подраздела сразу после хлебных крошек */}
+          {subId && (
+            <div className="w-full max-w-2xl mx-auto mb-8 p-6 bg-white rounded-xl shadow border border-gray-200">
+              {loadingSub ? (
+                <div className="text-gray-400 text-center">Загрузка подраздела...</div>
+              ) : selectedSub ? (
+                <>
+                  <h2 className="text-xl font-bold mb-2">{selectedSub.title}</h2>
+                  <div className="text-gray-700 whitespace-pre-line">{selectedSub.content || 'Нет содержимого'}</div>
+                </>
+              ) : (
+                <div className="text-gray-400 text-center">Подраздел не найден</div>
+              )}
+            </div>
+          )}
           {sections.length === 0 ? (
             <div className="flex flex-col items-center">
               <svg width="80" height="80" fill="none" className="mb-6 text-gray-300" viewBox="0 0 80 80">
@@ -233,12 +272,7 @@ export default function TopicSectionTree() {
                 <PlusCircle className="mr-2 h-5 w-5" /> Добавить секцию
               </Button>
             </div>
-          ) : (
-            <Card className="p-8 min-h-[300px] w-full max-w-3xl mx-auto">
-              <h1 className="text-2xl font-bold mb-4">Все секции и подсекции</h1>
-              <div className="text-gray-600">Здесь будет отображаться содержимое всех секций, подсекций и тестов.</div>
-            </Card>
-          )}
+          ) : null}
         </main>
       </div>
     </div>

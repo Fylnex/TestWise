@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,6 +123,15 @@ const TopicPage: React.FC = () => {
   >({});
 
   const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
+
+  // 1. State for editing section
+  const [editSection, setEditSection] = useState<Section | null>(null);
+  const [editSectionForm, setEditSectionForm] = useState({
+    title: '',
+    description: '',
+  });
+  const [editingSection, setEditingSection] = useState(false);
+  const [errorEditSection, setErrorEditSection] = useState<string | null>(null);
 
   interface SubsectionFormData {
     file?: File;
@@ -553,6 +562,35 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  // 2. Handler to open edit modal
+  const handleOpenEditSection = (section: Section) => {
+    setEditSection(section);
+    setEditSectionForm({
+      title: section.title || '',
+      description: section.description || '',
+    });
+    setErrorEditSection(null);
+  };
+
+  // 3. Handler to submit edit
+  const handleEditSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editSection) return;
+    setEditingSection(true);
+    setErrorEditSection(null);
+    try {
+      const updated = await sectionApi.updateSection(editSection.id, {
+        ...editSectionForm,
+      });
+      setSections((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+      setEditSection(null);
+    } catch (err) {
+      setErrorEditSection('Ошибка при редактировании раздела');
+    } finally {
+      setEditingSection(false);
+    }
+  };
+
   if (loading) {
     return (
         <div className="min-h-screen bg-gray-50">
@@ -631,213 +669,231 @@ const TopicPage: React.FC = () => {
                   value={String(section.id)}
                   className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-200"
               >
-              <AccordionTrigger className="text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none flex items-center gap-2">
-                <span
-                    className="flex-1 cursor-pointer select-none hover:underline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/section/tree/${section.id}`);
-                    }}
-                >
-                  {section.title}
-                </span>
-                {(user?.role === "admin" || user?.role === "teacher") &&
-                    editMode && (
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive ml-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSectionToDelete(section.id);
-                            }}
-                            title="Удалить раздел"
-                        >
-                          <Trash2 className="h-5 w-5"/>
-                        </Button>
-                    )}
-                {/* Иконка раскрытия/сворачивания */}
-                <span
-                    className="ml-2 flex-shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Иконка будет автоматически добавлена AccordionTrigger */}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-4">
-                {section.description && (
-                    <p className="text-gray-600 mb-2">{section.description}</p>
-                )}
-                {/* Подразделы */}
-                {(user?.role === "admin" || user?.role === "teacher") &&
-                    editMode && (
-                        <Button
-                            variant="outline"
-                            className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF] mb-2"
-                            onClick={() => handleOpenCreateSubsection(section.id)}
-                        >
-                          <PlusCircle className="h-4 w-4"/>{" "}
-                          <span>Добавить подраздел</span>
-                        </Button>
-                    )}
-                {openSubsectionForm[section.id] && (
-                    <form
-                        onSubmit={(e) => handleSubmitSubsection(e, section.id)}
-                        className="bg-gray-50 rounded-xl p-4 mb-4 flex flex-col gap-2"
+                <div className="flex items-center">
+                  <AccordionTrigger className="flex-1 text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none flex items-center gap-2">
+                    <span
+                        className="flex-1 cursor-pointer select-none hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/section/tree/${section.id}`);
+                        }}
                     >
-                    <input
-                      className="border rounded px-2 py-1"
-                      placeholder="Название подраздела"
-                      value={subsectionFormData[section.id]?.title || ""}
-                      onChange={(e) =>
-                          setSubsectionFormData((prev) => ({
-                            ...prev,
-                            [section.id]: {
-                              ...prev[section.id],
-                              title: e.target.value,
-                            },
-                          }))
-                      }
-                      required
-                    />
-                    <textarea
-                      className="border rounded px-2 py-1"
-                      placeholder="Содержимое подраздела"
-                      value={subsectionFormData[section.id]?.content || ""}
-                      onChange={(e) =>
-                          setSubsectionFormData((prev) => ({
-                            ...prev,
-                            [section.id]: {
-                              ...prev[section.id],
-                              content: e.target.value,
-                            },
-                          }))
-                      }
-                      rows={3}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                          type="submit"
-                          className="bg-blue-600 text-white px-4 py-1 rounded"
-                          disabled={subsectionLoading[section.id]}
+                      {section.title}
+                    </span>
+                    {/* Иконка раскрытия/сворачивания */}
+                    <span
+                        className="ml-2 flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Иконка будет автоматически добавлена AccordionTrigger */}
+                    </span>
+                  </AccordionTrigger>
+                  {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+                    <div className="flex items-center ml-2 gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-blue-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditSection(section);
+                        }}
+                        title="Редактировать раздел"
                       >
-                        {editSubsection[section.id] ? "Сохранить" : "Создать"}
-                      </button>
-                      <button
-                          type="button"
-                          className="bg-gray-300 text-gray-700 px-4 py-1 rounded"
-                          onClick={() => handleCloseSubsectionForm(section.id)}
+                        <Pencil className="w-5 h-5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSectionToDelete(section.id);
+                        }}
+                        title="Удалить раздел"
                       >
-                        Отмена
-                      </button>
+                        <Trash2 className="h-5 w-5"/>
+                      </Button>
                     </div>
-                      {subsectionError[section.id] && (
-                          <div className="text-red-500 text-sm">
-                            {subsectionError[section.id]}
-                          </div>
-                      )}
-                  </form>
-                )}
-                {subsectionsMap[section.id]?.length > 0 && (
-                  <div className="mb-2">
-                    <div className="font-semibold text-gray-700 mb-1">
-                      Подразделы:
-                    </div>
-                    <ul className="flex flex-col gap-2">
-                      {subsectionsMap[section.id].map((sub) => (
-                          <li
-                              key={sub.id}
-                              className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
+                  )}
+                </div>
+                <AccordionContent className="px-6 pb-4">
+                  {section.description && (
+                      <p className="text-gray-600 mb-2">{section.description}</p>
+                  )}
+                  {/* Подразделы */}
+                  {(user?.role === "admin" || user?.role === "teacher") &&
+                      editMode && (
+                          <Button
+                              variant="outline"
+                              className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF] mb-2"
+                              onClick={() => handleOpenCreateSubsection(section.id)}
                           >
-                          <span className="text-gray-800 font-sans">
-                            {sub.title}
-                          </span>
-                            {(user?.role === "admin" ||
-                                    user?.role === "teacher") &&
-                                editMode && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="text-blue-600"
-                                          onClick={() =>
-                                              handleOpenEditSubsection(section.id, sub)
-                                          }
-                                          title="Редактировать подраздел"
-                                      >
-                                        ✎
-                                      </Button>
+                            <PlusCircle className="h-4 w-4"/>{" "}
+                            <span>Добавить подраздел</span>
+                          </Button>
+                      )}
+                  {openSubsectionForm[section.id] && (
+                      <form
+                          onSubmit={(e) => handleSubmitSubsection(e, section.id)}
+                          className="bg-gray-50 rounded-xl p-4 mb-4 flex flex-col gap-2"
+                      >
+                      <input
+                        className="border rounded px-2 py-1"
+                        placeholder="Название подраздела"
+                        value={subsectionFormData[section.id]?.title || ""}
+                        onChange={(e) =>
+                            setSubsectionFormData((prev) => ({
+                              ...prev,
+                              [section.id]: {
+                                ...prev[section.id],
+                                title: e.target.value,
+                              },
+                            }))
+                        }
+                        required
+                      />
+                      <textarea
+                        className="border rounded px-2 py-1"
+                        placeholder="Содержимое подраздела"
+                        value={subsectionFormData[section.id]?.content || ""}
+                        onChange={(e) =>
+                            setSubsectionFormData((prev) => ({
+                              ...prev,
+                              [section.id]: {
+                                ...prev[section.id],
+                                content: e.target.value,
+                              },
+                            }))
+                        }
+                        rows={3}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                            type="submit"
+                            className="bg-blue-600 text-white px-4 py-1 rounded"
+                            disabled={subsectionLoading[section.id]}
+                        >
+                          {editSubsection[section.id] ? "Сохранить" : "Создать"}
+                        </button>
+                        <button
+                            type="button"
+                            className="bg-gray-300 text-gray-700 px-4 py-1 rounded"
+                            onClick={() => handleCloseSubsectionForm(section.id)}
+                        >
+                          Отмена
+                        </button>
+                      </div>
+                        {subsectionError[section.id] && (
+                            <div className="text-red-500 text-sm">
+                              {subsectionError[section.id]}
+                            </div>
+                        )}
+                    </form>
+                  )}
+                  {subsectionsMap[section.id]?.length > 0 && (
+                    <div className="mb-2">
+                      <div className="font-semibold text-gray-700 mb-1">
+                        Подразделы:
+                      </div>
+                      <ul className="flex flex-col gap-2">
+                        {subsectionsMap[section.id].map((sub) => (
+                            <li
+                                key={sub.id}
+                                className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
+                            >
+                            <span
+                              className="text-gray-800 font-sans cursor-pointer hover:underline"
+                              onClick={() => navigate(`/section/tree/${section.id}?sub=${sub.id}`)}
+                            >
+                              {sub.title}
+                            </span>
+                              {(user?.role === "admin" ||
+                                      user?.role === "teacher") &&
+                                  editMode && (
+                                      <div className="flex gap-2">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="text-blue-600"
+                                            onClick={() =>
+                                                handleOpenEditSubsection(section.id, sub)
+                                            }
+                                            title="Редактировать подраздел"
+                                        >
+                                          <Pencil className="w-5 h-5" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="text-destructive"
+                                            onClick={() =>
+                                                handleDeleteSubsection(sub.id, section.id)
+                                            }
+                                            title="Удалить подраздел"
+                                        >
+                                          <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                      </div>
+                                  )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {/* Тесты секции */}
+                  {((section as Section & { tests?: Test[] }).tests)?.length > 0 && (
+                    <div className="mb-2">
+                      <div className="font-semibold text-gray-700 mb-1">
+                        Тесты:
+                      </div>
+                      <ul className="flex flex-col gap-2">
+                        {((section as Section & { tests?: Test[] }).tests)?.map((test) => (
+                            <li
+                                key={test.id}
+                                className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
+                            >
+                            <span className="text-gray-800 font-sans">
+                              {test.title}
+                            </span>
+                              {(user?.role === "admin" ||
+                                      user?.role === "teacher") &&
+                                  editMode && (
                                       <Button
                                           size="icon"
                                           variant="ghost"
                                           className="text-destructive"
                                           onClick={() =>
-                                              handleDeleteSubsection(sub.id, section.id)
+                                              handleDeleteSectionTest(test.id, section.id)
                                           }
-                                          title="Удалить подраздел"
+                                          title="Удалить тест"
                                       >
                                         <Trash2 className="h-4 w-4"/>
                                       </Button>
-                                    </div>
-                                )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {/* Тесты секции */}
-                {((section as Section & { tests?: Test[] }).tests)?.length > 0 && (
-                  <div className="mb-2">
-                    <div className="font-semibold text-gray-700 mb-1">
-                      Тесты:
+                                  )}
+                            </li>
+                          ))}
+                      </ul>
                     </div>
-                    <ul className="flex flex-col gap-2">
-                      {((section as Section & { tests?: Test[] }).tests)?.map((test) => (
-                          <li
-                              key={test.id}
-                              className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
-                          >
-                          <span className="text-gray-800 font-sans">
-                            {test.title}
-                          </span>
-                            {(user?.role === "admin" ||
-                                    user?.role === "teacher") &&
-                                editMode && (
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="text-destructive"
-                                        onClick={() =>
-                                            handleDeleteSectionTest(test.id, section.id)
-                                        }
-                                        title="Удалить тест"
-                                    >
-                                      <Trash2 className="h-4 w-4"/>
-                                    </Button>
-                                )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {/* Кнопки добавления в секцию */}
-                {(user?.role === "admin" || user?.role === "teacher") &&
-                    editMode && (
-                        <div className="mt-2 flex gap-3 flex-wrap">
-                          <Button
-                              variant="outline"
-                              className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]"
-                              onClick={() =>
-                                  navigate(`/test/create/section/${section.id}`)
-                              }
-                          >
-                            <PlusCircle className="h-4 w-4"/>{" "}
-                            <span>Добавить тест</span>
-                          </Button>
-                        </div>
-                    )}
-              </AccordionContent>
-            </AccordionItem>
+                  )}
+                  {/* Кнопки добавления в секцию */}
+                  {(user?.role === "admin" || user?.role === "teacher") &&
+                      editMode && (
+                          <div className="mt-2 flex gap-3 flex-wrap">
+                            <Button
+                                variant="outline"
+                                className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]"
+                                onClick={() =>
+                                    navigate(`/test/create/section/${section.id}`)
+                                }
+                            >
+                              <PlusCircle className="h-4 w-4"/>{" "}
+                              <span>Добавить тест</span>
+                            </Button>
+                          </div>
+                      )}
+                </AccordionContent>
+              </AccordionItem>
           ))}
         </Accordion>
         {/* Тесты по теме */}
@@ -1000,6 +1056,43 @@ const TopicPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Dialog for editing section */}
+      <Dialog open={!!editSection} onOpenChange={(open) => !open && setEditSection(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать раздел</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSection} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Название раздела</label>
+              <input
+                className="border rounded px-2 py-1 w-full"
+                value={editSectionForm.title}
+                onChange={(e) => setEditSectionForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Название раздела"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Описание</label>
+              <textarea
+                className="border rounded px-2 py-1 w-full"
+                value={editSectionForm.description}
+                onChange={(e) => setEditSectionForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Описание раздела"
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={editingSection}>Сохранить</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Отмена</Button>
+              </DialogClose>
+            </DialogFooter>
+            {errorEditSection && <div className="text-red-500 text-sm mt-2">{errorEditSection}</div>}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
