@@ -17,9 +17,8 @@ export interface Topic {
   created_at?: string;
   is_archived: boolean;
   progress?: any;
-  creator_id?: number;
+  creator_full_name: string;
 }
-
 export interface Section {
   id: number;
   topic_id: number;
@@ -56,6 +55,11 @@ export interface Question {
   updated_at?: string;
 }
 
+// Новый интерфейс для соответствия бэкенду
+export interface MyTopicsResponse {
+  topics: Topic[];
+}
+
 export const topicApi = {
   getTopics: async (): Promise<Topic[]> => {
     const response = await http.get<Topic[]>("/topics");
@@ -65,6 +69,11 @@ export const topicApi = {
   getTopic: async (topicId: number): Promise<Topic> => {
     const response = await http.get<Topic>(`/topics/${topicId}`);
     return response.data;
+  },
+
+  getMyTopics: async (): Promise<Topic[]> => {  // Изменяем тип на Promise<Topic[]>
+    const response = await http.get<MyTopicsResponse>("/profile/my-topics");
+    return response.data.topics;  // Извлекаем массив topics
   },
 
   getSectionsByTopic: async (topicId: number): Promise<Section[]> => {

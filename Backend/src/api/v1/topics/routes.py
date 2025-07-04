@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
 from src.domain.enums import Role
-from src.domain.models import Topic, TopicProgress
+from src.domain.models import Topic, TopicProgress, User
 from src.repository.topic import (
     create_topic,
     get_topic,
@@ -43,18 +43,47 @@ logger = configure_logger()
 async def create_topic_endpoint(
     topic_data: TopicCreateSchema,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
+    claims: dict = Depends(admin_or_teacher),  # Переименуем _claims в claims для ясности
 ):
+    """
+    Создаёт новую тему с использованием идентификатора текущего пользователя из сессии.
+
+    Args:
+        topic_data (TopicCreateSchema): Данные для создания темы.
+        session (AsyncSession): Асинхронная сессия базы данных.
+        claims (dict): Данные из JWT токена (содержит user_id и role).
+
+    Returns:
+        TopicBaseReadSchema: Созданная тема с полным именем создателя.
+
+    Raises:
+        HTTPException: Если данные недействительны.
+    """
     logger.debug(f"Creating topic with data: {topic_data.model_dump()}")
+    creator_id = claims["sub"]  # Берем user_id из claims
     topic = await create_topic(
         session,
         title=topic_data.title,
         description=topic_data.description,
         category=topic_data.category,
         image=topic_data.image,
+        creator_id=creator_id,  # Используем creator_id из сессии
     )
-    logger.debug(f"Topic created with ID: {topic.id}")
-    return TopicBaseReadSchema.model_validate(topic)
+    # Получаем полное имя создателя
+    creator_stmt = select(User.full_name).where(User.id == topic.creator_id)
+    creator_result = await session.execute(creator_stmt)
+    creator_full_name = creator_result.scalar_one_or_none() or "Неизвестно"
+    logger.debug(f"Topic created with ID: {topic.id} by user {creator_id}")
+    return TopicBaseReadSchema.model_validate({
+        "id": topic.id,
+        "title": topic.title,
+        "description": topic.description,
+        "category": topic.category,
+        "image": topic.image,
+        "created_at": topic.created_at,
+        "is_archived": topic.is_archived,
+        "creator_full_name": creator_full_name,
+    })
 
 @router.get("", response_model=List[TopicReadSchema])
 async def list_topics_endpoint(
@@ -80,7 +109,8 @@ async def list_topics_endpoint(
                 "image": t.image,
                 "created_at": t.created_at,
                 "is_archived": t.is_archived,
-                "progress": by_topic.get(t.id) if by_topic.get(t.id) else None
+                "progress": by_topic.get(t.id) if by_topic.get(t.id) else None,
+                "creator_full_name": (await session.execute(select(User.full_name).where(User.id == t.creator_id))).scalar_one_or_none() or "Неизвестно",
             })
             for t in topics
         ]
@@ -94,7 +124,8 @@ async def list_topics_endpoint(
                 "image": t.image,
                 "created_at": t.created_at,
                 "is_archived": t.is_archived,
-                "progress": None
+                "progress": None,
+                "creator_full_name": (await session.execute(select(User.full_name).where(User.id == t.creator_id))).scalar_one_or_none() or "Неизвестно",
             })
             for t in topics
         ]
@@ -110,6 +141,7 @@ async def get_topic_endpoint(
     logger.debug(f"Fetching topic with ID: {topic_id} for user_id: {claims['sub']}")
     topic = await get_topic(session, topic_id)
     user_role = Role(claims["role"])
+    creator_full_name = (await session.execute(select(User.full_name).where(User.id == topic.creator_id))).scalar_one_or_none() or "Неизвестно"
     if user_role == Role.STUDENT:
         tp_stmt = select(TopicProgress).where(
             TopicProgress.user_id == claims["sub"], TopicProgress.topic_id == topic_id
@@ -125,7 +157,8 @@ async def get_topic_endpoint(
             "image": topic.image,
             "created_at": topic.created_at,
             "is_archived": topic.is_archived,
-            "progress": tp if tp else None
+            "progress": tp if tp else None,
+            "creator_full_name": creator_full_name,
         })
     logger.debug(f"Topic {topic_id} retrieved without progress")
     return TopicReadSchema.model_validate({
@@ -136,7 +169,8 @@ async def get_topic_endpoint(
         "image": topic.image,
         "created_at": topic.created_at,
         "is_archived": topic.is_archived,
-        "progress": None
+        "progress": None,
+        "creator_full_name": creator_full_name,
     })
 
 @router.put("/{topic_id}", response_model=TopicReadSchema)
@@ -158,7 +192,8 @@ async def update_topic_endpoint(
         "image": topic.image,
         "created_at": topic.created_at,
         "is_archived": topic.is_archived,
-        "progress": None
+        "progress": None,
+        "creator_id": topic.creator_id,  # Добавлено
     })
 
 @router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)

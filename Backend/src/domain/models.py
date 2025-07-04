@@ -54,6 +54,7 @@ class User(Base):
     section_progress = relationship("SectionProgress", back_populates="user", cascade="all, delete-orphan")
     subsection_progress = relationship("SubsectionProgress", back_populates="user", cascade="all, delete-orphan")
     test_attempts = relationship("TestAttempt", back_populates="user", cascade="all, delete-orphan")
+    created_topics = relationship("Topic", back_populates="creator", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User(username={self.username!r}, role={self.role})>"
@@ -121,11 +122,13 @@ class Topic(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Новое поле
 
     # Relationships
     sections = relationship("Section", back_populates="topic", cascade="all, delete-orphan")
     global_tests = relationship("Test", back_populates="topic", cascade="all, delete-orphan")
-    progress = relationship("TopicProgress", back_populates="topic")  # Changed to match TopicProgress
+    progress = relationship("TopicProgress", back_populates="topic")  # Без изменений
+    creator = relationship("User", back_populates="created_topics")  # Новая связь с User
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Topic(title={self.title!r}, is_archived={self.is_archived})>"

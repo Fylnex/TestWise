@@ -1,5 +1,3 @@
-// TestWise/src/pages/Topics.tsx
-
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { topicApi, Topic } from "@/services/topicApi";
-import { userApi, User } from "@/services/userApi";
 import { PlusCircle } from 'lucide-react';
 
 export default function Topics() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,21 +24,14 @@ export default function Topics() {
     fetchTopics(); // Initial fetch
 
     window.addEventListener('topics-updated', fetchTopics); // Listen for updates
-    
-    // Fetch users for author names
-    userApi.getAllUsers()
-      .then(setUsers)
-      .catch(() => setUsers([]));
 
     return () => {
       window.removeEventListener('topics-updated', fetchTopics);
     };
   }, []);
 
-  const getAuthorName = (creator_id?: number) => {
-    if (!creator_id) return 'Неизвестно';
-    const author = users.find(u => u.id === creator_id);
-    return author?.full_name || author?.username || 'Неизвестно';
+  const getAuthorName = (creator_full_name?: string) => {
+    return creator_full_name || 'Неизвестно';
   };
 
   return (
@@ -86,7 +75,7 @@ export default function Topics() {
                     <div>
                       <CardTitle className="text-xl font-bold mb-1">{topic.title}</CardTitle>
                       <CardDescription className="text-sm text-slate-500 mb-1">{topic.category || 'Без категории'}</CardDescription>
-                      <div className="text-xs text-slate-400 mb-1">Автор: {getAuthorName(topic.creator_id)}</div>
+                      <div className="text-xs text-slate-400 mb-1">Автор: {getAuthorName(topic.creator_full_name)}</div>
                     </div>
                     <span className="text-sm text-indigo-600 font-semibold mt-1">
                       {topic.progress?.completion_percentage ?? 0}%
@@ -106,4 +95,4 @@ export default function Topics() {
       </div>
     </Layout>
   );
-} 
+}

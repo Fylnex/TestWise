@@ -10,12 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.v1.profile.schemas import ProfileRead
+from src.api.v1.profile.schemas import ProfileRead, MyTopicsResponse  # Импорт новой схемы
 from src.config.logger import configure_logger
-from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt, Group, GroupTeachers
+from src.domain.models import TopicProgress, SectionProgress, SubsectionProgress, TestAttempt, Group, GroupTeachers, Topic, User
 from src.security.security import authenticated
 from src.database.db import get_db
-from src.api.v1.groups.schemas import GroupReadSchema  # Импорт схемы групп
+from src.api.v1.groups.schemas import GroupReadSchema
+from src.api.v1.topics.schemas import TopicReadSchema  # Импорт схемы тем
 
 router = APIRouter()
 logger = configure_logger()
@@ -78,7 +79,6 @@ async def get_my_groups_endpoint(
     Raises:
         HTTPException: Если пользователь не является учителем (403).
     """
-    # Лог до обработки
     logger.debug("Entering get_my_groups_endpoint")
     logger.debug(f"Received claims: {claims}")
 
@@ -119,3 +119,61 @@ async def get_my_groups_endpoint(
 
     logger.debug(f"Retrieved {len(result)} groups for teacher {user_id}")
     return result
+
+@router.get("/my-topics", response_model=MyTopicsResponse, dependencies=[Depends(authenticated)])
+async def get_my_topics_endpoint(
+    session: AsyncSession = Depends(get_db),
+    claims: dict = Depends(authenticated),
+):
+    """Возвращает список тем, созданных текущим пользователем.
+
+    Args:
+        session (AsyncSession): Асинхронная сессия базы данных.
+        claims (dict): Данные из JWT токена (содержит user_id и role).
+
+    Returns:
+        MyTopicsResponse: Список тем текущего пользователя.
+
+    Raises:
+        HTTPException: Если доступ запрещён (403).
+    """
+    logger.debug("Entering get_my_topics_endpoint")
+    logger.debug(f"Received claims: {claims}")
+
+    user_id = claims["sub"]
+    logger.debug(f"Extracted user_id: {user_id}")
+
+    # Проверяем роль пользователя
+    user_role = claims.get("role")
+    if user_role not in ["admin", "teacher"]:
+        logger.debug(f"Access denied for role: {user_role}")
+        raise HTTPException(status_code=403, detail="Доступ запрещен: только учителя и админы могут просматривать свои темы")
+
+    # Формируем запрос в зависимости от роли
+    if user_role == "admin":
+        stmt = select(Topic).where(Topic.is_archived == False)
+    else:  # teacher
+        stmt = select(Topic).where(Topic.creator_id == user_id, Topic.is_archived == False)
+
+    res = await session.execute(stmt)
+    topics = res.scalars().all()
+    logger.debug(f"Query result: {len(topics)} topics found")
+
+    # Получаем полное имя создателя для каждой темы
+    result = [
+        TopicReadSchema.model_validate({
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "category": t.category,
+            "image": t.image,
+            "created_at": t.created_at,
+            "is_archived": t.is_archived,
+            "progress": None,  # Прогресс не требуется для этой ручки
+            "creator_full_name": (await session.execute(select(User.full_name).where(User.id == t.creator_id))).scalar_one_or_none() or "Неизвестно",
+        })
+        for t in topics
+    ]
+
+    logger.debug(f"Retrieved {len(result)} topics for user {user_id}")
+    return MyTopicsResponse(topics=result)

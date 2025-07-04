@@ -90,7 +90,7 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
 
 def _extract_token(request: Request) -> str:
     auth: str | None = request.headers.get("Authorization")
-    logger.debug(f"Extracted Authorization header: {auth}")  # Отладка
+    # logger.debug(f"Extracted Authorization header: {auth}")  # Отладка
     if not auth or not auth.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -103,11 +103,11 @@ def require_roles(*allowed_roles: Role) -> Callable[[Request], dict]:
     allowed: set[Role] = set(allowed_roles)
 
     async def checker(request: Request) -> dict:
-        logger.debug(f"Checking roles for path: {request.url.path}")
+        # logger.debug(f"Checking roles for path: {request.url.path}")
         token = _extract_token(request)
-        logger.debug(f"Extracted token: {token[:20]}...")  # Логируем начало токена
+        # logger.debug(f"Extracted token: {token[:20]}...")  # Логируем начало токена
         payload = verify_token(token, "access")
-        logger.debug(f"Decoded payload: {payload}")
+        # logger.debug(f"Decoded payload: {payload}")
         try:
             role = Role(payload["role"])
             logger.debug(f"User role: {role}")

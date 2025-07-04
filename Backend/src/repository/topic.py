@@ -33,8 +33,11 @@ async def create_topic(
     description: str | None = None,
     category: str | None = None,
     image: str | None = None,
+        creator_id: int | None = None,  # Добавлено новое поле
 ) -> Topic:
     """Create a new topic with the given attributes."""
+    if creator_id is None:
+        raise ValueError("creator_id is required")  # Валидация, так как в модели nullable=False
     return await create_item(
         session,
         Topic,
@@ -42,6 +45,7 @@ async def create_topic(
         description=description,
         category=category,
         image=image,
+        creator_id=creator_id,  # Передача creator_id
     )
 
 async def get_topic(session: AsyncSession, topic_id: int) -> Topic:
@@ -55,6 +59,9 @@ async def update_topic(
 ) -> Topic:
     """Update an existing topic, excluding immutable fields."""
     kwargs.pop("id", None)
+    if "creator_id" in kwargs:  # Проверка и валидация creator_id
+        if kwargs["creator_id"] is None:
+            raise ValueError("creator_id cannot be set to None")
     return await update_item(session, Topic, topic_id, **kwargs)
 
 async def delete_topic(session: AsyncSession, topic_id: int) -> None:

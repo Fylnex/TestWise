@@ -19,6 +19,7 @@ class TopicUpdateSchema(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     image: Optional[str] = None
+    creator_id: Optional[int] = None  # Оставляем для обновления, если нужно
 
 class TopicBaseReadSchema(BaseModel):
     id: int
@@ -28,6 +29,7 @@ class TopicBaseReadSchema(BaseModel):
     image: Optional[str] = None
     created_at: datetime
     is_archived: bool
+    creator_full_name: str  # Заменили creator_id на creator_full_name
 
     class Config:
         from_attributes = True
@@ -51,6 +53,7 @@ class TopicReadSchema(BaseModel):
     created_at: datetime
     is_archived: bool
     progress: Optional[TopicProgressRead] = None
+    creator_full_name: str  # Заменили creator_id на creator_full_name
 
     class Config:
         from_attributes = True

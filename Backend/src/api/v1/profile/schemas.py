@@ -15,7 +15,8 @@ from src.api.v1.progress.schemas import (
     SubsectionProgressRead,
     TestAttemptRead,
 )
-from src.api.v1.groups.schemas import GroupReadSchema  # Импорт схемы групп
+from src.api.v1.groups.schemas import GroupReadSchema
+from src.api.v1.topics.schemas import TopicReadSchema  # Импорт схемы тем
 
 class ProfileRead(BaseModel):
     """
@@ -31,7 +32,16 @@ class ProfileRead(BaseModel):
     class Config:
         from_attributes = True
 
-# Опционально: можно добавить схему для my-groups
+class MyTopicsResponse(BaseModel):
+    """
+    Ответ с данными тем, созданных текущим пользователем.
+    """
+    topics: List[TopicReadSchema]
+
+    class Config:
+        from_attributes = True
+
+# Опционально: можно оставить MyGroupsResponse без изменений
 class MyGroupsResponse(BaseModel):
     """
     Ответ с данными групп текущего пользователя.
