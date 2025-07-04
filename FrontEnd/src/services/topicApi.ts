@@ -55,7 +55,6 @@ export interface Question {
   updated_at?: string;
 }
 
-// Новый интерфейс для соответствия бэкенду
 export interface MyTopicsResponse {
   topics: Topic[];
 }
