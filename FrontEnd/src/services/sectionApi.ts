@@ -13,6 +13,7 @@ export interface Section {
   order: number;
   created_at?: string;
   is_archived: boolean;
+  tests?: any[]; // или Test[], если тип Test импортирован
 }
 
 export interface Subsection {
@@ -35,6 +36,9 @@ export interface SectionWithSubsections extends Section {
 export const sectionApi = {
   getSectionsByTopic: (topicId: number) =>
     http.get<Section[]>(`/sections`, { params: { topic_id: topicId } }).then(r => r.data),
+
+  getSection: (sectionId: number) =>
+    http.get<Section>(`/sections/${sectionId}`).then(r => r.data),
 
   createSection: (data: Partial<Section>) =>
     http.post<Section>(`/sections`, data).then(r => r.data),
@@ -59,14 +63,16 @@ export const sectionApi = {
     http.get<SectionWithSubsections>(`/sections/${sectionId}/subsections`).then(r => r.data),
 
   // Создание TEXT‑подсекции через JSON
-  createSubsectionJson: (data: {
+  createSubsectionJson: async (data: {
     section_id: number;
     title: string;
     content: string;
-    type: "text";
+    type: 'text';
     order?: number;
-  }) =>
-    http.post<Subsection>(`/subsections/json`, data).then(r => r.data),
+  }): Promise<Subsection> => {
+    const response = await http.post<Subsection>(`/subsections/json`, data);
+    return response.data;
+  },
 
   // Создание PDF‑подсекции через multipart/form-data
   createSubsection: (formData: FormData) =>
@@ -95,4 +101,13 @@ export const sectionApi = {
 
   viewSubsection: (id: number) =>
     http.post(`/subsections/${id}/view`).then(r => r.data),
+
+  createSubsectionWithFile: async (formData: FormData): Promise<Subsection> => {
+    const response = await http.post<Subsection>(`/subsections`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };

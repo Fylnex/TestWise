@@ -114,7 +114,7 @@ export default function TopicSectionTree() {
     const jsonData = {
       section_id: section.id,
       title,
-      type: 'TEXT',
+      type: 'text' as const,
       order: (section.subsections?.length || 0) + 1,
       content: '',
     };

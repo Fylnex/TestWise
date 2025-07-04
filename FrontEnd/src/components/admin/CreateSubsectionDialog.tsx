@@ -70,11 +70,17 @@ const CreateSubsectionDialog: React.FC<CreateSubsectionDialogProps> = ({
 
     try {
       if (contentType === 'TEXT') {
-        // Отправляем JSON для текстовых подразделов на правильный endpoint
-        const data = {
+        // Отправляем JSON для текстовых подразделов
+        const data: {
+          section_id: number;
+          title: string;
+          type: 'text';
+          order: number;
+          content: string;
+        } = {
           section_id: sectionId,
           title,
-          type: contentType.toUpperCase(),
+          type: 'text',
           order,
           content,
         };
@@ -84,7 +90,7 @@ const CreateSubsectionDialog: React.FC<CreateSubsectionDialogProps> = ({
         const formData = new FormData();
         formData.append('section_id', String(sectionId));
         formData.append('title', title);
-        formData.append('type', contentType);
+        formData.append('type', 'PDF');
         formData.append('order', String(order));
         formData.append('file', file);
         await sectionApi.createSubsectionWithFile(formData);

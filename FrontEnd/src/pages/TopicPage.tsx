@@ -276,18 +276,49 @@ const TopicPage: React.FC = () => {
           "Updating existing subsection ID=",
           editSubsection[sectionId]!.id,
         );
-        newSub = await sectionApi.updateSubsection(
-          editSubsection[sectionId]!.id,
-          {
-            title: form.title,
-            content: form.content,
-            type: form.type,
-            order: form.order,
-          },
-        );
+        if (form.type === 'pdf') {
+          const formData = new FormData();
+          formData.append('section_id', String(sectionId));
+          formData.append('title', form.title);
+          formData.append('type', 'pdf');
+          formData.append('order', String(form.order));
+          if (form.file) formData.append('file', form.file);
+          newSub = await sectionApi.updateSubsection(
+            editSubsection[sectionId]!.id,
+            formData
+          );
+        } else {
+          newSub = await sectionApi.updateSubsectionJson(
+            editSubsection[sectionId]!.id,
+            {
+              title: form.title,
+              content: form.content,
+              type: form.type,
+              order: form.order,
+            }
+          );
+        }
       } else {
-        console.debug("Creating new subsection via multipart/form-data");
-        newSub = await sectionApi.createSubsection(formData);
+        if (form.type === 'pdf') {
+          const formData = new FormData();
+          formData.append('section_id', String(sectionId));
+          formData.append('title', form.title);
+          formData.append('type', 'pdf');
+          formData.append('order', String(form.order));
+          if (form.file) formData.append('file', form.file);
+          console.debug("Creating new subsection via multipart/form-data");
+          newSub = await sectionApi.createSubsection(formData);
+        } else {
+          const payload = {
+            section_id: sectionId,
+            title: form.title,
+            content: form.content || "",
+            type: "text" as const,
+            order: form.order,
+          };
+          console.debug("Creating new subsection via JSON");
+          newSub = await sectionApi.createSubsectionJson(payload);
+        }
       }
 
       console.debug("Server returned new subsection:", newSub);
@@ -755,13 +786,13 @@ const TopicPage: React.FC = () => {
                   </div>
                 )}
                 {/* Тесты секции */}
-                {section.tests?.length > 0 && (
+                {((section as Section & { tests?: Test[] }).tests)?.length > 0 && (
                   <div className="mb-2">
                     <div className="font-semibold text-gray-700 mb-1">
                       Тесты:
                     </div>
                     <ul className="flex flex-col gap-2">
-                      {section.tests.map((test) => (
+                      {((section as Section & { tests?: Test[] }).tests)?.map((test) => (
                           <li
                               key={test.id}
                               className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
