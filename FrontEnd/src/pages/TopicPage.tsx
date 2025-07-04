@@ -87,6 +87,14 @@ const TopicPage: React.FC = () => {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [openSubsectionForm, setOpenSubsectionForm] = useState<Record<number, boolean>>({});
+  const [editSubsection, setEditSubsection] = useState<Record<number, Subsection | null>>({});
+  const [subsectionFormData, setSubsectionFormData] = useState<Record<number, Partial<Subsection>>>({});
+  const [subsectionLoading, setSubsectionLoading] = useState<Record<number, boolean>>({});
+  const [subsectionError, setSubsectionError] = useState<Record<number, string | null>>({});
+
+  const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -181,16 +189,37 @@ const TopicPage: React.FC = () => {
     setCreatingSubsection((prev) => ({ ...prev, [sectionId]: true }));
     setErrorSubsection((prev) => ({ ...prev, [sectionId]: null }));
     try {
-      const newSubsection = await topicApi.createSubsection({
-        ...subsectionForm[sectionId],
-        section_id: sectionId,
-        order: Number(subsectionForm[sectionId]?.order) || 0,
-      });
-      setSubsectionsMap((prev) => ({
-        ...prev,
-        [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
-      }));
-      setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'default', section_id: sectionId } }));
+      const data = subsectionForm[sectionId] || {};
+      console.log('subsection create payload:', data);
+      if (data.type && data.type.toUpperCase() === 'PDF' && data.file) {
+        // PDF: отправляем FormData
+        const formData = new FormData();
+        formData.append('section_id', String(sectionId));
+        formData.append('title', data.title);
+        formData.append('type', data.type.toUpperCase());
+        formData.append('order', String(data.order || 0));
+        formData.append('file', data.file);
+        const newSubsection = await sectionApi.createSubsectionWithFile(formData);
+        setSubsectionsMap((prev) => ({
+          ...prev,
+          [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
+        }));
+      } else {
+        // TEXT: отправляем JSON на /subsections/json
+        const jsonData = {
+          section_id: sectionId,
+          title: data.title,
+          type: (data.type || 'TEXT').toUpperCase(),
+          order: data.order || 0,
+          content: data.content || '',
+        };
+        const newSubsection = await sectionApi.createSubsectionJson(jsonData);
+        setSubsectionsMap((prev) => ({
+          ...prev,
+          [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
+        }));
+      }
+      setSubsectionForm((prev) => ({ ...prev, [sectionId]: { title: '', order: 0, content: '', type: 'TEXT', section_id: sectionId } }));
       setOpenSubsection((prev) => ({ ...prev, [sectionId]: false }));
     } catch (err) {
       setErrorSubsection((prev) => ({ ...prev, [sectionId]: 'Ошибка при создании подсекции' }));
@@ -253,6 +282,80 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  // Функция для открытия формы создания подраздела
+  const handleOpenCreateSubsection = (sectionId: number) => {
+    setOpenSubsectionForm((prev) => ({ ...prev, [sectionId]: true }));
+    setEditSubsection((prev) => ({ ...prev, [sectionId]: null }));
+    setSubsectionFormData((prev) => ({
+      ...prev,
+      [sectionId]: {
+        title: '',
+        content: '',
+        order: 0,
+        type: 'default',
+        section_id: sectionId,
+      },
+    }));
+    setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
+  };
+
+  // Функция для открытия формы редактирования подраздела
+  const handleOpenEditSubsection = (sectionId: number, sub: Subsection) => {
+    setOpenSubsectionForm((prev) => ({ ...prev, [sectionId]: true }));
+    setEditSubsection((prev) => ({ ...prev, [sectionId]: sub }));
+    setSubsectionFormData((prev) => ({ ...prev, [sectionId]: { ...sub } }));
+    setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
+  };
+
+  // Функция для закрытия формы
+  const handleCloseSubsectionForm = (sectionId: number) => {
+    setOpenSubsectionForm((prev) => ({ ...prev, [sectionId]: false }));
+    setEditSubsection((prev) => ({ ...prev, [sectionId]: null }));
+    setSubsectionFormData((prev) => ({ ...prev, [sectionId]: { title: '', content: '', order: 0, type: 'default', section_id: sectionId } }));
+    setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
+  };
+
+  // Функция для создания/редактирования подраздела
+  const handleSubmitSubsection = async (e: React.FormEvent, sectionId: number) => {
+    e.preventDefault();
+    setSubsectionLoading((prev) => ({ ...prev, [sectionId]: true }));
+    setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
+    try {
+      let newSubsection: Subsection;
+      // Гарантируем обязательные поля
+      const form = subsectionFormData[sectionId] || {};
+      const data = {
+        section_id: sectionId,
+        title: form.title || '',
+        type: 'text',
+        content: form.content || '',
+        order: typeof form.order === 'number' ? form.order : 0,
+      };
+      console.log('subsection create payload:', data);
+      if (editSubsection[sectionId]) {
+        // Редактирование
+        newSubsection = await sectionApi.updateSubsection(editSubsection[sectionId]!.id, data);
+        setSubsectionsMap((prev) => ({
+          ...prev,
+          [sectionId]: prev[sectionId].map((s) => s.id === newSubsection.id ? newSubsection : s),
+        }));
+      } else {
+        // Создание
+        console.log('subsection create payload:', data);
+        newSubsection = await sectionApi.createSubsection(sectionId, data);
+        setSubsectionsMap((prev) => ({
+          ...prev,
+          [sectionId]: [...(prev[sectionId] || []), newSubsection].sort((a, b) => a.order - b.order),
+        }));
+      }
+      handleCloseSubsectionForm(sectionId);
+    } catch (err) {
+      setSubsectionError((prev) => ({ ...prev, [sectionId]: 'Ошибка при сохранении подраздела' }));
+    } finally {
+      setSubsectionLoading((prev) => ({ ...prev, [sectionId]: false }));
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-gray-50"><Header /><div className="container mx-auto py-10 text-center text-gray-400">Загрузка...</div></div>;
   }
@@ -268,7 +371,7 @@ const TopicPage: React.FC = () => {
       <div className="container mx-auto w-full max-w-4xl px-4 flex flex-col flex-1 mb-16">
         <div className="pt-6 pb-2 flex items-center justify-between">
           <Breadcrumbs />
-          {(user?.role === 'admin' || user?.role === 'teacher' || user?.id === topic.creator_id) && (
+          {(user?.role === 'admin' || user?.role === 'teacher') && (
             <Button size="sm" variant={editMode ? 'default' : 'outline'} onClick={() => setEditMode(e => !e)}>
               {editMode ? 'Завершить' : 'Редактировать'}
             </Button>
@@ -281,7 +384,7 @@ const TopicPage: React.FC = () => {
         {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
           <div className="mb-8 flex gap-4 flex-wrap">
             <Button variant="outline" className="rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => setOpenSection(true)}>
-              <PlusCircle className="mr-2 h-5 w-5" /> Добавить секцию
+              <PlusCircle className="mr-2 h-5 w-5" /> Добавить раздел
             </Button>
             <Button variant="outline" className="rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/test/create/topic/${topic.id}`)}>
               <PlusCircle className="mr-2 h-5 w-5" /> Добавить тест
@@ -293,6 +396,11 @@ const TopicPage: React.FC = () => {
             <AccordionItem key={section.id} value={String(section.id)} className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-200">
               <AccordionTrigger className="text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none flex items-center gap-2">
                 <span className="flex-1 cursor-pointer select-none hover:underline" onClick={e => { e.stopPropagation(); navigate(`/section/tree/${section.id}`); }}>{section.title}</span>
+                {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
+                  <Button size="icon" variant="ghost" className="text-destructive ml-2" onClick={e => { e.stopPropagation(); setSectionToDelete(section.id); }} title="Удалить раздел">
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                )}
                 {/* Иконка раскрытия/сворачивания */}
                 <span className="ml-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
                   {/* Иконка будет автоматически добавлена AccordionTrigger */}
@@ -300,7 +408,41 @@ const TopicPage: React.FC = () => {
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-4">
                 {section.description && <p className="text-gray-600 mb-2">{section.description}</p>}
-                {/* Подсекции */}
+                {/* Подразделы */}
+                {(
+                  user?.role === 'admin' || user?.role === 'teacher'
+                ) && editMode && (
+                  <Button variant="outline" className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF] mb-2" onClick={() => handleOpenCreateSubsection(section.id)}>
+                    <PlusCircle className="h-4 w-4" /> <span>Добавить подраздел</span>
+                  </Button>
+                )}
+                {openSubsectionForm[section.id] && (
+                  <form onSubmit={e => handleSubmitSubsection(e, section.id)} className="bg-gray-50 rounded-xl p-4 mb-4 flex flex-col gap-2">
+                    <input
+                      className="border rounded px-2 py-1"
+                      placeholder="Название подраздела"
+                      value={subsectionFormData[section.id]?.title || ''}
+                      onChange={e => setSubsectionFormData(prev => ({ ...prev, [section.id]: { ...prev[section.id], title: e.target.value } }))}
+                      required
+                    />
+                    <textarea
+                      className="border rounded px-2 py-1"
+                      placeholder="Содержимое подраздела"
+                      value={subsectionFormData[section.id]?.content || ''}
+                      onChange={e => setSubsectionFormData(prev => ({ ...prev, [section.id]: { ...prev[section.id], content: e.target.value } }))}
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded" disabled={subsectionLoading[section.id]}>
+                        {editSubsection[section.id] ? 'Сохранить' : 'Создать'}
+                      </button>
+                      <button type="button" className="bg-gray-300 text-gray-700 px-4 py-1 rounded" onClick={() => handleCloseSubsectionForm(section.id)}>
+                        Отмена
+                      </button>
+                    </div>
+                    {subsectionError[section.id] && <div className="text-red-500 text-sm">{subsectionError[section.id]}</div>}
+                  </form>
+                )}
                 {subsectionsMap[section.id]?.length > 0 && (
                   <div className="mb-2">
                     <div className="font-semibold text-gray-700 mb-1">Подразделы:</div>
@@ -309,9 +451,14 @@ const TopicPage: React.FC = () => {
                         <li key={sub.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
                           <span className="text-gray-800 font-sans">{sub.title}</span>
                           {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
-                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSubsection(sub.id, section.id)} title="Удалить подсекцию">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => handleOpenEditSubsection(section.id, sub)} title="Редактировать подраздел">
+                                ✎
+                              </Button>
+                              <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteSubsection(sub.id, section.id)} title="Удалить подраздел">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </li>
                       ))}
@@ -339,11 +486,8 @@ const TopicPage: React.FC = () => {
                 {/* Кнопки добавления в секцию */}
                 {(user?.role === 'admin' || user?.role === 'teacher') && editMode && (
                   <div className="mt-2 flex gap-3 flex-wrap">
-                    <Button variant="outline" className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/subsection/create/${section.id}`)}>
-                      <PlusCircle className="h-4 w-4" /> <span>Секцию</span>
-                    </Button>
                     <Button variant="outline" className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]" onClick={() => navigate(`/test/create/section/${section.id}`)}>
-                      <PlusCircle className="h-4 w-4" /> <span>Тест</span>
+                      <PlusCircle className="h-4 w-4" /> <span>Добавить тест</span>
                     </Button>
                   </div>
                 )}
@@ -407,6 +551,63 @@ const TopicPage: React.FC = () => {
           </div>
         </div>
       </footer>
+      {/* Модальное окно для создания раздела */}
+      <Dialog open={openSection} onOpenChange={setOpenSection}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить раздел</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateSection} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Название раздела</label>
+              <input
+                className="border rounded px-2 py-1 w-full"
+                value={sectionForm.title}
+                onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Название раздела"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Описание</label>
+              <textarea
+                className="border rounded px-2 py-1 w-full"
+                value={sectionForm.description}
+                onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Описание раздела"
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={creatingSection}>Создать</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Отмена</Button>
+              </DialogClose>
+            </DialogFooter>
+            {errorSection && <div className="text-red-500 text-sm mt-2">{errorSection}</div>}
+          </form>
+        </DialogContent>
+      </Dialog>
+      {/* Модалка подтверждения удаления раздела */}
+      <AlertDialog open={sectionToDelete !== null} onOpenChange={open => !open && setSectionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить раздел?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить этот раздел? Это действие необратимо.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSectionToDelete(null)}>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              if (sectionToDelete !== null) {
+                await handleDeleteSection(sectionToDelete);
+                setSectionToDelete(null);
+              }
+            }}>Удалить</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

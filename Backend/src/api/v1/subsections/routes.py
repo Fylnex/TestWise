@@ -7,7 +7,7 @@ import os
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -28,6 +28,7 @@ from .schemas import (
     SubsectionProgressRead,
     SubsectionReadSchema,
     SubsectionUpdateSchema,
+    SubsectionCreateSchema,
 )
 
 router = APIRouter()
@@ -174,3 +175,24 @@ async def delete_subsection_permanently_endpoint(
 ):
     logger.debug(f"Permanently deleting subsection with ID: {subsection_id}")
     await delete_subsection_permanently(session, subsection_id)
+
+@router.post("/json", response_model=SubsectionReadSchema, status_code=status.HTTP_201_CREATED)
+async def create_subsection_json_endpoint(
+    payload: SubsectionCreateSchema = Body(...),
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    print("[DEBUG] payload:", payload)
+    """
+    Create a new subsection (JSON only, без файлов).
+    """
+    subsection = await create_subsection(
+        session,
+        section_id=payload.section_id,
+        title=payload.title,
+        content=payload.content,
+        type=payload.type,
+        order=payload.order,
+    )
+    logger.debug(f"Subsection created with ID: {subsection.id}")
+    return SubsectionReadSchema.model_validate(subsection)

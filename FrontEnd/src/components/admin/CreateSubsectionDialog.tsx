@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,23 @@ const CreateSubsectionDialog: React.FC<CreateSubsectionDialogProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [order, setOrder] = useState(0);
+  const [subsections, setSubsections] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      // Загружаем существующие подразделы для вычисления order
+      sectionApi.getSectionSubsections(sectionId)
+        .then((data) => {
+          const subs = data.subsections || [];
+          setSubsections(subs);
+          // order = максимальный + 1
+          const maxOrder = subs.length > 0 ? Math.max(...subs.map((s: any) => s.order || 0)) : -1;
+          setOrder(maxOrder + 1);
+        })
+        .catch(() => setOrder(0));
+    }
+  }, [open, sectionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,19 +68,27 @@ const CreateSubsectionDialog: React.FC<CreateSubsectionDialogProps> = ({
         return;
     }
 
-    const formData = new FormData();
-    formData.append('section_id', String(sectionId));
-    formData.append('title', title);
-    formData.append('type', contentType);
-    
-    if (contentType === 'TEXT') {
-      formData.append('content', content);
-    } else if (file) {
-      formData.append('file', file);
-    }
-
     try {
-      await sectionApi.createSubsectionWithFile(formData);
+      if (contentType === 'TEXT') {
+        // Отправляем JSON для текстовых подразделов на правильный endpoint
+        const data = {
+          section_id: sectionId,
+          title,
+          type: contentType.toUpperCase(),
+          order,
+          content,
+        };
+        await sectionApi.createSubsectionJson(data);
+      } else if (file) {
+        // Для PDF — FormData
+        const formData = new FormData();
+        formData.append('section_id', String(sectionId));
+        formData.append('title', title);
+        formData.append('type', contentType);
+        formData.append('order', String(order));
+        formData.append('file', file);
+        await sectionApi.createSubsectionWithFile(formData);
+      }
       onOpenChange(false);
       onSubsectionCreated(); // Callback to refresh data
       // Reset form

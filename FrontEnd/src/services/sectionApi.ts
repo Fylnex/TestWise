@@ -151,4 +151,10 @@ export const sectionApi = {
     });
     return response.data;
   },
+
+  createSubsectionJson: async (data: any): Promise<Subsection> => {
+    const response = await http.post<Subsection>(`/subsections/json`, data);
+    console.log("[DEBUG] payload:", data);
+    return response.data;
+  },
 };

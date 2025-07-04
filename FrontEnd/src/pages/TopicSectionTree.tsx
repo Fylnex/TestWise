@@ -9,23 +9,10 @@ import { sectionApi } from '@/services/sectionApi';
 import { topicApi } from '@/services/topicApi';
 import { testApi } from '@/services/testApi';
 
-function TreeItem({ item, level = 0, onSelect = undefined, editMode, onAdd, onDelete, onAddSubsection, onDeleteSubsection, navigate }) {
+function TreeItem({ item, level = 0, onSelect = undefined, onAdd, onDelete, onAddSubsection, onDeleteSubsection, navigate }) {
   const [open, setOpen] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [subsectionTitle, setSubsectionTitle] = useState('');
-  const [subsectionLoading, setSubsectionLoading] = useState(false);
 
   const hasChildren = (item.subsections && item.subsections.length > 0) || (item.tests && item.tests.length > 0);
-
-  const handleAddSubsection = async (e) => {
-    e.preventDefault();
-    if (!subsectionTitle.trim()) return;
-    setSubsectionLoading(true);
-    await onAddSubsection(item, subsectionTitle);
-    setSubsectionTitle('');
-    setShowAddForm(false);
-    setSubsectionLoading(false);
-  };
 
   const handleItemClick = (e) => {
     e.stopPropagation();
@@ -46,48 +33,14 @@ function TreeItem({ item, level = 0, onSelect = undefined, editMode, onAdd, onDe
           </span>
         )}
         <span className="flex-1 truncate select-none" onClick={handleItemClick}>{item.title}</span>
-        {editMode && (
-          <span className="flex gap-1 ml-2 opacity-70 group-hover:opacity-100">
-            {item.type === 'section' && (
-              <Button size="icon" variant="ghost" className="text-[#3A86FF]" title="Добавить подсекцию" onClick={e => { e.stopPropagation(); setShowAddForm(v => !v); }}>
-                <PlusCircle className="h-4 w-4" />
-              </Button>
-            )}
-            {item.type === 'subsection' && (
-              <Button size="icon" variant="ghost" className="text-destructive" title="Удалить подсекцию" onClick={e => { e.stopPropagation(); onDeleteSubsection(item); }}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            {item.type !== 'test' && item.type !== 'subsection' && (
-              <Button size="icon" variant="ghost" className="text-destructive" title="Удалить" onClick={e => { e.stopPropagation(); onDelete(item); }}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </span>
-        )}
       </div>
-      {showAddForm && editMode && item.type === 'section' && (
-        <form onSubmit={handleAddSubsection} className="flex gap-2 items-center mt-2 ml-8">
-          <input
-            className="border rounded px-2 py-1 text-sm flex-1"
-            placeholder="Название подсекции"
-            value={subsectionTitle}
-            onChange={e => setSubsectionTitle(e.target.value)}
-            disabled={subsectionLoading}
-            autoFocus
-          />
-          <Button size="sm" type="submit" disabled={subsectionLoading || !subsectionTitle.trim()}>
-            {subsectionLoading ? '...' : 'Добавить'}
-          </Button>
-        </form>
-      )}
       {hasChildren && open && (
         <ul>
           {item.subsections?.map(sub =>
-            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} onSelect={onSelect} editMode={editMode} onAdd={onAdd} onDelete={onDelete} onAddSubsection={onAddSubsection} onDeleteSubsection={onDeleteSubsection} navigate={navigate} />
+            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} onSelect={onSelect} onAdd={onAdd} onDelete={onDelete} onAddSubsection={onAddSubsection} onDeleteSubsection={onDeleteSubsection} navigate={navigate} />
           )}
           {item.tests?.map(test =>
-            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 1} onSelect={onSelect} editMode={editMode} onAdd={onAdd} onDelete={onDelete} onAddSubsection={onAddSubsection} onDeleteSubsection={onDeleteSubsection} navigate={navigate} />
+            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 1} onSelect={onSelect} onAdd={onAdd} onDelete={onDelete} onAddSubsection={onAddSubsection} onDeleteSubsection={onDeleteSubsection} navigate={navigate} />
           )}
         </ul>
       )}
@@ -98,7 +51,6 @@ function TreeItem({ item, level = 0, onSelect = undefined, editMode, onAdd, onDe
 export default function TopicSectionTree() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
-  const [editMode, setEditMode] = useState(false);
 
   // --- Хлебные крошки ---
   const [topicTitle, setTopicTitle] = useState<string | null>(null);
@@ -158,7 +110,15 @@ export default function TopicSectionTree() {
 
   // Добавление подсекции
   const handleAddSubsection = async (section, title) => {
-    await sectionApi.createSubsection(section.id, { title, section_id: section.id, order: (section.subsections?.length || 0) + 1 });
+    // Для TEXT отправляем JSON на /subsections/json
+    const jsonData = {
+      section_id: section.id,
+      title,
+      type: 'TEXT',
+      order: (section.subsections?.length || 0) + 1,
+      content: '',
+    };
+    await sectionApi.createSubsectionJson(jsonData);
     // Обновить дерево
     if (topicId) {
       setLoadingTree(true);
@@ -209,9 +169,6 @@ export default function TopicSectionTree() {
           <aside className="w-80 bg-[#F5F7FA] border-r border-[#E0E4EA] p-4 overflow-y-auto transition-all duration-300 h-full min-h-screen flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Структура темы</h2>
-              <Button size="sm" variant={editMode ? 'default' : 'outline'} onClick={() => setEditMode(e => !e)}>
-                {editMode ? 'Сохранить' : 'Редактировать'}
-              </Button>
             </div>
             {loadingTree ? (
               <div className="text-gray-400 text-center py-10">Загрузка...</div>
@@ -223,7 +180,6 @@ export default function TopicSectionTree() {
                   <TreeItem
                     key={section.id}
                     item={{ ...section, key: `section-${section.id}`, type: 'section' }}
-                    editMode={editMode}
                     onAdd={handleAdd}
                     onDelete={handleDelete}
                     onAddSubsection={handleAddSubsection}
@@ -273,11 +229,9 @@ export default function TopicSectionTree() {
               </svg>
               <h1 className="text-2xl font-bold mb-2 text-gray-700">Нет секций</h1>
               <p className="text-gray-500 mb-4">Добавьте первую секцию, чтобы начать наполнять тему содержимым.</p>
-              {editMode && (
-                <Button variant="outline" onClick={() => handleAdd({ title: 'Новая секция' })}>
-                  <PlusCircle className="mr-2 h-5 w-5" /> Добавить секцию
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => handleAdd({ title: 'Новая секция' })}>
+                <PlusCircle className="mr-2 h-5 w-5" /> Добавить секцию
+              </Button>
             </div>
           ) : (
             <Card className="p-8 min-h-[300px] w-full max-w-3xl mx-auto">
