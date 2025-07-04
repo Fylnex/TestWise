@@ -1,13 +1,22 @@
+# TestWise/Backend/src/api/v1/subsections/routes.py
 # -*- coding: utf-8 -*-
-"""API v1 › Subsections routes."""
+"""API v1 › Subsections routes: поддержка JSON‑эндпоинта для TEXT и multipart/form-data для PDF."""
 
 from __future__ import annotations
-
 import os
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException, Body
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    Body,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -34,19 +43,138 @@ from .schemas import (
 router = APIRouter()
 logger = configure_logger()
 
-# Define the base path for media storage
+# Пути для хранения PDF
 MEDIA_PATH = Path("Backend/media/subsections")
 PDF_PATH = MEDIA_PATH / "pdfs"
+PDF_PATH.mkdir(parents=True, exist_ok=True)
 
-# Ensure the directories exist
-os.makedirs(PDF_PATH, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=SubsectionReadSchema, status_code=status.HTTP_201_CREATED)
-async def create_subsection_endpoint(
+@router.post(
+    "/json",
+    response_model=SubsectionReadSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new TEXT subsection via JSON",
+)
+async def create_subsection_json(
+    payload: SubsectionCreateSchema = Body(...),
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    """
+    Создать новую **TEXT**‑подсекцию через JSON.
+    PDF-подсекции создаются через multipart/form-data в основном эндпоинте.
+    """
+    if payload.type == SubsectionType.PDF:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="PDF subsections must be uploaded via multipart/form-data",
+        )
+
+    logger.debug(f"Creating TEXT subsection via JSON: {payload.model_dump()}")
+    sub = await create_subsection(
+        session=session,
+        section_id=payload.section_id,
+        title=payload.title,
+        content=payload.content,
+        type=payload.type,
+        order=payload.order,
+        file_path=None,
+    )
+    return SubsectionReadSchema.model_validate(sub)
+
+
+@router.post(
+    "",
+    response_model=SubsectionReadSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new subsection with optional file upload",
+)
+async def create_subsection_multipart(
+    section_id: int = Form(...),
+    title: str = Form(...),
+    type: SubsectionType = Form(...),
+    order: int = Form(0),
+    content: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    """
+    Создать новую подсекцию.
+    - **TEXT**: передавать content.
+    - **PDF**: загружать file.
+    """
+    logger.debug(f"Creating subsection via multipart: section_id={section_id}, type={type}")
+
+    file_path: str | None = None
+    if type == SubsectionType.PDF:
+        if not file:
+            raise HTTPException(status_code=422, detail="File must be provided for PDF subsection type.")
+        safe_name = Path(file.filename).name
+        dest = PDF_PATH / safe_name
+        with open(dest, "wb+") as f:
+            shutil.copyfileobj(file.file, f)
+        file_path = str(dest)
+        logger.debug(f"Saved PDF to {file_path}")
+    elif type == SubsectionType.TEXT and not content:
+        raise HTTPException(status_code=422, detail="Content must be provided for TEXT subsection type.")
+
+    sub = await create_subsection(
+        session=session,
+        section_id=section_id,
+        title=title,
+        content=content,
+        type=type,
+        order=order,
+        file_path=file_path,
+    )
+    logger.debug(f"Subsection created with ID: {sub.id}")
+    return SubsectionReadSchema.model_validate(sub)
+
+
+@router.get("/{subsection_id}", response_model=SubsectionReadSchema)
+async def get_subsection_endpoint(
+    subsection_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(authenticated),
+):
+    logger.debug(f"Fetching subsection with ID: {subsection_id}")
+    sub = await get_subsection(session, subsection_id)
+    return SubsectionReadSchema.model_validate(sub)
+
+
+@router.put(
+    "/{subsection_id}/json",
+    response_model=SubsectionReadSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Update a TEXT subsection via JSON",
+)
+async def update_subsection_json(
+    subsection_id: int,
+    payload: SubsectionUpdateSchema = Body(...),
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
+):
+    if payload.type == SubsectionType.PDF:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Use multipart/form-data endpoint to update PDF subsections",
+        )
+    sub = await update_subsection(
+        session,
+        subsection_id,
+        **payload.model_dump(exclude_unset=True),
+    )
+    return SubsectionReadSchema.model_validate(sub)
+
+
+@router.put("/{subsection_id}", response_model=SubsectionReadSchema)
+async def update_subsection_form(
+    subsection_id: int,
     section_id: int = Form(...),
     title: str = Form(...),
     type: SubsectionType = Form(...),
@@ -56,63 +184,29 @@ async def create_subsection_endpoint(
     session: AsyncSession = Depends(get_db),
     _claims: dict = Depends(admin_or_teacher),
 ):
-    """
-    Create a new subsection.
-
-    - For **text** subsections, provide `content`.
-    - For **pdf** subsections, upload a `file`.
-    """
-    logger.debug(f"Creating subsection for section_id: {section_id}")
-
     file_path = None
     if type == SubsectionType.PDF:
         if not file:
-            raise ValueError("File must be provided for PDF subsection type.")
-        # Sanitize filename to prevent security issues
-        safe_filename = Path(file.filename).name
-        file_location = PDF_PATH / safe_filename
-        with open(file_location, "wb+") as file_object:
-            shutil.copyfileobj(file.file, file_object)
-        file_path = str(file_location)
-        logger.debug(f"PDF file saved at: {file_path}")
+            raise HTTPException(status_code=422, detail="File must be provided for PDF")
+        safe = Path(file.filename).name
+        dest = PDF_PATH / safe
+        with open(dest, "wb+") as f:
+            shutil.copyfileobj(file.file, f)
+        file_path = str(dest)
 
-    elif type == SubsectionType.TEXT and not content:
-        raise ValueError("Content must be provided for TEXT subsection type.")
+    data = {
+        "title": title,
+        "order": order,
+        "type": type,
+    }
+    if type == SubsectionType.TEXT:
+        data["content"] = content
+    else:
+        data["file_path"] = file_path
 
-    subsection = await create_subsection(
-        session,
-        section_id=section_id,
-        title=title,
-        content=content,
-        type=type,
-        order=order,
-        file_path=file_path,
-    )
-    logger.debug(f"Subsection created with ID: {subsection.id}")
-    return SubsectionReadSchema.model_validate(subsection)
+    sub = await update_subsection(session, subsection_id, **data)
+    return SubsectionReadSchema.model_validate(sub)
 
-@router.get("/{subsection_id}", response_model=SubsectionReadSchema)
-async def get_subsection_endpoint(
-    subsection_id: int,
-    session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(authenticated),
-):
-    logger.debug(f"Fetching subsection with ID: {subsection_id}")
-    subsection = await get_subsection(session, subsection_id)
-    logger.debug(f"Subsection retrieved: {subsection.title}")
-    return SubsectionReadSchema.model_validate(subsection)
-
-@router.put("/{subsection_id}", response_model=SubsectionReadSchema)
-async def update_subsection_endpoint(
-    subsection_id: int,
-    payload: SubsectionUpdateSchema,
-    session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
-):
-    logger.debug(f"Updating subsection {subsection_id} with payload: {payload.model_dump()}")
-    subsection = await update_subsection(session, subsection_id, **payload.model_dump(exclude_unset=True))
-    logger.debug(f"Subsection {subsection_id} updated")
-    return SubsectionReadSchema.model_validate(subsection)
 
 @router.delete("/{subsection_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_subsection_endpoint(
@@ -122,6 +216,7 @@ async def delete_subsection_endpoint(
 ):
     logger.debug(f"Archiving subsection with ID: {subsection_id}")
     await delete_subsection(session, subsection_id)
+
 
 # ---------------------------------------------------------------------------
 # Mark viewed
@@ -133,13 +228,10 @@ async def view_subsection_endpoint(
     session: AsyncSession = Depends(get_db),
     claims: dict = Depends(authenticated),
 ):
-    logger.debug(f"Marking subsection {subsection_id} as viewed for user_id: {claims['sub']}")
     user_id = claims.get("sub") or claims.get("id")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not identify user from token")
-
+        raise HTTPException(status_code=401, detail="Could not identify user from token")
     progress = await mark_subsection_viewed(session, user_id, subsection_id)
-    logger.debug(f"Subsection {subsection_id} marked as viewed, progress: {progress.is_viewed}")
     return SubsectionProgressRead.model_validate(progress)
 
 
@@ -149,50 +241,26 @@ async def view_subsection_endpoint(
 
 @router.post("/{subsection_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
 async def archive_subsection_endpoint(
-        subsection_id: int,
-        session: AsyncSession = Depends(get_db),
-        _claims: dict = Depends(admin_or_teacher),
+    subsection_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
 ):
-    logger.debug(f"Archiving subsection with ID: {subsection_id}")
     await archive_subsection(session, subsection_id)
 
 
 @router.post("/{subsection_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
 async def restore_subsection_endpoint(
-        subsection_id: int,
-        session: AsyncSession = Depends(get_db),
-        _claims: dict = Depends(admin_or_teacher),
+    subsection_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(admin_or_teacher),
 ):
-    logger.debug(f"Restoring subsection with ID: {subsection_id}")
     await restore_subsection(session, subsection_id)
 
 
 @router.delete("/{subsection_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_subsection_permanently_endpoint(
-        subsection_id: int,
-        session: AsyncSession = Depends(get_db),
-        _claims: dict = Depends(admin_or_teacher),
-):
-    logger.debug(f"Permanently deleting subsection with ID: {subsection_id}")
-    await delete_subsection_permanently(session, subsection_id)
-
-@router.post("/json", response_model=SubsectionReadSchema, status_code=status.HTTP_201_CREATED)
-async def create_subsection_json_endpoint(
-    payload: SubsectionCreateSchema = Body(...),
+    subsection_id: int,
     session: AsyncSession = Depends(get_db),
     _claims: dict = Depends(admin_or_teacher),
 ):
-    print("[DEBUG] payload:", payload)
-    """
-    Create a new subsection (JSON only, без файлов).
-    """
-    subsection = await create_subsection(
-        session,
-        section_id=payload.section_id,
-        title=payload.title,
-        content=payload.content,
-        type=payload.type,
-        order=payload.order,
-    )
-    logger.debug(f"Subsection created with ID: {subsection.id}")
-    return SubsectionReadSchema.model_validate(subsection)
+    await delete_subsection_permanently(session, subsection_id)

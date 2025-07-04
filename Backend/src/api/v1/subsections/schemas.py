@@ -1,14 +1,14 @@
+# TestWise/Backend/src/api/v1/subsections/schemas.py
 # -*- coding: utf-8 -*-
 """Pydantic schemas for Subsection endpoints."""
 
 from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
-
 from src.domain.enums import SubsectionType
+
 
 class SubsectionCreateSchema(BaseModel):
     section_id: int
@@ -17,11 +17,13 @@ class SubsectionCreateSchema(BaseModel):
     type: SubsectionType = SubsectionType.TEXT
     order: int = 0
 
+
 class SubsectionUpdateSchema(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     type: Optional[SubsectionType] = None
     order: Optional[int] = None
+
 
 class SubsectionReadSchema(BaseModel):
     id: int
@@ -36,6 +38,7 @@ class SubsectionReadSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class SubsectionProgressRead(BaseModel):
     id: int

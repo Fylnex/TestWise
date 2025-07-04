@@ -1,10 +1,6 @@
 // TestWise/src/services/sectionApi.ts
 // -*- coding: utf-8 -*-
-// """API для управления секциями и подсекциями в TestWise.
-// ~~~~~~~~~~~~~~~~~~~~~~~~
-// Содержит методы для работы с секциями, включая получение,
-// обновление, удаление, прогресс и подсекции.
-// """
+// API для управления секциями и подсекциями в TestWise.
 
 import http from "./apiConfig";
 
@@ -19,142 +15,84 @@ export interface Section {
   is_archived: boolean;
 }
 
-export interface SectionProgress {
-  id: number;
-  user_id: number;
-  section_id: number;
-  status: string;
-  completion_percentage: number;
-  last_accessed: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Subsection {
   id: number;
   section_id: number;
   title: string;
   content?: string;
   file_path?: string;
-  type: string;
+  type: "text" | "pdf";
   order: number;
   created_at?: string;
   is_archived: boolean;
 }
 
-export interface SectionWithSubsections {
-  id: number;
-  topic_id: number;
-  title: string;
-  content?: string;
-  description?: string;
-  order: number;
-  created_at?: string;
-  is_archived: boolean;
+export interface SectionWithSubsections extends Section {
   subsections: Subsection[];
 }
 
+// Секции
 export const sectionApi = {
-  getSectionsByTopic: async (topicId: number): Promise<Section[]> => {
-    const response = await http.get<Section[]>(`/sections`, { params: { topic_id: topicId } });
-    return response.data;
-  },
+  getSectionsByTopic: (topicId: number) =>
+    http.get<Section[]>(`/sections`, { params: { topic_id: topicId } }).then(r => r.data),
 
-  createSection: async (data: Partial<Section>): Promise<Section> => {
-    const response = await http.post<Section>("/sections", data);
-    return response.data;
-  },
+  createSection: (data: Partial<Section>) =>
+    http.post<Section>(`/sections`, data).then(r => r.data),
 
-  getSections: async (topicId?: number): Promise<Section[]> => {
-    const response = await http.get<Section[]>("/sections", {params: {topic_id: topicId}});
-    return response.data;
-  },
+  updateSection: (id: number, data: Partial<Section>) =>
+    http.put<Section>(`/sections/${id}`, data).then(r => r.data),
 
-  getSection: async (sectionId: number): Promise<Section> => {
-    const response = await http.get<Section>(`/sections/${sectionId}`);
-    return response.data;
-  },
+  deleteSection: (id: number) =>
+    http.delete(`/sections/${id}`),
 
-  updateSection: async (sectionId: number, data: Partial<Section>): Promise<Section> => {
-    const response = await http.put<Section>(`/sections/${sectionId}`, data);
-    return response.data;
-  },
+  archiveSection: (id: number) =>
+    http.post(`/sections/${id}/archive`),
 
-  deleteSection: async (sectionId: number): Promise<void> => {
-    await http.delete(`/sections/${sectionId}`);
-  },
+  restoreSection: (id: number) =>
+    http.post(`/sections/${id}/restore`),
 
-  archiveSection: async (sectionId: number): Promise<void> => {
-    await http.post(`/sections/${sectionId}/archive`);
-  },
+  deleteSectionPermanently: (id: number) =>
+    http.delete(`/sections/${id}/permanent`),
 
-  restoreSection: async (sectionId: number): Promise<void> => {
-    await http.post(`/sections/${sectionId}/restore`);
-  },
+  // Подсекции
+  getSectionSubsections: (sectionId: number) =>
+    http.get<SectionWithSubsections>(`/sections/${sectionId}/subsections`).then(r => r.data),
 
-  deleteSectionPermanently: async (sectionId: number): Promise<void> => {
-    await http.delete(`/sections/${sectionId}/permanent`);
-  },
+  // Создание TEXT‑подсекции через JSON
+  createSubsectionJson: (data: {
+    section_id: number;
+    title: string;
+    content: string;
+    type: "text";
+    order?: number;
+  }) =>
+    http.post<Subsection>(`/subsections/json`, data).then(r => r.data),
 
-  getSectionProgress: async (sectionId: number): Promise<SectionProgress> => {
-    const response = await http.get<SectionProgress>(`/sections/${sectionId}/progress`);
-    return response.data;
-  },
+  // Создание PDF‑подсекции через multipart/form-data
+  createSubsection: (formData: FormData) =>
+    http.post<Subsection>(`/subsections`, formData).then(r => r.data),
 
-  getSectionSubsections: async (sectionId: number): Promise<SectionWithSubsections> => {
-    const response = await http.get<SectionWithSubsections>(`/sections/${sectionId}/subsections`);
-    return response.data;
-  },
+  updateSubsectionJson: (
+    id: number,
+    data: { title?: string; content?: string; type: "text"; order?: number }
+  ) =>
+    http.put<Subsection>(`/subsections/${id}/json`, data).then(r => r.data),
 
-  // Новые методы для подсекций
-  createSubsection: async (sectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
-    const response = await http.post<Subsection>(`/subsections`, data);
-    return response.data;
-  },
+  updateSubsection: (id: number, formData: FormData) =>
+    http.put<Subsection>(`/subsections/${id}`, formData).then(r => r.data),
 
-  getSubsection: async (subsectionId: number): Promise<Subsection> => {
-    const response = await http.get<Subsection>(`/subsections/${subsectionId}`);
-    return response.data;
-  },
+  deleteSubsection: (id: number) =>
+    http.delete(`/subsections/${id}`),
 
-  updateSubsection: async (subsectionId: number, data: Partial<Subsection>): Promise<Subsection> => {
-    const response = await http.put<Subsection>(`/subsections/${subsectionId}`, data);
-    return response.data;
-  },
+  archiveSubsection: (id: number) =>
+    http.post(`/subsections/${id}/archive`),
 
-  archiveSubsection: async (subsectionId: number): Promise<void> => {
-    await http.post(`/subsections/${subsectionId}/archive`);
-  },
+  restoreSubsection: (id: number) =>
+    http.post(`/subsections/${id}/restore`),
 
-  restoreSubsection: async (subsectionId: number): Promise<void> => {
-    await http.post(`/subsections/${subsectionId}/restore`);
-  },
+  deleteSubsectionPermanently: (id: number) =>
+    http.delete(`/subsections/${id}/permanent`),
 
-  deleteSubsection: async (subsectionId: number): Promise<void> => {
-    await http.delete(`/subsections/${subsectionId}`);
-  },
-
-  deleteSubsectionPermanently: async (subsectionId: number): Promise<void> => {
-    await http.delete(`/subsections/${subsectionId}/permanent`);
-  },
-
-  viewSubsection: async (subsectionId: number): Promise<any> => { // Замените 'any' на конкретный тип, если есть
-    const response = await http.post<any>(`/subsections/${subsectionId}/view`);
-    return response.data;
-  },
-
-  createSubsectionWithFile: async (formData: FormData): Promise<Subsection> => {
-    const response = await http.post<Subsection>(`/subsections`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-
-  createSubsectionJson: async (data: any): Promise<Subsection> => {
-    const response = await http.post<Subsection>(`/subsections/json`, data);
-    console.log("[DEBUG] payload:", data);
-    return response.data;
-  },
+  viewSubsection: (id: number) =>
+    http.post(`/subsections/${id}/view`).then(r => r.data),
 };

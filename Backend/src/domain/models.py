@@ -165,6 +165,7 @@ class Subsection(Base):
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     content = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)  # Убедитесь, что это поле есть
     type = Column(Enum(SubsectionType), default=SubsectionType.TEXT, nullable=False)
     order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
@@ -173,9 +174,9 @@ class Subsection(Base):
 
     # Relationships
     section = relationship("Section", back_populates="subsections")
-    progress = relationship("SubsectionProgress", back_populates="subsection")  # Changed to match SubsectionProgress
+    progress = relationship("SubsectionProgress", back_populates="subsection")
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Subsection(title={self.title!r}, section_id={self.section_id})>"
 
 
