@@ -1,3 +1,4 @@
+# TestWise/Backend/src/api/v1/questions/schemas.py
 # -*- coding: utf-8 -*-
 """
 Pydantic-схемы для работы с вопросами.
@@ -12,17 +13,13 @@ from src.domain.enums import QuestionType
 
 
 class QuestionCreateSchema(BaseModel):
-    """
-    Схема для создания вопроса.
-    """
-    section_id: int
-    test_id: Optional[int] = None          # <-- новый аргумент
+    test_id: int
     question: str
     question_type: QuestionType
     options: Optional[List[Any]] = None
     correct_answer: Optional[Any] = None
     hint: Optional[str] = None
-    is_final: bool = False                 # <-- было is_control
+    is_final: bool = False
     image: Optional[str] = None
 
 
@@ -35,27 +32,23 @@ class QuestionUpdateSchema(BaseModel):
     options: Optional[List[Any]] = None
     correct_answer: Optional[Any] = None
     hint: Optional[str] = None
-    is_final: Optional[bool] = None        # <-- было is_control
+    is_final: Optional[bool] = None
     image: Optional[str] = None
-    test_id: Optional[int] = None          # разрешаем перенос вопроса в тест / из теста
+    test_id: Optional[int] = None
 
 
 class QuestionReadSchema(BaseModel):
-    """
-    Схема для чтения вопроса.
-    """
     id: int
-    section_id: int
-    test_id: Optional[int]
+    test_id: int
     question: str
     question_type: QuestionType
     options: Optional[List[Any]]
     correct_answer: Optional[Any]
     hint: Optional[str]
-    is_final: bool                         # <-- было is_control
+    is_final: bool
     image: Optional[str]
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime]
     is_archived: bool
 
     class Config:

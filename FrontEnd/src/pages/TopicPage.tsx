@@ -133,6 +133,8 @@ const TopicPage: React.FC = () => {
   const [editingSection, setEditingSection] = useState(false);
   const [errorEditSection, setErrorEditSection] = useState<string | null>(null);
 
+  const [sectionTestsMap, setSectionTestsMap] = useState<Record<number, Test[]>>({})
+
   interface SubsectionFormData {
     file?: File;
     type: "text" | "pdf";
@@ -147,6 +149,7 @@ const TopicPage: React.FC = () => {
   useEffect(() => {
     if (!topicId) return;
     setLoading(true);
+
     Promise.all([
       topicApi.getTopic(Number(topicId)),
       topicApi.getSectionsByTopic(Number(topicId)),
@@ -154,27 +157,39 @@ const TopicPage: React.FC = () => {
     ])
       .then(async ([topicData, sectionsData, testsData]) => {
         setTopic(topicData);
-        setSections(sectionsData.sort((a, b) => a.order - b.order));
+        const sortedSections = sectionsData.sort((a, b) => a.order - b.order);
+        setSections(sortedSections);
         setTests(testsData);
-        // Загружаем подсекции для каждой секции
+
+        // 1) Подсекции
         const subsMap: Record<number, Subsection[]> = {};
         await Promise.all(
-          sectionsData.map(async (section) => {
+          sortedSections.map(async (section) => {
             try {
               const res = await sectionApi.getSectionSubsections(section.id);
               subsMap[section.id] = res.subsections || [];
-            } catch (error) {
-              console.error(
-                `Failed to load subsections for section ${section.id}:`,
-                error,
-              );
+            } catch {
               subsMap[section.id] = [];
             }
           }),
         );
         setSubsectionsMap(subsMap);
+
+        // 2) Тесты по секции
+        const testsMap: Record<number, Test[]> = {};
+        await Promise.all(
+          sortedSections.map(async (section) => {
+            try {
+              const secTests = await testApi.getTestsBySection(section.id);
+              testsMap[section.id] = secTests;
+            } catch {
+              testsMap[section.id] = [];
+            }
+          }),
+        );
+        setSectionTestsMap(testsMap);
       })
-      .catch((error) => console.error("Error loading topic data:", error))
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, [topicId]);
 
@@ -842,37 +857,28 @@ const TopicPage: React.FC = () => {
                     </div>
                   )}
                   {/* Тесты секции */}
-                  {((section as Section & { tests?: Test[] }).tests)?.length > 0 && (
+                  {(sectionTestsMap[section.id]?.length ?? 0) > 0 && (
                     <div className="mb-2">
                       <div className="font-semibold text-gray-700 mb-1">
                         Тесты:
                       </div>
                       <ul className="flex flex-col gap-2">
-                        {((section as Section & { tests?: Test[] }).tests)?.map((test) => (
-                            <li
-                                key={test.id}
-                                className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
-                            >
-                            <span className="text-gray-800 font-sans">
-                              {test.title}
-                            </span>
-                              {(user?.role === "admin" ||
-                                      user?.role === "teacher") &&
-                                  editMode && (
-                                      <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="text-destructive"
-                                          onClick={() =>
-                                              handleDeleteSectionTest(test.id, section.id)
-                                          }
-                                          title="Удалить тест"
-                                      >
-                                        <Trash2 className="h-4 w-4"/>
-                                      </Button>
-                                  )}
-                            </li>
-                          ))}
+                        {sectionTestsMap[section.id].map((test) => (
+                          <li key={test.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
+                            <span className="text-gray-800 font-sans">{test.title}</span>
+                            {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive"
+                                onClick={() => handleDeleteSectionTest(test.id, section.id)}
+                                title="Удалить тест"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   )}

@@ -1,21 +1,16 @@
-# TestWise/Backend/src/api/v1/sections/schemas.py
+# Backend/src/api/v1/sections/schemas.py
+
 # -*- coding: utf-8 -*-
 """Pydantic schemas for Section endpoints."""
 
 from __future__ import annotations
-
 from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel
 
-from src.domain.enums import SubsectionType, ProgressStatus
-
-
-# ---------------------------------------------------------------------------
-# Base CRUD schemas
-# ---------------------------------------------------------------------------
-
+from src.domain.enums import ProgressStatus
+from src.api.v1.subsections.schemas import SubsectionReadSchema
 
 class SectionCreateSchema(BaseModel):
     topic_id: int
@@ -24,13 +19,11 @@ class SectionCreateSchema(BaseModel):
     description: Optional[str] = None
     order: int = 0
 
-
 class SectionUpdateSchema(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     description: Optional[str] = None
     order: Optional[int] = None
-
 
 class SectionReadSchema(BaseModel):
     id: int
@@ -45,12 +38,6 @@ class SectionReadSchema(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ---------------------------------------------------------------------------
-# Progress + nested view
-# ---------------------------------------------------------------------------
-
-
 class SectionProgressRead(BaseModel):
     id: int
     section_id: int
@@ -60,18 +47,5 @@ class SectionProgressRead(BaseModel):
     class Config:
         from_attributes = True
 
-
-class SubsectionRead(BaseModel):
-    id: int
-    section_id: int
-    title: str
-    type: SubsectionType
-    order: int
-    is_archived: bool
-
-    class Config:
-        from_attributes = True
-
-
 class SectionWithSubsections(SectionReadSchema):
-    subsections: List[SubsectionRead]
+    subsections: List[SubsectionReadSchema]

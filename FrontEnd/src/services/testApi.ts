@@ -1,54 +1,23 @@
 // TestWise/src/services/testApi.ts
-// -*- coding: utf-8 -*-
-// """API для управления тестами в TestWise.
-// ~~~~~~~~~~~~~~~~~~~~~~~~
-// Содержит методы для работы с тестами, включая создание, получение,
-// обновление, удаление, запуск и отправку результатов.
-// """
-
 import http from "./apiConfig";
+import { Question } from "./questionApi";
 
 export interface Test {
   id: number;
   title: string;
   type: string;
-  order: number;
   duration?: number;
   section_id?: number;
   topic_id?: number;
-  question_ids?: number[];
+  questions?: Question[];
   created_at?: string;
   updated_at?: string;
   is_archived: boolean;
 }
 
 export const testApi = {
-  getTest: async (testId: number): Promise<Test> => {
-    const response = await http.get<Test>(`/tests/${testId}`);
-    return response.data;
-  },
-
-  updateTest: async (testId: number, data: Partial<Test>): Promise<Test> => {
-    const response = await http.put<Test>(`/tests/${testId}`, data);
-    return response.data;
-  },
-
-  deleteTest: async (testId: number): Promise<void> => {
-    await http.delete(`/tests/${testId}`);
-  },
-
-  startTest: async (testId: number): Promise<any> => {
-    const response = await http.post(`/tests/${testId}/start`);
-    return response.data;
-  },
-
-  submitTest: async (testId: number, data: any): Promise<any> => {
-    const response = await http.post(`/tests/${testId}/submit`, data);
-    return response.data;
-  },
-
-  getTestsByTopic: async (topicId: number): Promise<Test[]> => {
-    const response = await http.get<Test[]>(`/tests`, { params: { topic_id: topicId } });
+  getTest: async (id: number): Promise<Test> => {
+    const response = await http.get<Test>(`/tests/${id}`);
     return response.data;
   },
 
@@ -57,23 +26,44 @@ export const testApi = {
     return response.data;
   },
 
-  // Новые методы для архивации
-  archiveTest: async (testId: number): Promise<void> => {
-    await http.post(`/tests/${testId}/archive`);
+  updateTest: async (id: number, data: Partial<Test>): Promise<Test> => {
+    const response = await http.put<Test>(`/tests/${id}`, data);
+    return response.data;
   },
 
-  restoreTest: async (testId: number): Promise<void> => {
-    await http.post(`/tests/${testId}/restore`);
+  deleteTest: async (id: number): Promise<void> => {
+    await http.delete(`/tests/${id}`);
   },
 
-  deleteTestPermanently: async (testId: number): Promise<void> => {
-    await http.delete(`/tests/${testId}/permanent`);
+  startTest: async (id: number): Promise<any> => {
+    const response = await http.post(`/tests/${id}/start`);
+    return response.data;
   },
 
-  // TODO (backend): Требуется реализовать GET /api/v1/tests?topic_id=... для получения тестов по теме (FastAPI)
-  // Этот метод используется на странице темы для загрузки тестов по topic_id
-  // Пример FastAPI:
-  // @router.get("", response_model=List[TestReadSchema])
-  // async def get_tests_by_topic(topic_id: int, ...): ...
-  // Если эндпоинт не реализован, фронт будет получать ошибку 405
+  submitTest: async (id: number, data: any): Promise<any> => {
+    const response = await http.post(`/tests/${id}/submit`, data);
+    return response.data;
+  },
+
+  getTestsByTopic: async (topicId: number): Promise<Test[]> => {
+    const response = await http.get<Test[]>("/tests", { params: { topic_id: topicId } });
+    return response.data;
+  },
+
+  getTestsBySection: async (sectionId: number): Promise<Test[]> => {
+    const response = await http.get<Test[]>("/tests", { params: { section_id: sectionId } });
+    return response.data;
+  },
+
+  archiveTest: async (id: number): Promise<void> => {
+    await http.post(`/tests/${id}/archive`);
+  },
+
+  restoreTest: async (id: number): Promise<void> => {
+    await http.post(`/tests/${id}/restore`);
+  },
+
+  deleteTestPermanently: async (id: number): Promise<void> => {
+    await http.delete(`/tests/${id}/permanent`);
+  },
 };

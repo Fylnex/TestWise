@@ -1,77 +1,89 @@
+// TestWise/src/pages/CreateTestForSection.tsx
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { testApi } from '@/services/testApi';
+import { testApi, Test } from '@/services/testApi';
+import { questionApi } from '@/services/questionApi';
 
-const emptyAnswer = { text: '', is_correct: false };
-const emptyQuestion = { text: '', answers: [ { ...emptyAnswer } ], hint: '' };
+interface Answer {
+  text: string;
+  is_correct: boolean;
+}
+interface QuestionForm {
+  text: string;
+  hint: string;
+  answers: Answer[];
+}
+
+const emptyAnswer: Answer = { text: '', is_correct: false };
+const emptyQuestion: QuestionForm = { text: '', hint: '', answers: [emptyAnswer] };
 
 export default function CreateTestForSection() {
-  const { sectionId, topicId } = useParams();
+  const { sectionId, topicId } = useParams<{ sectionId: string; topicId: string }>();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('hinted');
+  const [type, setType] = useState<'hinted' | 'section_final' | 'global_final'>('hinted');
   const [duration, setDuration] = useState('');
-  const [questions, setQuestions] = useState([ { ...emptyQuestion } ]);
+  const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Определяем тип теста (для раздела или для темы)
-  const isTopicTest = !!topicId;
-  const entityId = topicId || sectionId;
+  const isTopicTest = Boolean(topicId);
 
-  const handleAddQuestion = () => setQuestions(qs => [ ...qs, { ...emptyQuestion } ]);
-  const handleRemoveQuestion = idx => setQuestions(qs => qs.length > 1 ? qs.filter((_, i) => i !== idx) : qs);
-
-  const handleQuestionChange = (idx, field, value) => {
+  const handleAddQuestion = () => setQuestions(qs => [...qs, emptyQuestion]);
+  const handleRemoveQuestion = (idx: number) =>
+    setQuestions(qs => qs.length > 1 ? qs.filter((_, i) => i !== idx) : qs);
+  const handleQuestionChange = (idx: number, field: keyof QuestionForm, value: string) =>
     setQuestions(qs => qs.map((q, i) => i === idx ? { ...q, [field]: value } : q));
-  };
-  const handleAnswerChange = (qIdx, aIdx, field, value) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
-      ...q,
-      answers: q.answers.map((a, j) => j === aIdx ? { ...a, [field]: value } : a)
-    } : q));
-  };
-  const handleAddAnswer = qIdx => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
-      ...q,
-      answers: [ ...q.answers, { ...emptyAnswer } ]
-    } : q));
-  };
-  const handleRemoveAnswer = (qIdx, aIdx) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
-      ...q,
-      answers: q.answers.length > 1 ? q.answers.filter((_, j) => j !== aIdx) : q.answers
-    } : q));
-  };
-  const handleSetCorrect = (qIdx, aIdx) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
-      ...q,
-      answers: q.answers.map((a, j) => ({ ...a, is_correct: j === aIdx }))
-    } : q));
-  };
+  const handleAnswerChange = (qIdx: number, aIdx: number, field: keyof Answer, value: string | boolean) =>
+    setQuestions(qs => qs.map((q, i) => i === qIdx
+      ? { ...q, answers: q.answers.map((a, j) => j === aIdx ? { ...a, [field]: value } : a) }
+      : q
+    ));
+  const handleAddAnswer = (qIdx: number) =>
+    setQuestions(qs => qs.map((q, i) => i === qIdx ? { ...q, answers: [...q.answers, emptyAnswer] } : q));
+  const handleRemoveAnswer = (qIdx: number, aIdx: number) =>
+    setQuestions(qs => qs.map((q, i) => i === qIdx
+      ? { ...q, answers: q.answers.length > 1 ? q.answers.filter((_, j) => j !== aIdx) : q.answers }
+      : q
+    ));
+  const handleSetCorrect = (qIdx: number, aIdx: number) =>
+    setQuestions(qs => qs.map((q, i) => i === qIdx
+      ? { ...q, answers: q.answers.map((a, j) => ({ ...a, is_correct: j === aIdx })) }
+      : q
+    ));
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const payload = {
-        ...(isTopicTest ? { topic_id: Number(topicId) } : { section_id: Number(sectionId) }),
+      const testPayload: Partial<Test> = {
         title,
         type,
-        duration: duration ? Number(duration) : null,
-        questions: questions.map(q => ({
-          text: q.text,
-          hint: q.hint,
-          answers: q.answers.map(a => ({ text: a.text, is_correct: !!a.is_correct }))
-        }))
+        duration: duration ? Number(duration) : undefined,
+        ...(isTopicTest
+          ? { topic_id: Number(topicId) }
+          : { section_id: Number(sectionId) }),
       };
-      const createdTest = await testApi.createTest(payload);
+      const createdTest = await testApi.createTest(testPayload);
+
+      await Promise.all(questions.map(q =>
+        questionApi.createQuestion({
+          test_id: createdTest.id,
+          question: q.text,
+          hint: q.hint,
+          question_type: 'multiple_choice',
+          options: q.answers.map(a => a.text),
+          correct_answer: q.answers.find(a => a.is_correct)?.text,
+          is_final: type === 'section_final' || type === 'global_final',
+        })
+      ));
+
       navigate(`/test/${createdTest.id}`);
-    } catch (err) {
+    } catch {
       setError('Ошибка при создании теста');
     } finally {
       setLoading(false);
@@ -90,7 +102,11 @@ export default function CreateTestForSection() {
         </div>
         <div>
           <label className="block mb-1 font-medium">Тип теста</label>
-          <select className="border rounded px-2 py-1" value={type} onChange={e => setType(e.target.value)}>
+          <select
+            className="border rounded px-2 py-1"
+            value={type}
+            onChange={e => setType(e.target.value as any)}
+          >
             {isTopicTest ? (
               <option value="global_final">Итоговый тест</option>
             ) : (
@@ -103,7 +119,12 @@ export default function CreateTestForSection() {
         </div>
         <div>
           <label className="block mb-1 font-medium">Время (минуты, опционально)</label>
-          <Input type="number" value={duration} onChange={e => setDuration(e.target.value)} min={0} />
+          <Input
+            type="number"
+            value={duration}
+            onChange={e => setDuration(e.target.value)}
+            min={0}
+          />
         </div>
         <div className="space-y-8">
           {questions.map((q, qIdx) => (
@@ -142,18 +163,27 @@ export default function CreateTestForSection() {
                   <input
                     type="radio"
                     name={`correct-${qIdx}`}
-                    checked={!!a.is_correct}
+                    checked={a.is_correct}
                     onChange={() => handleSetCorrect(qIdx, aIdx)}
                   />
                   <span className="text-xs">Правильный</span>
                   {q.answers.length > 1 && (
-                    <Button type="button" variant="ghost" onClick={() => handleRemoveAnswer(qIdx, aIdx)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handleRemoveAnswer(qIdx, aIdx)}
+                    >
                       Удалить
                     </Button>
                   )}
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={() => handleAddAnswer(qIdx)} className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAddAnswer(qIdx)}
+                className="mt-2"
+              >
                 Добавить вариант
               </Button>
             </div>

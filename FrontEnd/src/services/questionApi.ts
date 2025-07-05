@@ -1,17 +1,9 @@
 // TestWise/src/services/questionApi.ts
-// -*- coding: utf-8 -*-
-// """API для управления вопросами в TestWise.
-// ~~~~~~~~~~~~~~~~~~~~~~~~
-// Содержит методы для работы с вопросами, включая создание, получение,
-// обновление, удаление, архивацию и восстановление.
-// """
-
 import http from "./apiConfig";
 
 export interface Question {
   id: number;
-  section_id: number;
-  test_id?: number;
+  test_id: number;
   question: string;
   question_type: string;
   options?: any[];
@@ -25,39 +17,41 @@ export interface Question {
 }
 
 export const questionApi = {
-  createQuestion: async (questionData: Partial<Question>): Promise<Question> => {
-    const response = await http.post<Question>("/questions", questionData);
+  createQuestion: async (data: Omit<Partial<Question>, "id" | "created_at" | "updated_at" | "is_archived">): Promise<Question> => {
+    const response = await http.post<Question>("/questions", data);
     return response.data;
   },
 
-  getQuestion: async (questionId: number): Promise<Question> => {
-    const response = await http.get<Question>(`/questions/${questionId}`);
+  getQuestion: async (id: number): Promise<Question> => {
+    const response = await http.get<Question>(`/questions/${id}`);
     return response.data;
   },
 
-  updateQuestion: async (questionId: number, data: Partial<Question>): Promise<Question> => {
-    const response = await http.put<Question>(`/questions/${questionId}`, data);
+  updateQuestion: async (id: number, data: Partial<Question>): Promise<Question> => {
+    const response = await http.put<Question>(`/questions/${id}`, data);
     return response.data;
   },
 
-  deleteQuestion: async (questionId: number): Promise<void> => {
-    await http.delete(`/questions/${questionId}`);
+  deleteQuestion: async (id: number): Promise<void> => {
+    await http.delete(`/questions/${id}`);
   },
 
-  archiveQuestion: async (questionId: number): Promise<void> => {
-    await http.post(`/questions/${questionId}/archive`);
+  archiveQuestion: async (id: number): Promise<void> => {
+    await http.post(`/questions/${id}/archive`);
   },
 
-  restoreQuestion: async (questionId: number): Promise<void> => {
-    await http.post(`/questions/${questionId}/restore`);
+  restoreQuestion: async (id: number): Promise<void> => {
+    await http.post(`/questions/${id}/restore`);
   },
 
-  deleteQuestionPermanently: async (questionId: number): Promise<void> => {
-    await http.delete(`/questions/${questionId}/permanent`);
+  deleteQuestionPermanently: async (id: number): Promise<void> => {
+    await http.delete(`/questions/${id}/permanent`);
   },
 
   getQuestionsByTestId: async (testId: number): Promise<Question[]> => {
-    const response = await http.get<Question[]>(`/questions?test_id=${testId}`);
+    const response = await http.get<Question[]>("/questions", {
+      params: { test_id: testId },
+    });
     return response.data;
   },
 };

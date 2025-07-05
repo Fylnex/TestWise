@@ -1,38 +1,35 @@
+# TestWise/Backend/src/api/v1/tests/routes.py
 # -*- coding: utf-8 -*-
 """
 Маршруты FastAPI для работы с тестами.
 """
 
-from datetime import datetime, timezone
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.v1.questions.schemas import QuestionReadSchema
 from src.config.logger import configure_logger
 from src.database.db import get_db
 from src.domain.enums import Role
-from src.domain.models import Question, Test
-from src.repository.base import get_item
+from src.domain.models import Test
+from src.repository.base import get_item, list_items
 from src.repository.test import (
     create_test,
-    get_test,
     update_test,
     delete_test,
     archive_test,
     restore_test,
     delete_test_permanently,
-    list_tests,  # Предполагаем, что добавим этот метод в repository
+    list_tests,
 )
 from src.security.security import admin_or_teacher, authenticated, require_roles
-from src.service.progress import check_test_availability
-from src.service.tests import start_test, submit_test
+from src.service.tests import submit_test
 from .schemas import (
     TestAttemptRead,
     TestCreateSchema,
     TestReadSchema,
-    TestStartResponseSchema,
     TestSubmitSchema,
 )
 
@@ -56,7 +53,10 @@ async def create_test_endpoint(
     """
     Создаёт новый тест (админ / учитель).
 
-    Требуется указать **section_id** *или* **topic_id** (но не оба).
+    - **title**: Название теста.
+    - **type**: Тип теста (hinted, global_final, section_final).
+    - **duration**: (опционально) Время в секундах.
+    - **section_id/topic_id**: Привязка к разделу или теме (только одно).
     """
     logger.debug(f"Creating test with payload: {payload.model_dump()}")
     test = await create_test(
@@ -66,10 +66,12 @@ async def create_test_endpoint(
         duration=payload.duration,
         section_id=payload.section_id,
         topic_id=payload.topic_id,
-        question_ids=payload.question_ids,
     )
     logger.debug(f"Test created with ID: {test.id}")
-    return test
+    # возвращаем сразу Pydantic‑модель, подставляя пустой список questions
+    return TestReadSchema.model_validate(
+        {**test.__dict__, "questions": []}
+    )
 
 @router.get(
     "/{test_id}",
@@ -80,9 +82,25 @@ async def get_test_endpoint(
         test_id: int,
         session: AsyncSession = Depends(get_db),
 ):
-    """Возвращает тест по ID."""
+    """
+    Возвращает тест по ID вместе со списком его вопросов.
+
+    - **test_id**: путь; ID теста.
+    """
     logger.debug(f"Fetching test with ID: {test_id}")
-    return await get_test(session, test_id)
+    test = await get_test(session, test_id)
+
+    questions = await list_items(
+        session,
+        Question,
+        is_archived=False,
+        test_id=test_id,
+    )
+    q_list = [QuestionReadSchema.model_validate(q) for q in questions]
+
+    return TestReadSchema.model_validate(
+        {**test.__dict__, "questions": q_list}
+    )
 
 @router.put(
     "/{test_id}",
@@ -96,6 +114,9 @@ async def update_test_endpoint(
 ):
     """
     Обновляет тест. Передавайте только изменяемые поля.
+
+    - **test_id**: путь; ID теста.
+    - **body**: TestCreateSchema с новыми значениями.
     """
     logger.debug(f"Updating test {test_id} with payload: {payload.model_dump()}")
     update_data = payload.model_dump(exclude_unset=True)
@@ -111,7 +132,11 @@ async def delete_test_endpoint(
         test_id: int,
         session: AsyncSession = Depends(get_db),
 ):
-    """Архивирует тест."""
+    """
+    Архивирует тест (логическое удаление).
+
+    - **test_id**: путь; ID теста.
+    """
     logger.debug(f"Archiving test with ID: {test_id}")
     await delete_test(session, test_id)
 
@@ -120,34 +145,58 @@ async def delete_test_endpoint(
 # Новый эндпоинт для списка тестов                                           #
 # ---------------------------------------------------------------------------#
 
-@router.get("", response_model=List[TestReadSchema])
+@router.get(
+    "",
+    response_model=List[TestReadSchema],
+    dependencies=[Depends(authenticated)],
+)
 async def list_tests_endpoint(
         topic_id: Optional[int] = None,
         section_id: Optional[int] = None,
         session: AsyncSession = Depends(get_db),
-        _claims: dict = Depends(authenticated),
 ):
     """
     Возвращает список тестов, отфильтрованных по topic_id или section_id (но не оба).
+
+    - **topic_id**/**section_id**: query; ID темы или раздела.
     """
     logger.debug(f"Fetching tests with topic_id: {topic_id}, section_id: {section_id}")
     if (topic_id is None) == (section_id is None):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Either topic_id or section_id must be provided (but not both)"
         )
     filters = {"is_archived": False}
     if topic_id:
         filters["topic_id"] = topic_id
-    elif section_id:
+    else:
         filters["section_id"] = section_id
+
     tests = await list_tests(session, Test, **filters)
     logger.debug(f"Retrieved {len(tests)} tests")
-    return [TestReadSchema.model_validate(t) for t in tests]
+    # Подставляем пустой список questions, чтобы Pydantic не пытался дергать ленивую связь
+    return [
+        TestReadSchema.model_validate({
+            **t.__dict__,
+            "questions": []
+        })
+        for t in tests
+    ]
+
+
 
 # ---------------------------------------------------------------------------#
 # Студенческие действия                                                      #
 # ---------------------------------------------------------------------------#
+
+from datetime import datetime
+from fastapi import HTTPException
+from sqlalchemy import select
+from src.domain.models import Question, TestAttempt
+from src.api.v1.tests.schemas import TestStartResponseSchema
+from src.service.progress import check_test_availability
+from src.service.tests import start_test
+from src.repository.test import get_test
 
 @router.post(
     "/{test_id}/start",
@@ -160,28 +209,60 @@ async def start_test_endpoint(
         claims: dict[str, Any] = Depends(authenticated),
 ):
     """
-    Студент начинает тест — проверяем доступность (прогресс) и создаём попытку.
+    Студент начинает тест — проверяем доступность и создаём (или возвращаем) попытку.
+
+    - **test_id**: путь; ID теста.
     """
     logger.debug(f"Starting test {test_id} for user_id: {claims['sub']}")
     user_id = claims["sub"]
+
     if not await check_test_availability(session, user_id, test_id):
-        logger.debug(f"Test {test_id} unavailable for user_id: {user_id}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Тест недоступен")
 
-    attempt = await start_test(session, user_id, test_id)
     test = await get_test(session, test_id)
 
-    questions_stmt = select(Question).where(Question.id.in_(test.question_ids)) if test.question_ids else \
-        select(Question).where(Question.test_id == test_id)
-    result = await session.execute(questions_stmt)
-    questions = list(result.scalars().all())
+    # Текущее время (naive)
+    now = datetime.now()
 
-    logger.debug(f"Test {test_id} started, {len(questions)} questions retrieved")
+    # Ищем самую свежую незавершённую попытку
+    stmt = (
+        select(TestAttempt)
+        .where(
+            TestAttempt.user_id == user_id,
+            TestAttempt.test_id == test_id,
+            TestAttempt.completed_at.is_(None),
+        )
+        .order_by(TestAttempt.started_at.desc())
+    )
+    existing = (await session.execute(stmt)).scalars().first()
+
+    if existing:
+        # без лимита по времени
+        if not test.duration or test.duration <= 0:
+            attempt = existing
+        else:
+            elapsed_min = (now - existing.started_at).total_seconds() / 60
+            if elapsed_min <= test.duration:
+                attempt = existing
+            else:
+                # просрочена — завершаем старую и создаём новую
+                existing.completed_at = now
+                await session.commit()
+                attempt = await start_test(session, user_id, test_id)
+    else:
+        attempt = await start_test(session, user_id, test_id)
+
+    # Получаем вопросы
+    q_stmt = select(Question).where(Question.test_id == test_id)
+    questions = (await session.execute(q_stmt)).scalars().all()
+
+    logger.debug(f"Test {test_id} started, attempt_id={attempt.id}, questions={len(questions)}")
+
     return {
         "attempt_id": attempt.id,
         "test_id": test.id,
         "questions": questions,
-        "start_time": datetime.now(tz=timezone.utc),
+        "start_time": attempt.started_at,  # naive datetime
         "duration": test.duration,
     }
 
@@ -198,6 +279,9 @@ async def submit_test_endpoint(
 ):
     """
     Студент сдаёт тест — оцениваем, сохраняем и возвращаем попытку.
+
+    - **test_id**: путь; ID теста.
+    - **body**: TestSubmitSchema с ответами студента.
     """
     logger.debug(f"Submitting test {test_id} for user_id: {claims['sub']} with payload: {payload.model_dump()}")
     user_id = claims["sub"]
@@ -207,10 +291,8 @@ async def submit_test_endpoint(
     for a in payload.answers:
         q = await get_item(session, Question, a["question_id"])
         if q.test_id != test_id:
-            logger.debug(f"Invalid test for question {a['question_id']}")
-            raise HTTPException(status_code=400, detail="Не тот тест для вопроса")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не тот тест для вопроса")
 
-    # Передаем только attempt_id и answers в сервис, расчет выполняется там
     attempt = await submit_test(
         session=session,
         attempt_id=payload.attempt_id,
@@ -219,36 +301,60 @@ async def submit_test_endpoint(
     logger.debug(f"Test {test_id} submitted, score: {attempt.score}")
     return attempt
 
+
 # ---------------------------------------------------------------------------#
 # Archive / Restore / Permanent Delete                                       #
 # ---------------------------------------------------------------------------#
 
-@router.post("/{test_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{test_id}/archive",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_or_teacher)],
+)
 async def archive_test_endpoint(
     test_id: int,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
 ):
-    """Архивирует тест."""
+    """
+    Архивирует тест.
+
+    - **test_id**: путь; ID теста.
+    """
     logger.debug(f"Archiving test with ID: {test_id}")
     await archive_test(session, test_id)
 
-@router.post("/{test_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.post(
+    "/{test_id}/restore",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_or_teacher)],
+)
 async def restore_test_endpoint(
     test_id: int,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
 ):
-    """Восстанавливает архивированный тест."""
+    """
+    Восстанавливает ранее архивированный тест.
+
+    - **test_id**: путь; ID теста.
+    """
     logger.debug(f"Restoring test with ID: {test_id}")
     await restore_test(session, test_id)
 
-@router.delete("/{test_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete(
+    "/{test_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_or_teacher)],
+)
 async def delete_test_permanently_endpoint(
     test_id: int,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_or_teacher),
 ):
-    """Окончательно удаляет архивированный тест."""
+    """
+    Окончательно удаляет тест из базы.
+
+    - **test_id**: путь; ID теста.
+    """
     logger.debug(f"Permanently deleting test with ID: {test_id}")
     await delete_test_permanently(session, test_id)

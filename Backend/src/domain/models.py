@@ -8,7 +8,6 @@ This module introduces a rich learning hierarchy with progress tracking and
 assessment definitions, including entities like Subsection, Test, GroupStudents,
 and TestAttempt, with legacy fields removed or renamed for clarity.
 """
-
 from datetime import datetime
 
 from sqlalchemy import (
@@ -151,7 +150,6 @@ class Section(Base):
     topic = relationship("Topic", back_populates="sections")
     subsections = relationship("Subsection", back_populates="section", cascade="all, delete-orphan")
     tests = relationship("Test", back_populates="section", cascade="all, delete-orphan")
-    questions = relationship("Question", back_populates="section", cascade="all, delete-orphan")
     progress = relationship("SectionProgress", back_populates="section")  # Changed to match SectionProgress
 
     def __repr__(self) -> str:  # pragma: no cover
@@ -185,48 +183,53 @@ class Test(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=True, index=True)
-    topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True, index=True)
-    title = Column(String, nullable=False)
-    duration = Column(Integer, nullable=True)  # duration in minutes
-    question_ids = Column(JSON, nullable=True)  # cached list of question IDs for faster retrieval
-    type = Column(Enum(TestType), nullable=False, index=True)
+    topic_id   = Column(Integer, ForeignKey("topics.id"),   nullable=True, index=True)
+    title      = Column(String, nullable=False)
+    duration   = Column(Integer, nullable=True)  # duration in minutes
+    type       = Column(Enum(TestType), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
 
     # Relationships
-    section = relationship("Section", back_populates="tests")
-    topic = relationship("Topic", back_populates="global_tests")
-    questions = relationship("Question", back_populates="test", cascade="all, delete-orphan")
-    attempts = relationship("TestAttempt", back_populates="test", cascade="all, delete-orphan")
+    section  = relationship("Section", back_populates="tests")
+    topic    = relationship("Topic", back_populates="global_tests")
+    questions = relationship(
+        "Question",
+        back_populates="test",
+        cascade="all, delete-orphan"
+    )
+    attempts = relationship(
+        "TestAttempt",
+        back_populates="test",
+        cascade="all, delete-orphan"
+    )
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Test(title={self.title!r}, type={self.type}, is_archived={self.is_archived})>"
 
 
 class Question(Base):
     __tablename__ = "questions"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    section_id = Column(Integer, ForeignKey("sections.id"), nullable=False, index=True)
-    test_id = Column(Integer, ForeignKey("tests.id"), nullable=True, index=True)
-    question = Column(String, nullable=False)
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    test_id       = Column(Integer, ForeignKey("tests.id"), nullable=False, index=True)
+    question      = Column(String, nullable=False)
     question_type = Column(Enum(QuestionType), nullable=False)
-    options = Column(JSON, nullable=True)  # single / multiple choice options
-    correct_answer = Column(JSON, nullable=True)  # format depends on question_type
-    hint = Column(String, nullable=True)
-    is_final = Column(Boolean, default=False)  # marks if question appears in a final test
-    image = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, onupdate=datetime.now)
-    is_archived = Column(Boolean, default=False)
+    options       = Column(JSON, nullable=True)
+    correct_answer= Column(JSON, nullable=True)
+    hint          = Column(String, nullable=True)
+    is_final      = Column(Boolean, default=False)
+    image         = Column(String, nullable=True)
+    created_at    = Column(DateTime, default=datetime.now)
+    updated_at    = Column(DateTime, onupdate=datetime.now)
+    is_archived   = Column(Boolean, default=False)
 
     # Relationships
-    section = relationship("Section", back_populates="questions")
     test = relationship("Test", back_populates="questions")
 
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<Question(id={self.id}, section_id={self.section_id})>"
+    def __repr__(self) -> str:
+        return f"<Question(id={self.id}, test_id={self.test_id})>"
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +300,7 @@ class TestAttempt(Base):
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
     # Relationships
     user = relationship("User", back_populates="test_attempts")

@@ -1,7 +1,7 @@
 # TestWise/Backend/src/api/v1/tests/schemas.py
 # -*- coding: utf-8 -*-
 """
-Pydantic-схемы для работы с тестами.
+Pydantic‑схемы для работы с тестами.
 """
 
 from datetime import datetime
@@ -10,9 +10,9 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 from src.domain.enums import TestType, QuestionType
+from src.api.v1.questions.schemas import QuestionReadSchema
 
 # ----------------------------- CRUD -----------------------------------------
-
 
 class TestCreateSchema(BaseModel):
     """
@@ -21,16 +21,16 @@ class TestCreateSchema(BaseModel):
     title: str
     type: TestType
     duration: Optional[int] = Field(
-        default=None, description="Максимальная длительность, сек. 0/None — без лимита"
+        default=None,
+        description="Максимальная длительность, сек. 0/None — без лимита"
     )
     section_id: Optional[int] = Field(default=None, description="Тест по секции")
     topic_id: Optional[int] = Field(default=None, description="Глобальный тест по теме")
-    question_ids: Optional[List[int]] = Field(default=None, description="Фиксированный набор вопросов")
 
 
 class TestReadSchema(BaseModel):
     """
-    Полное представление теста.
+    Полное представление теста с вложенными вопросами.
     """
     id: int
     title: str
@@ -38,17 +38,16 @@ class TestReadSchema(BaseModel):
     duration: Optional[int]
     section_id: Optional[int]
     topic_id: Optional[int]
-    question_ids: Optional[List[int]]
     created_at: datetime
     updated_at: Optional[datetime]
     is_archived: bool
+    questions: List[QuestionReadSchema] = []
 
     class Config:
         from_attributes = True
 
 
 # ----------------------------- START / SUBMIT -------------------------------
-
 
 class TestQuestionSchema(BaseModel):
     """

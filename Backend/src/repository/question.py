@@ -26,28 +26,21 @@ logger = configure_logger()
 
 async def create_question(
     session: AsyncSession,
-    section_id: int,
+    test_id: int,
     question: str,
     question_type: QuestionType,
-    options: list[str] | None = None,
-    correct_answer: Any | None = None,  # noqa: ANN401
+    options: list | None = None,
+    correct_answer: any | None = None,
     hint: str | None = None,
     is_final: bool = False,
     image: str | None = None,
-    test_id: int | None = None,
 ) -> Question:
-    """Create a new question with validation for choice types."""
-    await get_item(session, Section, section_id)
-    if test_id is not None:
-        await get_item(session, Test, test_id)
-    if question_type in {QuestionType.SINGLE_CHOICE, QuestionType.MULTIPLE_CHOICE} and (
-        not options or len(options) < 2
-    ):
-        raise ValidationError(detail="Choice questions must include at least two options")
+    # Проверяем, что тест существует и не архивирован
+    await get_item(session, Test, test_id)
     return await create_item(
         session,
         Question,
-        section_id=section_id,
+        test_id=test_id,
         question=question,
         question_type=question_type,
         options=options,
@@ -55,7 +48,6 @@ async def create_question(
         hint=hint,
         is_final=is_final,
         image=image,
-        test_id=test_id,
     )
 
 async def update_question(

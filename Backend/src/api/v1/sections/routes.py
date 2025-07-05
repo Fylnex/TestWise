@@ -22,8 +22,8 @@ from .schemas import (
     SectionReadSchema,
     SectionUpdateSchema,
     SectionWithSubsections,
-    SubsectionRead,
 )
+from ..subsections.schemas import SubsectionReadSchema
 
 router = APIRouter()
 logger = configure_logger()
@@ -164,17 +164,24 @@ async def get_section_progress_endpoint(
 
 @router.get("/{section_id}/subsections", response_model=SectionWithSubsections)
 async def list_subsections_endpoint(
-        section_id: int,
-        session: AsyncSession = Depends(get_db),
-        _claims: dict = Depends(authenticated),
+    section_id: int,
+    session: AsyncSession = Depends(get_db),
+    _claims: dict = Depends(authenticated),
 ):
     logger.debug(f"Listing subsections for section {section_id}")
     section = await get_item(session, Section, section_id, is_archived=False)
-    stmt = select(Subsection).where(Subsection.section_id == section_id, Subsection.is_archived == False).order_by(
-        Subsection.order)
+    stmt = select(Subsection) \
+        .where(Subsection.section_id == section_id, Subsection.is_archived == False) \
+        .order_by(Subsection.order)
     res = await session.execute(stmt)
     subs = res.scalars().all()
     logger.debug(f"Retrieved {len(subs)} subsections for section {section_id}")
     return SectionWithSubsections.model_validate(
-        {**section.__dict__, "subsections": [SubsectionRead.model_validate(s) for s in subs]}
+        {
+            **section.__dict__,
+            "subsections": [
+                SubsectionReadSchema.model_validate(s)
+                for s in subs
+            ],
+        }
     )

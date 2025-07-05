@@ -34,7 +34,6 @@ async def create_test(
     section_id: int | None = None,
     topic_id: int | None = None,
     duration: int | None = None,
-    question_ids: list[int] | None = None,
 ) -> Test:
     """Create a new test with validation for section or topic ID."""
     if (section_id is None) == (topic_id is None):
@@ -51,7 +50,6 @@ async def create_test(
         section_id=section_id,
         topic_id=topic_id,
         duration=duration,
-        question_ids=question_ids,
     )
 
 async def get_test(session: AsyncSession, test_id: int) -> Test:
