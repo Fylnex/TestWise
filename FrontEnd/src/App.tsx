@@ -23,6 +23,9 @@ import Contact from "./pages/Contact";
 import CreateTopic from "./pages/CreateTopic";
 import TopicSectionTree from "./pages/TopicSectionTree";
 import CreateSubsection from "./pages/CreateSubsection";
+import CreateTestForSection from "./pages/CreateTestForSection";
+import TestViewer from "./components/TestViewer";
+
 
 const queryClient = new QueryClient();
 
@@ -160,6 +163,30 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <CreateSubsection />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test/create/section/:sectionId"
+                element={
+                  <ProtectedRoute>
+                    <CreateTestForSection />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test/create/topic/:topicId"
+                element={
+                  <ProtectedRoute>
+                    <CreateTestForSection />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test/:testId"
+                element={
+                  <ProtectedRoute>
+                    <TestViewer />
                   </ProtectedRoute>
                 }
               />

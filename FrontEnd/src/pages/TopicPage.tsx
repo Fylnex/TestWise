@@ -916,34 +916,43 @@ const TopicPage: React.FC = () => {
                       Тип: {test.type}
                     </div>
                   </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/test/${test.id}`)}
+                    >
+                      Пройти тест
+                    </Button>
                     {(user?.role === "admin" || user?.role === "teacher") && (
-                    <div className="flex gap-2">
-                      <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-full border-[#3A86FF] text-[#3A86FF]"
-                          onClick={() => setOpenQuestionsEditor(test.id)}
-                      >
-                        Редактировать вопросы
-                      </Button>
-                      {editMode && (
-                          <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={async () => {
-                                await testApi.deleteTest(test.id);
-                                setTests((prev) =>
-                                    prev.filter((t) => t.id !== test.id),
-                                );
-                              }}
-                              title="Удалить тест"
-                          >
-                          <Trash2 className="h-4 w-4" />
+                      <>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full border-[#3A86FF] text-[#3A86FF]"
+                            onClick={() => setOpenQuestionsEditor(test.id)}
+                        >
+                          Редактировать вопросы
                         </Button>
-                      )}
-                    </div>
-                  )}
+                        {editMode && (
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive"
+                                onClick={async () => {
+                                  await testApi.deleteTest(test.id);
+                                  setTests((prev) =>
+                                      prev.filter((t) => t.id !== test.id),
+                                  );
+                                }}
+                                title="Удалить тест"
+                            >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
