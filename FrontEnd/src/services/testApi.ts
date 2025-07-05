@@ -10,6 +10,8 @@ export interface Test {
   section_id?: number;
   topic_id?: number;
   questions?: Question[];
+  // новый маркер — процент выполнения/успешности теста
+  completion_percentage?: number;
   created_at?: string;
   updated_at?: string;
   is_archived: boolean;

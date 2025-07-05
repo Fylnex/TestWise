@@ -29,9 +29,6 @@ class TestCreateSchema(BaseModel):
 
 
 class TestReadSchema(BaseModel):
-    """
-    Полное представление теста с вложенными вопросами.
-    """
     id: int
     title: str
     type: TestType
@@ -41,10 +38,11 @@ class TestReadSchema(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
     is_archived: bool
-    questions: List[QuestionReadSchema] = []
 
-    class Config:
-        from_attributes = True
+    # Вот это мы добавили:
+    last_score: Optional[float] = None
+
+    questions: List[QuestionReadSchema]
 
 
 # ----------------------------- START / SUBMIT -------------------------------

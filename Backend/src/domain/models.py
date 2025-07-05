@@ -23,7 +23,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from src.domain.enums import Role, GroupStudentStatus, SubsectionType, TestType, QuestionType, ProgressStatus
+from src.domain.enums import (
+    Role,
+    GroupStudentStatus,
+    SubsectionType,
+    TestType,
+    QuestionType,
+    ProgressStatus,
+)
 
 Base = declarative_base()
 
@@ -46,16 +53,29 @@ class User(Base):
     refresh_token = Column(String, nullable=True)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
-    group_teachers = relationship("GroupTeachers", back_populates="users")
-    group_students = relationship("GroupStudents", back_populates="user", cascade="all, delete-orphan")
-    topic_progress = relationship("TopicProgress", back_populates="user", cascade="all, delete-orphan")
-    section_progress = relationship("SectionProgress", back_populates="user", cascade="all, delete-orphan")
-    subsection_progress = relationship("SubsectionProgress", back_populates="user", cascade="all, delete-orphan")
-    test_attempts = relationship("TestAttempt", back_populates="user", cascade="all, delete-orphan")
-    created_topics = relationship("Topic", back_populates="creator", cascade="all, delete-orphan")
+    group_teachers = relationship(
+        "GroupTeachers", back_populates="users"
+    )
+    group_students = relationship(
+        "GroupStudents", back_populates="user", cascade="all, delete-orphan"
+    )
+    topic_progress = relationship(
+        "TopicProgress", back_populates="user", cascade="all, delete-orphan"
+    )
+    section_progress = relationship(
+        "SectionProgress", back_populates="user", cascade="all, delete-orphan"
+    )
+    subsection_progress = relationship(
+        "SubsectionProgress", back_populates="user", cascade="all, delete-orphan"
+    )
+    test_attempts = relationship(
+        "TestAttempt", back_populates="user", cascade="all, delete-orphan"
+    )
+    created_topics = relationship(
+        "Topic", back_populates="creator", cascade="all, delete-orphan"
+    )
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<User(username={self.username!r}, role={self.role})>"
 
 
@@ -70,34 +90,36 @@ class Group(Base):
     created_at = Column(DateTime, default=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
-    students = relationship("GroupStudents", back_populates="group", cascade="all, delete-orphan")
-    teachers = relationship("GroupTeachers", back_populates="group", cascade="all, delete-orphan")
+    students = relationship(
+        "GroupStudents", back_populates="group", cascade="all, delete-orphan"
+    )
+    teachers = relationship(
+        "GroupTeachers", back_populates="group", cascade="all, delete-orphan"
+    )
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Group(name={self.name!r})>"
 
 
 class GroupStudents(Base):
-    """Join table between groups and users with membership metadata."""
     __tablename__ = "group_students"
 
     group_id = Column(Integer, ForeignKey("groups.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    status = Column(Enum(GroupStudentStatus), default=GroupStudentStatus.ACTIVE, nullable=False)
+    status = Column(
+        Enum(GroupStudentStatus), default=GroupStudentStatus.ACTIVE, nullable=False
+    )
     joined_at = Column(DateTime, default=datetime.now)
     left_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
     user = relationship("User", back_populates="group_students")
     group = relationship("Group", back_populates="students")
 
 
 class GroupTeachers(Base):
-    """Join table between groups and teachers with membership metadata."""
     __tablename__ = "group_teachers"
 
     group_id = Column(Integer, ForeignKey("groups.id"), primary_key=True)
@@ -105,7 +127,6 @@ class GroupTeachers(Base):
     created_at = Column(DateTime, default=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
     users = relationship("User", back_populates="group_teachers")
     group = relationship("Group", back_populates="teachers")
 
@@ -121,15 +142,16 @@ class Topic(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
-    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Новое поле
+    creator_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
 
-    # Relationships
     sections = relationship("Section", back_populates="topic", cascade="all, delete-orphan")
     global_tests = relationship("Test", back_populates="topic", cascade="all, delete-orphan")
-    progress = relationship("TopicProgress", back_populates="topic")  # Без изменений
-    creator = relationship("User", back_populates="created_topics")  # Новая связь с User
+    progress = relationship("TopicProgress", back_populates="topic")
+    creator = relationship("User", back_populates="created_topics")
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Topic(title={self.title!r}, is_archived={self.is_archived})>"
 
 
@@ -146,13 +168,16 @@ class Section(Base):
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
     topic = relationship("Topic", back_populates="sections")
-    subsections = relationship("Subsection", back_populates="section", cascade="all, delete-orphan")
-    tests = relationship("Test", back_populates="section", cascade="all, delete-orphan")
-    progress = relationship("SectionProgress", back_populates="section")  # Changed to match SectionProgress
+    subsections = relationship(
+        "Subsection", back_populates="section", cascade="all, delete-orphan"
+    )
+    tests = relationship(
+        "Test", back_populates="section", cascade="all, delete-orphan"
+    )
+    progress = relationship("SectionProgress", back_populates="section")
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Section(title={self.title!r}, topic_id={self.topic_id})>"
 
 
@@ -163,14 +188,13 @@ class Subsection(Base):
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     content = Column(String, nullable=True)
-    file_path = Column(String, nullable=True)  # Убедитесь, что это поле есть
+    file_path = Column(String, nullable=True)
     type = Column(Enum(SubsectionType), default=SubsectionType.TEXT, nullable=False)
     order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
     section = relationship("Section", back_populates="subsections")
     progress = relationship("SubsectionProgress", back_populates="subsection")
 
@@ -183,49 +207,48 @@ class Test(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=True, index=True)
-    topic_id   = Column(Integer, ForeignKey("topics.id"),   nullable=True, index=True)
-    title      = Column(String, nullable=False)
-    duration   = Column(Integer, nullable=True)  # duration in minutes
-    type       = Column(Enum(TestType), nullable=False, index=True)
+    topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True, index=True)
+    title = Column(String, nullable=False)
+    duration = Column(Integer, nullable=True)
+    type = Column(Enum(TestType), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
+    completion_percentage = Column(Float, default=0.0)
 
-    # Relationships
-    section  = relationship("Section", back_populates="tests")
-    topic    = relationship("Topic", back_populates="global_tests")
+    section = relationship("Section", back_populates="tests")
+    topic = relationship("Topic", back_populates="global_tests")
     questions = relationship(
-        "Question",
-        back_populates="test",
-        cascade="all, delete-orphan"
+        "Question", back_populates="test", cascade="all, delete-orphan"
     )
     attempts = relationship(
-        "TestAttempt",
-        back_populates="test",
-        cascade="all, delete-orphan"
+        "TestAttempt", back_populates="test", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        return f"<Test(title={self.title!r}, type={self.type}, is_archived={self.is_archived})>"
+        return (
+            f"<Test(title={self.title!r}, type={self.type}, "
+            f"is_archived={self.is_archived}, "
+            f"completion={self.completion_percentage:.2f})>"
+        )
 
 
 class Question(Base):
     __tablename__ = "questions"
 
-    id            = Column(Integer, primary_key=True, autoincrement=True)
-    test_id       = Column(Integer, ForeignKey("tests.id"), nullable=False, index=True)
-    question      = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    test_id = Column(Integer, ForeignKey("tests.id"), nullable=False, index=True)
+    question = Column(String, nullable=False)
     question_type = Column(Enum(QuestionType), nullable=False)
-    options       = Column(JSON, nullable=True)
-    correct_answer= Column(JSON, nullable=True)
-    hint          = Column(String, nullable=True)
-    is_final      = Column(Boolean, default=False)
-    image         = Column(String, nullable=True)
-    created_at    = Column(DateTime, default=datetime.now)
-    updated_at    = Column(DateTime, onupdate=datetime.now)
-    is_archived   = Column(Boolean, default=False)
+    options = Column(JSON, nullable=True)
+    correct_answer = Column(JSON, nullable=True)
+    hint = Column(String, nullable=True)
+    is_final = Column(Boolean, default=False)
+    image = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, onupdate=datetime.now)
+    is_archived = Column(Boolean, default=False)
 
-    # Relationships
     test = relationship("Test", back_populates="questions")
 
     def __repr__(self) -> str:
@@ -248,9 +271,8 @@ class TopicProgress(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
 
-    # Relationships
     user = relationship("User", back_populates="topic_progress")
-    topic = relationship("Topic", back_populates="progress")  # Changed to match Topic
+    topic = relationship("Topic", back_populates="progress")
 
 
 class SectionProgress(Base):
@@ -265,9 +287,8 @@ class SectionProgress(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
 
-    # Relationships
     user = relationship("User", back_populates="section_progress")
-    section = relationship("Section", back_populates="progress")  # Changed to match Section
+    section = relationship("Section", back_populates="progress")
 
 
 class SubsectionProgress(Base):
@@ -281,9 +302,8 @@ class SubsectionProgress(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
 
-    # Relationships
     user = relationship("User", back_populates="subsection_progress")
-    subsection = relationship("Subsection", back_populates="progress")  # Changed to match Subsection
+    subsection = relationship("Subsection", back_populates="progress")
 
 
 class TestAttempt(Base):
@@ -294,14 +314,13 @@ class TestAttempt(Base):
     test_id = Column(Integer, ForeignKey("tests.id"), nullable=False, index=True)
     attempt_number = Column(Integer, nullable=False, default=1)
     score = Column(Float, nullable=True)
-    time_spent = Column(Integer, nullable=True)  # seconds
-    answers = Column(JSON, nullable=True)  # raw submitted answers
+    time_spent = Column(Integer, nullable=True)
+    answers = Column(JSON, nullable=True)
     started_at = Column(DateTime, default=datetime.now)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
 
-    # Relationships
     user = relationship("User", back_populates="test_attempts")
     test = relationship("Test", back_populates="attempts")

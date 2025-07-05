@@ -17,9 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.logger import configure_logger
 from src.domain.enums import QuestionType
 from src.domain.models import Question, Section, Test, TestAttempt, TestType, Topic
-from src.repository.test import create_test
+from src.repository.test import create_test, create_test_attempt, submit_test as submit_test_crud
 from src.repository.question import create_question
-from src.repository.test import create_test_attempt, submit_test as submit_test_crud
 from src.service.progress import check_test_availability
 from src.utils.exceptions import NotFoundError, ValidationError
 
@@ -61,12 +60,10 @@ async def generate_hinted_test(
     - Случайно выбираем up to num_questions вопросов.
     - Клонируем их под новый тест, сохраняя текст, варианты, ответ, подсказку.
     """
-    # 1. Проверяем раздел
     section: Section | None = await session.get(Section, section_id)
     if section is None:
         raise NotFoundError("Section", section_id)
 
-    # 2. Берём IDs всех тестов раздела
     res = await session.execute(
         select(Test.id).where(Test.section_id == section_id, Test.is_archived.is_(False))
     )
@@ -74,13 +71,11 @@ async def generate_hinted_test(
     if not test_ids:
         raise ValidationError(detail="В разделе нет тестов для взятия вопросов")
 
-    # 3. Выборка и фильтрация вопросов
     all_questions = await _fetch_questions_by_test_ids(session, test_ids, only_final=False)
     if not all_questions:
         raise ValidationError(detail="В разделе нет подходящих вопросов")
     chosen = await _random_sample_questions(all_questions, num_questions)
 
-    # 4. Создаём новый тест
     new_test = await create_test(
         session=session,
         title=title or f"Hinted Quiz: {section.title}",
@@ -91,7 +86,6 @@ async def generate_hinted_test(
     )
     logger.info("Generated hinted test %s", new_test.id)
 
-    # 5. Клонируем вопросы
     for q in chosen:
         await create_question(
             session=session,
@@ -170,12 +164,10 @@ async def generate_global_final_test(
     if topic is None:
         raise NotFoundError("Topic", topic_id)
 
-    # Все разделы темы
     res = await session.execute(
         select(Section.id).where(Section.topic_id == topic_id, Section.is_archived.is_(False))
     )
     section_ids = [row[0] for row in res.all()]
-    # Все тесты этих разделов
     res2 = await session.execute(
         select(Test.id).where(Test.section_id.in_(section_ids), Test.is_archived.is_(False))
     )
@@ -235,7 +227,6 @@ async def submit_test(
     if test is None:
         raise NotFoundError("Test", attempt.test_id)
 
-    # Pull all questions of this test
     res = await session.execute(
         select(Question).where(Question.test_id == test.id)
     )
@@ -247,21 +238,15 @@ async def submit_test(
         if ua is None:
             continue
 
-        # SINGLE_CHOICE или OPEN_TEXT
         if q.question_type in {QuestionType.SINGLE_CHOICE, QuestionType.OPEN_TEXT}:
-            # если пользователь прислал индекс, достаём реальный ответ из options
             if isinstance(ua, int) and q.options:
                 user_value = q.options[ua]
             else:
                 user_value = ua
             if user_value == q.correct_answer:
                 correct += 1
-
-        # MULTIPLE_CHOICE
         else:
-            # нормализуем вход: список строк
             if isinstance(ua, list):
-                # список индексов?
                 if all(isinstance(x, int) for x in ua) and q.options:
                     user_list = [q.options[i] for i in ua if 0 <= i < len(q.options)]
                 else:
@@ -271,12 +256,8 @@ async def submit_test(
             else:
                 user_list = [ua]
 
-            # нормализуем правильный ответ в список строк
             ca = q.correct_answer or []
-            if isinstance(ca, list):
-                correct_list = ca
-            else:
-                correct_list = [ca]
+            correct_list = ca if isinstance(ca, list) else [ca]
 
             if sorted(user_list) == sorted(correct_list):
                 correct += 1
@@ -293,5 +274,3 @@ async def submit_test(
     )
     logger.info(f"Attempt {attempt_id} scored {score:.2f}%")
     return result
-
-

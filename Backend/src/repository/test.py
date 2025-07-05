@@ -111,6 +111,7 @@ async def list_tests(session: AsyncSession, model: type[Test], **filters: Any) -
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
+
 # ----------------------------- Test attempts --------------------------------
 
 async def _next_attempt_number(session: AsyncSession, user_id: int, test_id: int) -> int:
@@ -152,6 +153,7 @@ async def get_test_attempts(session: AsyncSession, user_id: int, test_id: int | 
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
+
 # ----------------------------- Submit -------------------------------
 
 async def submit_test(
@@ -161,13 +163,22 @@ async def submit_test(
     time_spent: int,
     answers: dict[str, Any],  # noqa: ANN401
 ) -> TestAttempt:
-    """Submit a test attempt with score and answers."""
+    """Submit a test attempt with score and answers, then update test's completion_percentage."""
     attempt = await get_item(session, TestAttempt, attempt_id)
     if attempt.completed_at is not None:
         raise ValidationError(detail="Attempt already submitted")
+
+    # Update the attempt itself
     attempt.score = score
     attempt.time_spent = time_spent
     attempt.answers = answers
     attempt.completed_at = datetime.now()
     await update_item(session, TestAttempt, attempt_id)
+
+    # Recompute and store the best score into the Test.completion_percentage
+    test = await get_item(session, Test, attempt.test_id)
+    # take the max of existing and this new score
+    test.completion_percentage = max(test.completion_percentage or 0.0, score)
+    await session.commit()
+
     return attempt
