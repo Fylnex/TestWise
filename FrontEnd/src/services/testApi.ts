@@ -23,6 +23,11 @@ export const testApi = {
     return response.data;
   },
 
+  getAllTests: async (): Promise<Test[]> => {
+    const response = await http.get<Test[]>("/tests");
+    return response.data;
+  },
+
   createTest: async (data: Partial<Test>): Promise<Test> => {
     const response = await http.post<Test>("/tests", data);
     return response.data;

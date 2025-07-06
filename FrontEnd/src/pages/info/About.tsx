@@ -16,7 +16,7 @@ export default function About() {
             <path fill="#6366f1" fillOpacity="0.2" d="M0,160L60,170.7C120,181,240,203,360,197.3C480,192,600,160,720,133.3C840,107,960,85,1080,101.3C1200,117,1320,171,1380,197.3L1440,224L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path>
           </svg>
         </div>
-        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="relative z-10 w-full max-w-[1000px] mx-auto px-4 py-16 text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6 leading-tight">
             Добро пожаловать в <span className="text-indigo-600">ЛайнТест</span>
           </h1>
@@ -28,7 +28,7 @@ export default function About() {
       </section>
 
       <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-[1000px] mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">Наша миссия</h2>
             <p className="text-lg text-slate-700 mb-4">
@@ -47,7 +47,7 @@ export default function About() {
       </section>
 
       <section className="py-16 bg-gradient-to-br from-indigo-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="max-w-[1000px] mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 text-slate-900">Почему выбирают нас?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center text-center hover:shadow-xl transition-shadow">
@@ -70,7 +70,7 @@ export default function About() {
       </section>
 
       <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-[1000px] mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
           <div className="flex justify-center order-2 md:order-1">
             <img src="/public/placeholder.svg" alt="Команда ЛайнТест" className="rounded-2xl shadow-xl w-full max-w-md" />
           </div>
@@ -89,7 +89,7 @@ export default function About() {
       </section>
 
       <section className="py-16 bg-gradient-to-br from-indigo-100 to-white">
-        <div className="container mx-auto px-4 text-center">
+        <div className="max-w-[1000px] mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900">Связаться с нами</h2>
           <p className="text-lg text-slate-700 mb-8">Остались вопросы? Мы всегда на связи!</p>
           <div className="flex flex-col md:flex-row justify-center gap-8 mb-8">

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { UserManagement } from '../../../components/admin/UserManagement';
 import { StudentProgress } from '../../../components/admin/StudentProgress';
+import { SystemLogs } from '../../../components/admin/SystemLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
@@ -25,6 +26,7 @@ export function AdminPanel() {
             <TabsTrigger value="analytics">Аналитика</TabsTrigger>
             <TabsTrigger value="groups">Группы</TabsTrigger>
             <TabsTrigger value="roles">Роли</TabsTrigger>
+            <TabsTrigger value="logs">Логи</TabsTrigger>
             <TabsTrigger value="teacher">Панель преподавателя</TabsTrigger>
             {/* <TabsTrigger value="notfound" className="text-red-500">Страница 404</TabsTrigger> */}
           </TabsList>
@@ -43,6 +45,10 @@ export function AdminPanel() {
           
           <TabsContent value="roles">
             <AdminRolesTab />
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <SystemLogs />
           </TabsContent>
 
           <TabsContent value="teacher">

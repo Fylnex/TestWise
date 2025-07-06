@@ -63,7 +63,7 @@ const Index = () => {
             <path fill="#6366f1" fillOpacity="0.2" d="M0,160L60,170.7C120,181,240,203,360,197.3C480,192,600,160,720,133.3C840,107,960,85,1080,101.3C1200,117,1320,171,1380,197.3L1440,224L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path>
           </svg>
         </div>
-        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 text-center">
+        <div className="relative z-10 w-full max-w-[1000px] mx-auto px-4 text-center">
           {user && (
             <>
               <h2 className={`font-extrabold text-slate-900 mb-4 ${
@@ -112,7 +112,7 @@ const Index = () => {
       {/* Последние изучаемые темы для студента */}
       {user?.role === 'student' && !loading && (
         <section className="py-10 bg-white animate-fade-in border-b border-slate-100">
-          <div className="container mx-auto px-4">
+          <div className="max-w-[1000px] mx-auto px-4">
             <h2 className="text-2xl font-bold mb-6 text-slate-900">Последние изучаемые темы</h2>
             {topics.filter(t => (t as any).progress && (t as any).progress.completion_percentage > 0)
               .sort((a, b) => {
@@ -155,7 +155,7 @@ const Index = () => {
       <section className={`bg-gradient-to-br from-slate-50 via-white to-indigo-50 animate-fade-in ${
         user?.role === 'teacher' ? 'py-8' : 'py-16'
       }`}>
-        <div className="container mx-auto px-4">
+        <div className="max-w-[1000px] mx-auto px-4">
           <h2 className={`font-bold text-center text-slate-900 ${
             user?.role === 'teacher' ? 'text-2xl md:text-3xl mb-6' : 'text-3xl md:text-4xl mb-10'
           }`}>Все темы</h2>

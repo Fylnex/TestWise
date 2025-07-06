@@ -30,111 +30,165 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm">
-      <div className="container mx-auto px-6 py-4">
+    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/50 sticky top-0 z-50">
+      <div className="max-w-[1000px] mx-auto px-6 py-3">
         <div className="flex items-center justify-between">
+          {/* Логотип и навигация */}
           <div className="flex items-center space-x-8">
-            <Link to="/" className="text-xl font-bold text-gray-900">
-            ЛайнТест
+            <Link to="/" className="flex items-center space-x-2 group">
+              <img 
+                src="/SMTU_Logo.png" 
+                alt="СПбГМТУ" 
+                className="h-8 w-auto object-contain group-hover:scale-105 transition-all duration-300"
+              />
+              <span className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 transition-all duration-300">
+                ЛайнТест
+              </span>
             </Link>
-            <nav className="hidden md:flex space-x-6">
+            
+            <nav className="hidden md:flex space-x-1">
               <Link
                 to="/"
-                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname === '/' ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname === '/' 
+                    ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
                 Главная
               </Link>
               <Link
                 to="/topics"
-                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname.startsWith('/topics') ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname.startsWith('/topics') 
+                    ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
                 Темы
               </Link>
               <Link
                 to="/about"
-                className={`transition-colors px-1 pb-0.5 border-b-2 ${location.pathname.startsWith('/about') ? 'text-indigo-600 border-indigo-600 font-bold' : 'text-gray-600 border-transparent hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname.startsWith('/about') 
+                    ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
                 О нас
               </Link>
             </nav>
           </div>
 
-          <div className="flex items-center space-x-4">
+          {/* Правая часть - пользователь */}
+          <div className="flex items-center space-x-3">
             {user && (
               <>
+                {/* Панели управления */}
                 {user.role === 'admin' && (
                   <Link to="/admin">
-                    <Button variant="ghost" size="sm">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Панель администратора
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="hidden sm:flex items-center space-x-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition-all duration-200"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Админ панель</span>
                     </Button>
                   </Link>
                 )}
                 {user.role === 'teacher' && (
                   <Link to="/teacher">
-                    <Button variant="ghost" size="sm">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Панель преподавателя
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="hidden sm:flex items-center space-x-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition-all duration-200"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Панель преподавателя</span>
                     </Button>
                   </Link>
                 )}
+
+                {/* Аватар пользователя */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback>
+                    <Button 
+                      variant="ghost" 
+                      className="relative h-10 w-10 rounded-full hover:bg-slate-100 transition-all duration-200 p-0"
+                    >
+                      <Avatar className="h-10 w-10 ring-2 ring-slate-100 hover:ring-blue-200 transition-all duration-200">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
                           {user.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || user.username.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
+                  <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal p-3">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.full_name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
+                        <p className="text-sm font-semibold leading-none text-slate-900">{user.full_name}</p>
+                        <p className="text-xs leading-none text-slate-500">
                           {user.username}
                         </p>
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            user.role === 'admin' 
+                              ? 'bg-red-100 text-red-700' 
+                              : user.role === 'teacher' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {user.role === 'admin' ? 'Администратор' : user.role === 'teacher' ? 'Преподаватель' : 'Студент'}
+                          </span>
+                        </div>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       <Link to="/profile">
-                        <DropdownMenuItem>
-                            <User className="mr-2 h-4 w-4" />
-                            <span>Профиль</span>
+                        <DropdownMenuItem className="p-3 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <User className="mr-3 h-4 w-4 text-slate-500" />
+                          <span className="text-slate-700">Профиль</span>
                         </DropdownMenuItem>
                       </Link>
                       <Link to="/settings">
-                         <DropdownMenuItem>
-                            <Settings className="mr-2 h-4 w-4" />
-                            <span>Настройки</span>
+                        <DropdownMenuItem className="p-3 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <Settings className="mr-3 h-4 w-4 text-slate-500" />
+                          <span className="text-slate-700">Настройки</span>
                         </DropdownMenuItem>
                       </Link>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <AlertDialog>
-                       <AlertDialogTrigger asChild>
-                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                            <span>Выйти</span>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem 
+                          onSelect={(e) => e.preventDefault()}
+                          className="p-3 rounded-lg hover:bg-red-50 cursor-pointer text-red-600 hover:text-red-700"
+                        >
+                          <LogOut className="mr-3 h-4 w-4" />
+                          <span>Выйти</span>
                         </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Выйти из аккаунта?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Вы уверены, что хотите выйти из своего аккаунта?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Отмена</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout}>
-                        Выйти
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="max-w-md">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-slate-900">Выйти из аккаунта?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-slate-600">
+                            Вы уверены, что хотите выйти из своего аккаунта?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="border-slate-200 hover:bg-slate-50">Отмена</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={handleLogout}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            Выйти
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

@@ -36,7 +36,7 @@ export default function Topics() {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8">
+      <div className="max-w-[1000px] mx-auto py-8 px-4">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Темы для изучения</h1>
           {(user?.role === 'admin' || user?.role === 'teacher') && (
@@ -78,7 +78,7 @@ export default function Topics() {
                       <div className="text-xs text-slate-400 mb-1">Автор: {getAuthorName(topic.creator_full_name)}</div>
                     </div>
                     <span className="text-sm text-indigo-600 font-semibold mt-1">
-                      {topic.progress?.completion_percentage ?? 0}%
+                      {(topic as any).progress?.completion_percentage ?? 0}%
                     </span>
                   </div>
                 </CardHeader>
@@ -86,7 +86,7 @@ export default function Topics() {
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                     {topic.description}
                   </p>
-                  <Progress value={topic.progress?.completion_percentage ?? 0} className="h-2" />
+                  <Progress value={(topic as any).progress?.completion_percentage ?? 0} className="h-2" />
                 </CardContent>
               </Card>
             ))}

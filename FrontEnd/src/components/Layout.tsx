@@ -11,12 +11,12 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Header />
 
-      <main className="container mx-auto px-6 pt-4 pb-8 flex-grow">
+      <main className="flex-grow pb-32">
         {children}
       </main>
 
       <footer className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white py-8 mt-auto border-t border-slate-700">
-        <div className="container mx-auto px-6">
+        <div className="max-w-[1000px] mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
             <div className="text-center md:text-left">
               <h3 className="text-lg font-semibold mb-3 text-white">ЛайнТест</h3>
