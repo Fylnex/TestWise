@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, Pencil, Save, X, Edit3 } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Save, X, Edit3, CheckCircle, Lock } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -743,62 +743,57 @@ const TopicPage: React.FC = () => {
         <Accordion
             type="multiple"
             className="bg-transparent"
-            defaultValue={sections.map((s) => String(s.id))}
+            defaultValue={sections.filter((_, idx) => idx === 0).map(s => String(s.id))}
         >
-          {sections.map((section) => (
+          {sections.map((section, index) => (
               <AccordionItem
                   key={section.id}
                   value={String(section.id)}
-                  className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-200"
+                  className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-200 w-full"
               >
-                <div className="flex items-center">
-                  <AccordionTrigger className="flex-1 text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none flex items-center gap-2">
-                    <span
-                        className="flex-1 cursor-pointer select-none hover:underline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/section/tree/${section.id}`);
-                        }}
+                <AccordionTrigger className="flex w-full items-center justify-between text-xl font-semibold px-6 py-4 text-left text-gray-900 hover:text-[#3A86FF] focus:outline-none gap-2">
+                  <span className="mr-2">
+                    {index === 0 ? (
+                      <CheckCircle className="text-green-500" size={20} />
+                    ) : (
+                      <Lock className="text-gray-400" size={20} />
+                    )}
+                  </span>
+                  <span
+                    className="flex-1 min-w-0 truncate select-none"
+                    style={{ textDecoration: 'none', userSelect: 'none' }}
+                  >
+                    {section.title}
+                  </span>
+                </AccordionTrigger>
+                {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+                  <div className="flex items-center ml-2 gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-blue-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditSection(section);
+                      }}
+                      title="Редактировать раздел"
                     >
-                      {section.title}
-                    </span>
-                    {/* Иконка раскрытия/сворачивания */}
-                    <span
-                        className="ml-2 flex-shrink-0"
-                        onClick={(e) => e.stopPropagation()}
+                      <Pencil className="w-5 h-5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSectionToDelete(section.id);
+                      }}
+                      title="Удалить раздел"
                     >
-                      {/* Иконка будет автоматически добавлена AccordionTrigger */}
-                    </span>
-                  </AccordionTrigger>
-                  {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                    <div className="flex items-center ml-2 gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-blue-500"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditSection(section);
-                        }}
-                        title="Редактировать раздел"
-                      >
-                        <Pencil className="w-5 h-5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSectionToDelete(section.id);
-                        }}
-                        title="Удалить раздел"
-                      >
-                        <Trash2 className="h-5 w-5"/>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                      <Trash2 className="h-5 w-5"/>
+                    </Button>
+                  </div>
+                )}
                 <AccordionContent className="px-6 pb-4">
                   {section.description && (
                       <p className="text-gray-600 mb-2">{section.description}</p>
@@ -880,44 +875,44 @@ const TopicPage: React.FC = () => {
                       </div>
                       <ul className="flex flex-col gap-2">
                         {subsectionsMap[section.id].map((sub) => (
-                            <li
-                                key={sub.id}
-                                className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between"
-                            >
+                          <li
+                            key={sub.id}
+                            className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between transition-colors hover:bg-blue-50"
+                            onClick={() => navigate(`/section/tree/${section.id}?sub=${sub.id}`)}
+                          >
                             <span
-                              className="text-gray-800 font-sans cursor-pointer hover:underline"
-                              onClick={() => navigate(`/section/tree/${section.id}?sub=${sub.id}`)}
+                              className="text-gray-800 font-sans cursor-pointer"
                             >
                               {sub.title}
                             </span>
-                              {(user?.role === "admin" ||
-                                      user?.role === "teacher") &&
-                                  editMode && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-blue-600"
-                                            onClick={() =>
-                                                handleOpenEditSubsection(section.id, sub)
-                                            }
-                                            title="Редактировать подраздел"
-                                        >
-                                          <Pencil className="w-5 h-5" />
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-destructive"
-                                            onClick={() =>
-                                                handleDeleteSubsection(sub.id, section.id)
-                                            }
-                                            title="Удалить подраздел"
-                                        >
-                                          <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                      </div>
-                                  )}
+                            {(user?.role === "admin" ||
+                                    user?.role === "teacher") &&
+                                editMode && (
+                                    <div className="flex gap-2">
+                                      <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="text-blue-600"
+                                          onClick={() =>
+                                              handleOpenEditSubsection(section.id, sub)
+                                          }
+                                          title="Редактировать подраздел"
+                                      >
+                                        <Pencil className="w-5 h-5" />
+                                      </Button>
+                                      <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="text-destructive"
+                                          onClick={() =>
+                                              handleDeleteSubsection(sub.id, section.id)
+                                          }
+                                          title="Удалить подраздел"
+                                      >
+                                        <Trash2 className="h-4 w-4"/>
+                                      </Button>
+                                    </div>
+                                )}
                           </li>
                         ))}
                       </ul>
@@ -931,8 +926,12 @@ const TopicPage: React.FC = () => {
                       </div>
                       <ul className="flex flex-col gap-2">
                         {sectionTestsMap[section.id].map((test) => (
-                          <li key={test.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
-                            <span className="text-gray-800 font-sans cursor-pointer hover:underline" onClick={() => navigate(`/test/${test.id}`)}>
+                          <li
+                            key={test.id}
+                            className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between transition-colors hover:bg-blue-50"
+                            onClick={() => navigate(`/test/${test.id}`)}
+                          >
+                            <span className="text-gray-800 font-sans cursor-pointer">
                               {test.title}
                             </span>
                             {(user?.role === "admin" || user?.role === "teacher") && editMode && (
