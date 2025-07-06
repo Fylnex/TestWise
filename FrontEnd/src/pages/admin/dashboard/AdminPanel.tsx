@@ -1,15 +1,15 @@
 // TestWise/src/pages/AdminPanel.tsx
 import React, { useEffect, useState } from 'react';
-import { UserManagement } from '../components/admin/UserManagement';
-import { StudentProgress } from '../components/admin/StudentProgress';
+import { UserManagement } from '../../../components/admin/UserManagement';
+import { StudentProgress } from '../../../components/admin/StudentProgress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
-import TeacherDashboard from './TeacherDashboard';
+import TeacherDashboard from '../teacher/TeacherDashboard';
 import AdminGroupsTab from './AdminGroupsTab';
 import AdminAnalyticsTab from './AdminAnalyticsTab';
 import AdminRolesTab from './AdminRolesTab';
-import NotFound from './NotFound';
+import NotFound from '../../main/NotFound';
 
 export function AdminPanel() {
   const [tab, setTab] = useState(() => localStorage.getItem('adminTab') || 'users');

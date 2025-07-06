@@ -3,27 +3,31 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import TopicSection from "./pages/TopicSection";
-import Login from "./pages/Login";
-import { AdminPanel } from "./pages/AdminPanel";
-import Profile from "./pages/Profile";
-import About from "./pages/About";
-import Topics from "./pages/Topics";
+import Index from "./pages/main/Index";
+import NotFound from "./pages/main/NotFound";
+import TopicSection from "./pages/learning/sections/TopicSection";
+import Login from "./pages/auth/Login";
+import { AdminPanel } from "./pages/admin/dashboard/AdminPanel";
+import Profile from "./pages/auth/Profile";
+import About from "./pages/info/About";
+import Topics from "./pages/main/Topics";
 import { TopicProvider } from "./context/TopicContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import GroupManagement from "./pages/GroupManagement";
-import TopicPage from "./pages/TopicPage";
-import Settings from "./pages/Settings";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import Contact from "./pages/Contact";
-import CreateTopic from "./pages/CreateTopic";
-import TopicSectionTree from "./pages/TopicSectionTree";
-import CreateSubsection from "./pages/CreateSubsection";
-import CreateTestForSection from "./pages/CreateTestForSection";
+import TeacherDashboard from "./pages/admin/teacher/TeacherDashboard";
+import GroupManagement from "./pages/admin/teacher/GroupManagement";
+import TopicPage from "./pages/learning/topics/TopicPage";
+import Settings from "./pages/settings/Settings";
+import Privacy from "./pages/info/Privacy";
+import Terms from "./pages/info/Terms";
+import Contact from "./pages/info/Contact";
+import CreateTopic from "./pages/learning/topics/CreateTopic";
+import TopicSectionTree from "./pages/learning/topics/TopicSectionTree";
+import CreateSubsection from "./pages/learning/sections/CreateSubsection";
+import CreateTestForSection from "./pages/learning/tests/CreateTestForSection";
+import CreateTest from "./pages/learning/tests/CreateTest";
+import EditTest from "./pages/learning/tests/EditTest";
+import SectionPdfViewer from "./pages/learning/sections/SectionPdfViewer";
+import TestQuestionBuilder from "./pages/learning/tests/TestQuestionBuilder";
 import TestViewer from "./components/TestViewer";
 
 
@@ -183,11 +187,43 @@ const App = () => (
                 }
               />
               <Route
+                path="/test/create"
+                element={
+                  <AdminRoute>
+                    <CreateTest />
+                  </AdminRoute>
+                }
+              />
+              <Route
                 path="/test/:testId"
                 element={
                   <ProtectedRoute>
                     <TestViewer />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test/:testId/edit"
+                element={
+                  <AdminRoute>
+                    <EditTest />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/section/:sectionId/pdf"
+                element={
+                  <ProtectedRoute>
+                    <SectionPdfViewer />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test/:testId/questions"
+                element={
+                  <AdminRoute>
+                    <TestQuestionBuilder />
+                  </AdminRoute>
                 }
               />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

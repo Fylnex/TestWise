@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { topicApi } from '@/services/topicApi';
 import { groupApi } from '@/services/groupApi';
+import { testApi } from '@/services/testApi';
 import { Home } from 'lucide-react';
 
 // A map for static routes
@@ -51,6 +52,19 @@ const Breadcrumbs = () => {
             const groupPath = `/${pathnames.slice(0, i + 2).join('/')}`;
             const group = await groupApi.getGroup(Number(pathnames[i+1]));
             newDynamicNames[groupPath] = group.name;
+          } else if (prevSegment === 'test' && !isNaN(Number(currentSegment)) && pathnames[i+1] === 'questions') {
+            // Обработка пути /test/:testId/questions
+            const test = await testApi.getTest(Number(currentSegment));
+            newDynamicNames[currentPath] = test.title;
+            
+            // Если тест связан с темой, получаем название темы
+            if (test.topic_id) {
+              const topicPath = `/topic/${test.topic_id}`;
+              const topic = await topicApi.getTopic(test.topic_id);
+              newDynamicNames[topicPath] = topic.title;
+            }
+            
+
           }
         } catch (error) {
           console.error("Failed to fetch dynamic breadcrumb name:", error);
@@ -69,6 +83,62 @@ const Breadcrumbs = () => {
     return null; // Don't show breadcrumbs on the home page и на странице логина
   }
 
+  // Специальная обработка для /test/:testId/questions
+  const isTestQuestionsPage = pathnames.length >= 3 && 
+    pathnames[0] === 'test' && 
+    !isNaN(Number(pathnames[1])) && 
+    pathnames[2] === 'questions';
+
+  // Получаем информацию о тесте для хлебных крошек
+  const [testInfo, setTestInfo] = useState<{ 
+    topic?: string; 
+    topicId?: number;
+    test: string;
+    testId: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isTestQuestionsPage && pathnames[1]) {
+      const testId = Number(pathnames[1]);
+      testApi.getTest(testId)
+        .then(async (test) => {
+          console.log('Test data:', test);
+
+          const info: { 
+            topic?: string; 
+            topicId?: number;
+            test: string;
+            testId: number;
+          } = { 
+            test: test.title,
+            testId: test.id
+          };
+          
+          console.log('Test topic_id:', test.topic_id, 'Type:', typeof test.topic_id);
+          if (test.topic_id && test.topic_id > 0) {
+            try {
+              console.log('Attempting to fetch topic with ID:', test.topic_id);
+              const topic = await topicApi.getTopic(test.topic_id);
+              console.log('Fetched topic:', topic);
+              info.topic = topic.title;
+              info.topicId = test.topic_id;
+            } catch (error) {
+              console.error('Failed to fetch topic:', error);
+            }
+          } else {
+            console.log('No valid topic_id found for test. topic_id:', test.topic_id);
+          }
+          
+
+          
+
+          console.log('Final testInfo:', info);
+          setTestInfo(info);
+        })
+        .catch(console.error);
+    }
+  }, [isTestQuestionsPage, pathnames[1]]);
+
   return (
     <div className="container mx-auto px-6 pt-4">
       <Breadcrumb>
@@ -81,7 +151,62 @@ const Breadcrumbs = () => {
               </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          {pathnames.map((value, index) => {
+          
+          {isTestQuestionsPage && testInfo && (
+            <>
+              {console.log('Rendering breadcrumbs. testInfo:', testInfo, 'testInfo.topic:', testInfo.topic)}
+
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/topics">Темы</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              
+              {(() => {
+                console.log('Conditional rendering check:', {
+                  topic: testInfo.topic,
+                  topicId: testInfo.topicId,
+                  hasTopic: !!testInfo.topic,
+                  topicLength: testInfo.topic?.length
+                });
+                return testInfo.topic ? (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to={`/topic/${testInfo.topicId}`}>{testInfo.topic}</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </>
+                ) : (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>Тема не найдена</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                );
+              })()}
+              
+
+              
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to={`/test/${testInfo.testId}`}>{testInfo.test}</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Редактирование вопросов</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+          
+          {/* Обычные хлебные крошки (не для страницы редактирования вопросов) */}
+          {!isTestQuestionsPage && pathnames.map((value, index) => {
             const to = `/${pathnames.slice(0, index + 1).join('/')}`;
             const isLast = index === pathnames.length - 1;
             let name = dynamicNames[to] || breadcrumbNameMap[to] || value;
@@ -113,6 +238,26 @@ const Breadcrumbs = () => {
             }
             // Skip segments that are part of a larger dynamic name (like 'group' in '/teacher/group/1')
             if (pathnames[index-1] === 'teacher' && value === 'group' && !isNaN(Number(pathnames[index+1]))) {
+              return null;
+            }
+            
+            // Специальная обработка для /test/:testId/questions
+            if (pathnames[index-1] === 'test' && !isNaN(Number(value)) && pathnames[index+1] === 'questions') {
+              const test = dynamicNames[to];
+              if (test) {
+                return (
+                  <React.Fragment key={to}>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{test}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </React.Fragment>
+                );
+              }
+            }
+            
+            // Пропускаем сегмент 'questions' в пути /test/:testId/questions
+            if (pathnames[index-1] === 'test' && !isNaN(Number(pathnames[index-2])) && value === 'questions') {
               return null;
             }
             return (

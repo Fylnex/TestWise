@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, Pencil } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Save, X, Edit3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import Header from "@/components/Header";
 import Breadcrumbs from "@/components/Breadcrumbs";
+
 
 const TopicPage: React.FC = () => {
   const { topicId } = useParams<{ topicId: string }>();
@@ -85,9 +86,7 @@ const TopicPage: React.FC = () => {
     Record<number, boolean>
   >({});
 
-  const [openQuestionsEditor, setOpenQuestionsEditor] = useState<number | null>(
-    null,
-  );
+  const [openTestEditor, setOpenTestEditor] = useState<number | null>(null);
 
   const [editMode, setEditMode] = useState(false);
 
@@ -134,6 +133,17 @@ const TopicPage: React.FC = () => {
   const [errorEditSection, setErrorEditSection] = useState<string | null>(null);
 
   const [sectionTestsMap, setSectionTestsMap] = useState<Record<number, Test[]>>({})
+
+  // State for editing topic title
+  const [editingTopicTitle, setEditingTopicTitle] = useState(false);
+  const [topicTitleForm, setTopicTitleForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    image: '',
+  });
+  const [savingTopicTitle, setSavingTopicTitle] = useState(false);
+  const [errorTopicTitle, setErrorTopicTitle] = useState<string | null>(null);
 
   interface SubsectionFormData {
     file?: File;
@@ -224,9 +234,6 @@ const TopicPage: React.FC = () => {
         ...testForm,
         topic_id: Number(topicId),
         duration: testForm.duration ? Number(testForm.duration) : null,
-        question_ids: testForm.question_ids
-          ? testForm.question_ids.split(",").map((id) => Number(id.trim()))
-          : undefined,
       });
       setTests((prev) => [...prev, newTest]);
       setTestForm({
@@ -381,13 +388,8 @@ const TopicPage: React.FC = () => {
         duration: sectionTestForm.duration
           ? Number(sectionTestForm.duration)
           : null,
-        question_ids: sectionTestForm.question_ids
-          ? sectionTestForm.question_ids
-              .split(",")
-              .map((id) => Number(id.trim()))
-          : undefined,
       });
-      // Добавляем тест только в секцию
+      // Добавляем тест в секцию и обновляем карту тестов
       setSections((prev) =>
         prev.map((s) =>
           s.id === sectionId
@@ -401,6 +403,12 @@ const TopicPage: React.FC = () => {
             : s,
         ),
       );
+      
+      // Обновляем карту тестов секций
+      setSectionTestsMap((prev) => ({
+        ...prev,
+        [sectionId]: [...(prev[sectionId] || []), newTest],
+      }));
       setSectionTestForm({
         title: "",
         type: "hinted",
@@ -453,6 +461,12 @@ const TopicPage: React.FC = () => {
             : s,
         ),
       );
+      
+      // Обновляем карту тестов секций
+      setSectionTestsMap((prev) => ({
+        ...prev,
+        [sectionId]: (prev[sectionId] || []).filter((t) => t.id !== testId),
+      }));
     } catch {
       alert("Ошибка удаления теста");
     }
@@ -606,6 +620,46 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  // Handlers for editing topic title
+  const handleStartEditTopicTitle = () => {
+    if (!topic) return;
+    setTopicTitleForm({ 
+      title: topic.title,
+      description: topic.description || '',
+      category: topic.category || '',
+      image: topic.image || ''
+    });
+    setEditingTopicTitle(true);
+    setErrorTopicTitle(null);
+  };
+
+  const handleCancelEditTopicTitle = () => {
+    setEditingTopicTitle(false);
+    setTopicTitleForm({ title: '', description: '', category: '', image: '' });
+    setErrorTopicTitle(null);
+  };
+
+  const handleSaveTopicTitle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topic) return;
+    setSavingTopicTitle(true);
+    setErrorTopicTitle(null);
+    try {
+      const updated = await topicApi.updateTopic(topic.id, {
+        title: topicTitleForm.title,
+        description: topicTitleForm.description || null,
+        category: topicTitleForm.category || null,
+        image: topicTitleForm.image || null,
+      });
+      setTopic(updated);
+      setEditingTopicTitle(false);
+    } catch (err) {
+      setErrorTopicTitle('Ошибка при сохранении темы');
+    } finally {
+      setSavingTopicTitle(false);
+    }
+  };
+
   if (loading) {
     return (
         <div className="min-h-screen bg-gray-50">
@@ -646,9 +700,22 @@ const TopicPage: React.FC = () => {
           )}
         </div>
         <div className="mb-8 mt-2">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-sans mb-2">
-            {topic.title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-sans mb-2">
+              {topic.title}
+            </h1>
+            {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-blue-500 hover:text-blue-600"
+                onClick={handleStartEditTopicTitle}
+                title="Редактировать тему"
+              >
+                <Pencil className="w-6 h-6" />
+              </Button>
+            )}
+          </div>
           {topic.description && (
               <p className="text-lg text-gray-600 max-w-2xl font-sans mb-2">
                 {topic.description}
@@ -865,17 +932,39 @@ const TopicPage: React.FC = () => {
                       <ul className="flex flex-col gap-2">
                         {sectionTestsMap[section.id].map((test) => (
                           <li key={test.id} className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between">
-                            <span className="text-gray-800 font-sans">{test.title}</span>
+                            <span className="text-gray-800 font-sans cursor-pointer hover:underline" onClick={() => navigate(`/test/${test.id}`)}>
+                              {test.title}
+                            </span>
                             {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive"
-                                onClick={() => handleDeleteSectionTest(test.id, section.id)}
-                                title="Удалить тест"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-blue-600"
+                                  onClick={() => navigate(`/test/${test.id}/edit`)}
+                                  title="Редактировать тест"
+                                >
+                                  <Pencil className="w-5 h-5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-green-600"
+                                  onClick={() => navigate(`/test/${test.id}/questions`)}
+                                  title="Редактировать вопросы"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteSectionTest(test.id, section.id)}
+                                  title="Удалить тест"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             )}
                           </li>
                         ))}
@@ -930,32 +1019,39 @@ const TopicPage: React.FC = () => {
                     >
                       Пройти тест
                     </Button>
-                    {(user?.role === "admin" || user?.role === "teacher") && (
+                    {(user?.role === "admin" || user?.role === "teacher") && editMode && (
                       <>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-blue-600"
+                            onClick={() => navigate(`/test/${test.id}/edit`)}
+                            title="Редактировать тест"
+                        >
+                          <Pencil className="w-5 h-5" />
+                        </Button>
                         <Button
                             size="sm"
                             variant="outline"
                             className="rounded-full border-[#3A86FF] text-[#3A86FF]"
-                            onClick={() => setOpenQuestionsEditor(test.id)}
+                            onClick={() => navigate(`/test/${test.id}/questions`)}
                         >
                           Редактировать вопросы
                         </Button>
-                        {editMode && (
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive"
-                                onClick={async () => {
-                                  await testApi.deleteTest(test.id);
-                                  setTests((prev) =>
-                                      prev.filter((t) => t.id !== test.id),
-                                  );
-                                }}
-                                title="Удалить тест"
-                            >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={async () => {
+                              await testApi.deleteTest(test.id);
+                              setTests((prev) =>
+                                  prev.filter((t) => t.id !== test.id),
+                              );
+                            }}
+                            title="Удалить тест"
+                        >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                       </>
                     )}
                   </div>
@@ -1108,6 +1204,81 @@ const TopicPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog for editing topic title */}
+      <Dialog open={editingTopicTitle} onOpenChange={(open) => !open && setEditingTopicTitle(false)}>
+        <DialogContent>
+                  <DialogHeader>
+          <DialogTitle>Редактировать тему</DialogTitle>
+        </DialogHeader>
+          <form onSubmit={handleSaveTopicTitle} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Название темы</label>
+              <input
+                className="border rounded px-3 py-2 w-full text-lg"
+                value={topicTitleForm.title}
+                onChange={(e) => setTopicTitleForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Название темы"
+                required
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Описание темы</label>
+              <textarea
+                className="border rounded px-3 py-2 w-full"
+                value={topicTitleForm.description}
+                onChange={(e) => setTopicTitleForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Описание темы (необязательно)"
+                rows={4}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Категория</label>
+              <input
+                className="border rounded px-3 py-2 w-full"
+                value={topicTitleForm.category}
+                onChange={(e) => setTopicTitleForm(prev => ({ ...prev, category: e.target.value }))}
+                placeholder="Например, 'Физика' (необязательно)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">URL изображения (необязательно)</label>
+              <input
+                className="border rounded px-3 py-2 w-full"
+                value={topicTitleForm.image}
+                onChange={(e) => setTopicTitleForm(prev => ({ ...prev, image: e.target.value }))}
+                placeholder="https://example.com/image.jpg"
+              />
+              {topicTitleForm.image && (
+                <div className="mt-2">
+                  <img 
+                    src={topicTitleForm.image} 
+                    alt="Предпросмотр" 
+                    className="rounded-lg max-h-48 object-cover w-full" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={savingTopicTitle}>
+                {savingTopicTitle ? "Сохранение..." : "Сохранить"}
+              </Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={handleCancelEditTopicTitle}>
+                  Отмена
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+            {errorTopicTitle && <div className="text-red-500 text-sm mt-2">{errorTopicTitle}</div>}
+          </form>
+        </DialogContent>
+      </Dialog>
+
+
     </div>
   );
 };

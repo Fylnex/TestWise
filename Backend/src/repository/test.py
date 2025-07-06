@@ -105,7 +105,7 @@ async def delete_test_permanently(session: AsyncSession, test_id: int) -> None:
 
 async def list_tests(session: AsyncSession, model: type[Test], **filters: Any) -> list[Test]:
     """Retrieve a list of tests with applied filters."""
-    stmt = select(model).where(model.is_archived == False)
+    stmt = select(model)
     for key, value in filters.items():
         stmt = stmt.where(getattr(model, key) == value)
     result = await session.execute(stmt)

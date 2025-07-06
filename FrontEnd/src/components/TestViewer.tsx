@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { CheckCircle, XCircle, ArrowLeft, Clock, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, Clock, HelpCircle, Edit } from 'lucide-react';
 import { testApi, Test } from '@/services/testApi';
 import { questionApi, Question } from '@/services/questionApi';
+import { useAuth } from '@/context/AuthContext';
 
 interface TestViewerProps {
   testId?: number;
@@ -20,6 +21,7 @@ interface Answer {
 const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
   const { testId: urlTestId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const testId = propTestId || Number(urlTestId);
 
   const [test, setTest] = useState<Test | null>(null);
@@ -256,6 +258,16 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
               <Button onClick={handleStartTest} className="flex-1">
                 Начать тест
               </Button>
+              {(user?.role === "admin" || user?.role === "teacher") && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate(`/test/${testId}/edit`)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Редактировать
+                </Button>
+              )}
               <Button variant="outline" onClick={() => navigate(-1)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Назад
@@ -307,6 +319,16 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Назад
               </Button>
+              {(user?.role === "admin" || user?.role === "teacher") && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate(`/test/${testId}/edit`)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Редактировать
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 onClick={() => {
