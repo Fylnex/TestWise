@@ -23,6 +23,7 @@ import Contact from "./pages/info/Contact";
 import CreateTopic from "./pages/learning/topics/CreateTopic";
 import TopicSectionTree from "./pages/learning/topics/TopicSectionTree";
 import CreateSubsection from "./pages/learning/sections/CreateSubsection";
+import EditSubsection from "./pages/learning/sections/EditSubsection";
 import CreateTestForSection from "./pages/learning/tests/CreateTestForSection";
 import CreateTest from "./pages/learning/tests/CreateTest";
 import EditTest from "./pages/learning/tests/EditTest";
@@ -162,12 +163,21 @@ const App = () => (
                   </AdminRoute>
                 }
               />
+
               <Route
-                path="/subsection/create/:sectionId"
+                path="/topic/:topicId/section/:sectionId/subsection/create"
                 element={
-                  <ProtectedRoute>
+                  <AdminRoute>
                     <CreateSubsection />
-                  </ProtectedRoute>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/section/:sectionId/subsection/:subsectionId/edit"
+                element={
+                  <AdminRoute>
+                    <EditSubsection />
+                  </AdminRoute>
                 }
               />
               <Route
@@ -176,6 +186,14 @@ const App = () => (
                   <ProtectedRoute>
                     <CreateTestForSection />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/section/:sectionId/test/create"
+                element={
+                  <AdminRoute>
+                    <CreateTestForSection />
+                  </AdminRoute>
                 }
               />
               <Route
@@ -203,7 +221,39 @@ const App = () => (
                 }
               />
               <Route
+                path="/topic/:topicId/section/:sectionId/test/:testId"
+                element={
+                  <ProtectedRoute>
+                    <TestViewer />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/test/:testId"
+                element={
+                  <ProtectedRoute>
+                    <TestViewer />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/test/:testId/edit"
+                element={
+                  <AdminRoute>
+                    <EditTest />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/section/:sectionId/test/:testId/edit"
+                element={
+                  <AdminRoute>
+                    <EditTest />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/test/:testId/edit"
                 element={
                   <AdminRoute>
                     <EditTest />
@@ -220,6 +270,22 @@ const App = () => (
               />
               <Route
                 path="/test/:testId/questions"
+                element={
+                  <AdminRoute>
+                    <TestQuestionBuilder />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/section/:sectionId/test/:testId/questions/edit"
+                element={
+                  <AdminRoute>
+                    <TestQuestionBuilder />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/topic/:topicId/test/:testId/questions/edit"
                 element={
                   <AdminRoute>
                     <TestQuestionBuilder />

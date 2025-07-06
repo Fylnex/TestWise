@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import Layout from '@/components/Layout';
 
 const EditTest: React.FC = () => {
-  const { testId } = useParams();
+  const { testId, topicId, sectionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -69,7 +69,9 @@ const EditTest: React.FC = () => {
       await testApi.updateTest(Number(testId), updateData);
       
       // Перенаправляем обратно на страницу темы или секции
-      if (test?.section_id) {
+      if (topicId) {
+        navigate(`/topic/${topicId}`);
+      } else if (test?.section_id) {
         navigate(`/topic/${test.topic_id}`);
       } else if (test?.topic_id) {
         navigate(`/topic/${test.topic_id}`);
@@ -134,7 +136,13 @@ const EditTest: React.FC = () => {
         <div className="flex items-center mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (topicId) {
+                navigate(`/topic/${topicId}`);
+              } else {
+                navigate(-1);
+              }
+            }}
             className="mr-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -212,7 +220,13 @@ const EditTest: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate(-1)}
+                  onClick={() => {
+                    if (topicId) {
+                      navigate(`/topic/${topicId}`);
+                    } else {
+                      navigate(-1);
+                    }
+                  }}
                   disabled={saving}
                 >
                   Отмена

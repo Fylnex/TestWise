@@ -19,7 +19,7 @@ interface Answer {
 }
 
 const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
-  const { testId: urlTestId } = useParams();
+  const { testId: urlTestId, topicId, sectionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const testId = propTestId || Number(urlTestId);
@@ -200,7 +200,13 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
     return (
       <div className="max-w-4xl mx-auto py-8">
         <div className="text-center text-red-500">{error}</div>
-        <Button onClick={() => navigate(-1)} className="mt-4">
+        <Button onClick={() => {
+          if (topicId) {
+            navigate(`/topic/${topicId}`);
+          } else {
+            navigate(-1);
+          }
+        }} className="mt-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад
         </Button>
@@ -212,7 +218,13 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
     return (
       <div className="max-w-4xl mx-auto py-8">
         <div className="text-center">Тест не найден</div>
-        <Button onClick={() => navigate(-1)} className="mt-4">
+        <Button onClick={() => {
+          if (topicId) {
+            navigate(`/topic/${topicId}`);
+          } else {
+            navigate(-1);
+          }
+        }} className="mt-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад
         </Button>
@@ -258,17 +270,13 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
               <Button onClick={handleStartTest} className="flex-1">
                 Начать тест
               </Button>
-              {(user?.role === "admin" || user?.role === "teacher") && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate(`/test/${testId}/edit`)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  Редактировать
-                </Button>
-              )}
-              <Button variant="outline" onClick={() => navigate(-1)}>
+              <Button variant="outline" onClick={() => {
+                if (topicId) {
+                  navigate(`/topic/${topicId}`);
+                } else {
+                  navigate(-1);
+                }
+              }}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Назад
               </Button>
@@ -315,20 +323,16 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
             </div>
 
             <div className="flex gap-4 justify-center">
-              <Button onClick={() => navigate(-1)}>
+              <Button onClick={() => {
+                if (topicId) {
+                  navigate(`/topic/${topicId}`);
+                } else {
+                  navigate(-1);
+                }
+              }}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Назад
               </Button>
-              {(user?.role === "admin" || user?.role === "teacher") && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate(`/test/${testId}/edit`)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  Редактировать
-                </Button>
-              )}
               <Button 
                 variant="outline" 
                 onClick={() => {

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { testApi, Test } from "@/services/testApi";
 
 const TestQuestionBuilder = () => {
-  const { testId } = useParams();
+  const { testId, topicId, sectionId } = useParams();
   const navigate = useNavigate();
   const [test, setTest] = useState<Test | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +46,13 @@ const TestQuestionBuilder = () => {
     <Layout>
       <div className="max-w-4xl mx-auto py-8">
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
+          <Button variant="ghost" onClick={() => {
+            if (topicId) {
+              navigate(`/topic/${topicId}`);
+            } else {
+              navigate(-1);
+            }
+          }}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Назад
           </Button>
@@ -67,7 +73,15 @@ const TestQuestionBuilder = () => {
             </div>
             <Button
               variant="outline"
-              onClick={() => navigate(`/test/${test.id}/edit`)}
+              onClick={() => {
+                if (topicId && sectionId) {
+                  navigate(`/topic/${topicId}/section/${sectionId}/test/${test.id}/edit`);
+                } else if (topicId) {
+                  navigate(`/topic/${topicId}/test/${test.id}/edit`);
+                } else {
+                  navigate(`/test/${test.id}/edit`);
+                }
+              }}
             >
               Редактировать тест
             </Button>

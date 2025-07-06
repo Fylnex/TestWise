@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams, Navigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2, ChevronDown, ChevronRight, Menu, ChevronLeft, FileText, Folder, FilePlus2, FileCheck2 } from 'lucide-react';
+import { PlusCircle, Trash2, ChevronDown, ChevronRight, Menu, ChevronLeft, FileText, Folder, FilePlus2, FileCheck2, BookOpen } from 'lucide-react';
 import Header from '@/components/Header';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { sectionApi } from '@/services/sectionApi';
@@ -12,16 +12,59 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { progressApi, TestAttempt } from '@/services/progressApi';
+import { useAuth } from '@/context/AuthContext';
 
-function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSub, setShowTopicStructure }) {
+function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSub, setShowTopicStructure, testAttempts = [] }) {
   const [open, setOpen] = useState(true);
   const hasChildren = (item.subsections && item.subsections.length > 0) || (item.tests && item.tests.length > 0);
+
+  // Функция для определения состояния теста
+  const getTestStatus = (testId: number) => {
+    const attempts = testAttempts.filter(attempt => attempt.test_id === testId);
+    if (attempts.length === 0) return 'not-started';
+    
+    const completedAttempts = attempts.filter(attempt => attempt.completed_at);
+    if (completedAttempts.length === 0) return 'in-progress';
+    
+    const bestScore = Math.max(...completedAttempts.map(attempt => attempt.score || 0));
+    if (bestScore >= 80) return 'excellent';
+    if (bestScore >= 60) return 'passed';
+    return 'failed';
+  };
+
+  // Функция для получения иконки состояния теста
+  const getTestStatusIcon = (testId: number) => {
+    const status = getTestStatus(testId);
+    switch (status) {
+      case 'excellent':
+        return <div className="w-3 h-3 rounded-full bg-green-500 mr-1" title="Отлично (80%+)"></div>;
+      case 'passed':
+        return <div className="w-3 h-3 rounded-full bg-blue-500 mr-1" title="Сдан (60%+)"></div>;
+      case 'failed':
+        return <div className="w-3 h-3 rounded-full bg-red-500 mr-1" title="Не сдан (<60%)"></div>;
+      case 'in-progress':
+        return <div className="w-3 h-3 rounded-full bg-yellow-500 mr-1" title="В процессе"></div>;
+      default:
+        return <div className="w-3 h-3 rounded-full bg-gray-300 mr-1" title="Не начат"></div>;
+    }
+  };
 
   // Определяем иконку
   let icon = null;
   if (item.type === 'section') icon = <Folder className="mr-1 text-blue-500" size={18} />;
+  else if (item.type === 'topic-section') icon = <BookOpen className="mr-1 text-orange-500" size={18} />;
+  else if (item.type === 'final-section') icon = <Folder className="mr-1 text-purple-500" size={18} />;
   else if (item.type === 'subsection') icon = <FileText className="mr-1 text-gray-400" size={16} />;
-  else if (item.type === 'test') icon = <FileCheck2 className="mr-1 text-green-500" size={16} />;
+  else if (item.type === 'test') {
+    const statusIcon = getTestStatusIcon(item.id);
+    icon = (
+      <div className="flex items-center">
+        {statusIcon}
+        <FileCheck2 className="text-green-500" size={16} />
+      </div>
+    );
+  }
 
   // Увеличиваем отступы для подразделов и тестов
   let paddingLeft = 12;
@@ -35,16 +78,23 @@ function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSu
         style={{ paddingLeft }}
         onClick={e => {
           e.stopPropagation();
-          if (item.type === 'section') {
+          if (item.type === 'section' || item.type === 'topic-section' || item.type === 'final-section') {
             setSelectedSection(item);
             setSelectedSub(null);
             setShowTopicStructure(false);
-            navigate(`/section/tree/${item.id}`);
+            if (item.type === 'final-section' || item.type === 'topic-section') {
+              // Для виртуальных секций не меняем URL
+            } else {
+              navigate(`/section/tree/${item.id}`);
+            }
           } else if (item.type === 'subsection') {
             setSelectedSub(item);
             setSelectedSection(null);
             setShowTopicStructure(false);
             navigate(`/section/tree/${item.section_id}?sub=${item.id}`);
+          } else if (item.type === 'test') {
+            // Для тестов сразу переходим к тесту
+            navigate(`/test/${item.id}`);
           }
         }}
       >
@@ -59,10 +109,10 @@ function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSu
       {hasChildren && open && (
         <ul>
           {item.subsections?.map(sub =>
-            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} />
+            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} />
           )}
           {item.tests?.map(test =>
-            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 2} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} />
+            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 2} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} />
           )}
         </ul>
       )}
@@ -76,6 +126,7 @@ export default function TopicSectionTree() {
   const [searchParams] = useSearchParams();
   const subId = searchParams.get('sub');
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Если sectionId отсутствует, редирект на 404
   if (!sectionId) return <Navigate to="/404" />;
@@ -100,6 +151,10 @@ export default function TopicSectionTree() {
 
   const [showTopicStructure, setShowTopicStructure] = useState(false);
 
+  // Состояние для попыток тестов
+  const [testAttempts, setTestAttempts] = useState<TestAttempt[]>([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
+
   useEffect(() => {
     if (!sectionId) return;
     setLoadingCrumbs(true);
@@ -122,15 +177,59 @@ export default function TopicSectionTree() {
       topicApi.getSectionsByTopic(topicId),
       testApi.getTestsByTopic(topicId)
     ]).then(async ([sections, tests]) => {
-      // Для каждой секции получаем подсекции и тесты
+      // Для каждой секции получаем подсекции и тесты через отдельные запросы
       const sectionsWithSubs = await Promise.all(
         sections.map(async (section) => {
           const sectionWithSubs = await sectionApi.getSectionSubsections(section.id);
-          const sectionTests = tests.filter(t => t.section_id === section.id && t.type !== 'final');
+          const sectionTests = await testApi.getTestsBySection(section.id);
           return { ...section, subsections: sectionWithSubs.subsections, tests: sectionTests };
         })
       );
-      setSections(sectionsWithSubs);
+      
+      // Получаем тесты по теме (не привязанные к секциям)
+      const topicTests = tests.filter(t => !t.section_id && t.type !== 'final');
+      
+      // Получаем итоговые тесты по теме
+      const finalTests = tests.filter(t => t.type === 'final');
+      
+      // Создаем массив секций с добавлением тестов по теме и итоговых тестов
+      let allSections = [...sectionsWithSubs];
+      
+      // Добавляем тесты по теме, если они есть
+      if (topicTests.length > 0) {
+        allSections.push({ 
+          id: -1, // Виртуальный ID для тестов по теме
+          title: 'Тесты по теме', 
+          type: 'topic-section',
+          tests: topicTests,
+          subsections: [],
+          topic_id: topicId,
+          content: '',
+          description: '',
+          order: 999,
+          created_at: new Date().toISOString(),
+          is_archived: false
+        } as any);
+      }
+      
+      // Добавляем итоговые тесты, если они есть
+      if (finalTests.length > 0) {
+        allSections.push({ 
+          id: -2, // Виртуальный ID для итоговых тестов
+          title: 'Итоговые тесты', 
+          type: 'final-section',
+          tests: finalTests,
+          subsections: [],
+          topic_id: topicId,
+          content: '',
+          description: '',
+          order: 1000,
+          created_at: new Date().toISOString(),
+          is_archived: false
+        } as any);
+      }
+      
+      setSections(allSections);
     })
     .finally(() => setLoadingTree(false));
   }, [topicId]);
@@ -149,6 +248,16 @@ export default function TopicSectionTree() {
       })
       .finally(() => setLoadingSub(false));
   }, [subId, sectionId]);
+
+  // Загрузить попытки тестов для текущего пользователя
+  useEffect(() => {
+    if (!user?.id) return;
+    setLoadingAttempts(true);
+    progressApi.getTestAttempts(user.id)
+      .then(setTestAttempts)
+      .catch(console.error)
+      .finally(() => setLoadingAttempts(false));
+  }, [user?.id]);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -204,6 +313,7 @@ export default function TopicSectionTree() {
                     setSelectedSection={setSelectedSection}
                     setSelectedSub={setSelectedSub}
                     setShowTopicStructure={setShowTopicStructure}
+                    testAttempts={testAttempts}
                   />
                 )}
               </ul>
@@ -255,6 +365,7 @@ export default function TopicSectionTree() {
                     setSelectedSection={setSelectedSection}
                     setSelectedSub={setSelectedSub}
                     setShowTopicStructure={setShowTopicStructure}
+                    testAttempts={testAttempts}
                   />
                 )}
               </ul>
@@ -266,22 +377,74 @@ export default function TopicSectionTree() {
             </Card>
           ) : selectedSection ? (
             <Card className="w-full max-w-2xl mx-auto mb-8 p-6 bg-white rounded-xl shadow border border-gray-200">
-              <h2 className="text-xl font-bold mb-2 flex items-center"><Folder className="mr-2 text-blue-500" />{selectedSection.title}</h2>
+              <h2 className="text-xl font-bold mb-2 flex items-center">
+                {selectedSection.type === 'final-section' ? (
+                  <Folder className="mr-2 text-purple-500" />
+                ) : selectedSection.type === 'topic-section' ? (
+                  <BookOpen className="mr-2 text-orange-500" />
+                ) : (
+                  <Folder className="mr-2 text-blue-500" />
+                )}
+                {selectedSection.title}
+              </h2>
               {selectedSection.description && <div className="mb-4 text-gray-700 whitespace-pre-line">{selectedSection.description}</div>}
-              <div className="mb-2 font-semibold">Подразделы:</div>
-              {selectedSection.subsections && selectedSection.subsections.length > 0 ? (
-                <ul className="mb-4">
-                  {selectedSection.subsections.map((sub: any) => (
-                    <li key={sub.id} className="flex items-center mb-1 pl-4"><FileText className="mr-2 text-gray-400" size={16} />{sub.title}</li>
-                  ))}
-                </ul>
-              ) : <div className="mb-4 text-gray-400">Нет подразделов</div>}
-              <div className="mb-2 font-semibold">Тесты:</div>
+              {selectedSection.type === 'section' && (
+                <>
+                  <div className="mb-2 font-semibold">Подразделы:</div>
+                  {selectedSection.subsections && selectedSection.subsections.length > 0 ? (
+                    <ul className="mb-4">
+                      {selectedSection.subsections.map((sub: any) => (
+                        <li key={sub.id} className="flex items-center mb-1 pl-4"><FileText className="mr-2 text-gray-400" size={16} />{sub.title}</li>
+                      ))}
+                    </ul>
+                  ) : <div className="mb-4 text-gray-400">Нет подразделов</div>}
+                </>
+              )}
+              <div className="mb-2 font-semibold">
+                {selectedSection.type === 'final-section' ? 'Итоговые тесты:' : 
+                 selectedSection.type === 'topic-section' ? 'Тесты по теме:' : 'Тесты:'}
+              </div>
               {selectedSection.tests && selectedSection.tests.length > 0 ? (
                 <ul>
-                  {selectedSection.tests.map((test: any) => (
-                    <li key={test.id} className="flex items-center mb-1 pl-4"><FileCheck2 className="mr-2 text-green-500" size={16} />{test.title}</li>
-                  ))}
+                  {selectedSection.tests.map((test: any) => {
+                    const attempts = testAttempts.filter(attempt => attempt.test_id === test.id);
+                    const completedAttempts = attempts.filter(attempt => attempt.completed_at);
+                    const bestScore = completedAttempts.length > 0 ? Math.max(...completedAttempts.map(attempt => attempt.score || 0)) : null;
+                    
+                    let statusColor = 'text-gray-400';
+                    let statusText = 'Не начат';
+                    
+                    if (attempts.length > 0 && completedAttempts.length === 0) {
+                      statusColor = 'text-yellow-500';
+                      statusText = 'В процессе';
+                    } else if (bestScore !== null) {
+                      if (bestScore >= 80) {
+                        statusColor = 'text-green-500';
+                        statusText = `Отлично (${bestScore}%)`;
+                      } else if (bestScore >= 60) {
+                        statusColor = 'text-blue-500';
+                        statusText = `Сдан (${bestScore}%)`;
+                      } else {
+                        statusColor = 'text-red-500';
+                        statusText = `Не сдан (${bestScore}%)`;
+                      }
+                    }
+                    
+                    return (
+                      <li key={test.id} className="flex items-center mb-1 pl-4">
+                        <FileCheck2 className="mr-2 text-green-500" size={16} />
+                        <span 
+                          className="cursor-pointer hover:text-blue-600 transition-colors"
+                          onClick={() => navigate(`/test/${test.id}`)}
+                        >
+                          {test.title}
+                        </span>
+                        <span className={`ml-2 text-xs ${statusColor}`}>
+                          {statusText}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : <div className="text-gray-400">Нет тестов</div>}
             </Card>

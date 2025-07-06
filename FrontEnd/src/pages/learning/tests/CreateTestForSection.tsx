@@ -82,7 +82,12 @@ export default function CreateTestForSection() {
         })
       ));
 
-      navigate(`/test/${createdTest.id}`);
+      // Перенаправляем обратно на страницу темы или секции
+      if (topicId) {
+        navigate(`/topic/${topicId}`);
+      } else {
+        navigate(`/test/${createdTest.id}`);
+      }
     } catch {
       setError('Ошибка при создании теста');
     } finally {
@@ -197,7 +202,13 @@ export default function CreateTestForSection() {
           <Button type="submit" disabled={loading}>
             {loading ? 'Создание...' : 'Сохранить тест'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+          <Button type="button" variant="outline" onClick={() => {
+            if (topicId) {
+              navigate(`/topic/${topicId}`);
+            } else {
+              navigate(-1);
+            }
+          }}>
             Отмена
           </Button>
         </div>

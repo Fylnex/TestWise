@@ -55,90 +55,46 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section + Welcome */}
-      <section className="relative bg-slate-50 min-h-[60vh] flex flex-col justify-center items-center overflow-hidden border-b border-slate-200">
+      <section className={`relative bg-slate-50 flex flex-col justify-center items-center overflow-hidden border-b border-slate-200 ${
+        user?.role === 'teacher' ? 'min-h-[30vh] py-8' : 'min-h-[60vh] py-16'
+      }`}>
         <div className="absolute inset-0 pointer-events-none select-none opacity-10" aria-hidden>
           <svg width="100%" height="100%" viewBox="0 0 1440 320" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path fill="#6366f1" fillOpacity="0.2" d="M0,160L60,170.7C120,181,240,203,360,197.3C480,192,600,160,720,133.3C840,107,960,85,1080,101.3C1200,117,1320,171,1380,197.3L1440,224L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path>
           </svg>
         </div>
-        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 py-16 text-center">
+        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 text-center">
           {user && (
             <>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-6">
+              <h2 className={`font-extrabold text-slate-900 mb-4 ${
+                user.role === 'teacher' ? 'text-2xl md:text-3xl' : 'text-3xl md:text-4xl'
+              }`}>
                 Добро пожаловать, {user.full_name || user.username}!
               </h2>
-              <div className="mb-6 text-slate-600 text-lg">
+              <div className={`mb-4 text-slate-600 ${
+                user.role === 'teacher' ? 'text-base' : 'text-lg'
+              }`}>
                 {user.role === 'student' && 'Рады видеть тебя на платформе! Начни обучение прямо сейчас.'}
                 {user.role === 'teacher' && 'Ваша панель управления курсами и темами готова к работе.'}
                 {user.role === 'admin' && 'Вы вошли как администратор. Управляйте платформой эффективно!'}
               </div>
             </>
           )}
-          <Button size="lg" className="text-lg px-8 py-4 rounded-full shadow-lg hover:scale-105 transition-transform" onClick={() => navigate('/topics')}>
+          <Button 
+            size={user?.role === 'teacher' ? 'default' : 'lg'} 
+            className={`${
+              user?.role === 'teacher' 
+                ? 'px-6 py-2 rounded-lg' 
+                : 'text-lg px-8 py-4 rounded-full shadow-lg hover:scale-105 transition-transform'
+            }`} 
+            onClick={() => navigate('/topics')}
+          >
             Начать обучение
           </Button>
         </div>
       </section>
 
-      {/* Быстрые действия и персонализация для преподавателя */}
-      {user?.role === 'teacher' && (
-        <section className="py-12 bg-white animate-fade-in border-b border-slate-200">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h2 className="text-3xl font-bold text-slate-900">Панель преподавателя</h2>
-              <div className="flex gap-2">
-                <Button onClick={() => navigate('/topics/create')}>
-                  <PlusCircle className="w-4 h-4 mr-2" />
-                  Создать тему
-                </Button>
-                <Button onClick={() => navigate('/teacher')} variant="outline">
-                  Мои группы
-                </Button>
-              </div>
-            </div>
 
-            <h3 className="text-xl font-semibold text-slate-800 mb-4">Мои недавние темы</h3>
-            
-            {loading ? (
-              <div className="text-center py-5">Загрузка тем...</div>
-            ) : (
-              (() => {
-                const teacherTopics = topics
-                  .filter(topic => topic.creator_id === user.id)
-                  .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-
-                if (teacherTopics.length === 0) {
-                  return (
-                    <div className="text-center py-10 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                      <h4 className="text-lg font-medium text-slate-700">Вы еще не создали ни одной темы.</h4>
-                      <p className="text-slate-500 mb-4 mt-1">Начните с создания своей первой темы, чтобы добавить учебные материалы.</p>
-                      <Button onClick={() => navigate('/topics/create')}>Создать первую тему</Button>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {teacherTopics.slice(0, 3).map(topic => (
-                      <div key={topic.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md hover:border-indigo-200 transition-all">
-                        <h4 className="font-bold text-lg text-slate-800 truncate">{topic.title}</h4>
-                        <p className="text-sm text-slate-500 mb-3 h-10 line-clamp-2">{topic.description || 'Нет описания.'}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">{topic.category || 'Без категории'}</span>
-                          <Link to={`/topic/${topic.id}`}>
-                            <Button variant="ghost" size="sm">
-                              Управлять <ArrowRight className="w-4 h-4 ml-1" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
-            )}
-          </div>
-        </section>
-      )}
 
       {/* Быстрые действия и персонализация для админа */}
       {/* {user?.role === 'admin' && (
@@ -158,20 +114,20 @@ const Index = () => {
         <section className="py-10 bg-white animate-fade-in border-b border-slate-100">
           <div className="container mx-auto px-4">
             <h2 className="text-2xl font-bold mb-6 text-slate-900">Последние изучаемые темы</h2>
-            {topics.filter(t => t.progress && t.progress.completion_percentage > 0)
+            {topics.filter(t => (t as any).progress && (t as any).progress.completion_percentage > 0)
               .sort((a, b) => {
-                const aDate = new Date(a.progress?.last_accessed || 0).getTime();
-                const bDate = new Date(b.progress?.last_accessed || 0).getTime();
+                const aDate = new Date((a as any).progress?.last_accessed || 0).getTime();
+                const bDate = new Date((b as any).progress?.last_accessed || 0).getTime();
                 return bDate - aDate;
               })
               .slice(0, 3).length === 0 ? (
                 <div className="text-slate-500">Пока нет изучаемых тем. Начните обучение!</div>
               ) : (
                 <div className="flex flex-wrap gap-4">
-                  {topics.filter(t => t.progress && t.progress.completion_percentage > 0)
+                  {topics.filter(t => (t as any).progress && (t as any).progress.completion_percentage > 0)
                     .sort((a, b) => {
-                      const aDate = new Date(a.progress?.last_accessed || 0).getTime();
-                      const bDate = new Date(b.progress?.last_accessed || 0).getTime();
+                      const aDate = new Date((a as any).progress?.last_accessed || 0).getTime();
+                      const bDate = new Date((b as any).progress?.last_accessed || 0).getTime();
                       return bDate - aDate;
                     })
                     .slice(0, 3)
@@ -183,8 +139,8 @@ const Index = () => {
                             <p className="text-sm text-slate-600 mb-2 line-clamp-2">{topic.description}</p>
                           </div>
                           <div className="mt-2">
-                            <Progress value={topic.progress?.completion_percentage ?? 0} className="h-2" />
-                            <div className="text-xs text-slate-400 mt-1">Прогресс: {topic.progress?.completion_percentage ?? 0}%</div>
+                            <Progress value={(topic as any).progress?.completion_percentage ?? 0} className="h-2" />
+                            <div className="text-xs text-slate-400 mt-1">Прогресс: {(topic as any).progress?.completion_percentage ?? 0}%</div>
                           </div>
                         </div>
                       </Link>
@@ -196,9 +152,13 @@ const Index = () => {
       )}
 
       {/* Темы */}
-      <section className="py-16 bg-gradient-to-br from-slate-50 via-white to-indigo-50 animate-fade-in">
+      <section className={`bg-gradient-to-br from-slate-50 via-white to-indigo-50 animate-fade-in ${
+        user?.role === 'teacher' ? 'py-8' : 'py-16'
+      }`}>
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 text-slate-900">Все темы</h2>
+          <h2 className={`font-bold text-center text-slate-900 ${
+            user?.role === 'teacher' ? 'text-2xl md:text-3xl mb-6' : 'text-3xl md:text-4xl mb-10'
+          }`}>Все темы</h2>
           {loading ? (
             <div className="text-center py-10 animate-pulse">Загрузка...</div>
           ) : topics.length === 0 ? (
@@ -228,20 +188,20 @@ const Index = () => {
                     </div>
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-xl text-slate-900 mb-1">{topic.title}</h3>
-                        <div className="text-sm text-slate-500 mb-1">{topic.category || 'Без категории'}</div>
-                        <div className="text-xs text-slate-400 mb-1">Автор: {getAuthorName(topic.creator_id)}</div>
-                      </div>
-                      <span className="text-sm text-indigo-600 font-semibold">
-                        {topic.progress?.completion_percentage ?? 0}%
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-4 flex-1">
-                      {topic.description}
-                    </p>
-                    <Progress value={topic.progress?.completion_percentage ?? 0} className="h-2" />
+                                            <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-bold text-xl text-slate-900 mb-1">{topic.title}</h3>
+                            <div className="text-sm text-slate-500 mb-1">{(topic as any).category || 'Без категории'}</div>
+                            <div className="text-xs text-slate-400 mb-1">Автор: {getAuthorName((topic as any).creator_id)}</div>
+                          </div>
+                          <span className="text-sm text-indigo-600 font-semibold">
+                            {(topic as any).progress?.completion_percentage ?? 0}%
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-4 flex-1">
+                          {topic.description}
+                        </p>
+                        <Progress value={(topic as any).progress?.completion_percentage ?? 0} className="h-2" />
                   </div>
                 </div>
               ))}

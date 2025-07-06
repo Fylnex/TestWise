@@ -490,13 +490,10 @@ const TopicPage: React.FC = () => {
     setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
   };
 
-  // Функция для открытия формы редактирования подраздела
+  // Функция для перехода на страницу редактирования подраздела
   const handleOpenEditSubsection = (sectionId: number, sub: Subsection) => {
-    console.debug("Opening edit form for subsection", sub);
-    setOpenSubsectionForm((prev) => ({ ...prev, [sectionId]: true }));
-    setEditSubsection((prev) => ({ ...prev, [sectionId]: sub }));
-    setSubsectionFormData((prev) => ({ ...prev, [sectionId]: { ...sub } }));
-    setSubsectionError((prev) => ({ ...prev, [sectionId]: null }));
+    console.debug("Navigating to edit page for subsection", sub);
+    navigate(`/topic/${topicId}/section/${sectionId}/subsection/${sub.id}/edit`);
   };
 
   // Функция для закрытия формы
@@ -765,35 +762,35 @@ const TopicPage: React.FC = () => {
                   >
                     {section.title}
                   </span>
+                  {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-blue-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditSection(section);
+                        }}
+                        title="Редактировать раздел"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSectionToDelete(section.id);
+                        }}
+                        title="Удалить раздел"
+                      >
+                        <Trash2 className="h-5 w-5"/>
+                      </Button>
+                    </div>
+                  )}
                 </AccordionTrigger>
-                {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                  <div className="flex items-center ml-2 gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-blue-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenEditSection(section);
-                      }}
-                      title="Редактировать раздел"
-                    >
-                      <Pencil className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSectionToDelete(section.id);
-                      }}
-                      title="Удалить раздел"
-                    >
-                      <Trash2 className="h-5 w-5"/>
-                    </Button>
-                  </div>
-                )}
                 <AccordionContent className="px-6 pb-4">
                   {section.description && (
                       <p className="text-gray-600 mb-2">{section.description}</p>
@@ -804,7 +801,7 @@ const TopicPage: React.FC = () => {
                           <Button
                               variant="outline"
                               className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF] mb-2"
-                              onClick={() => handleOpenCreateSubsection(section.id)}
+                              onClick={() => navigate(`/topic/${topicId}/section/${section.id}/subsection/create`)}
                           >
                             <PlusCircle className="h-4 w-4"/>{" "}
                             <span>Добавить подраздел</span>
@@ -878,10 +875,10 @@ const TopicPage: React.FC = () => {
                           <li
                             key={sub.id}
                             className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between transition-colors hover:bg-blue-50"
-                            onClick={() => navigate(`/section/tree/${section.id}?sub=${sub.id}`)}
                           >
                             <span
                               className="text-gray-800 font-sans cursor-pointer"
+                              onClick={() => navigate(`/section/tree/${section.id}?sub=${sub.id}`)}
                             >
                               {sub.title}
                             </span>
@@ -929,9 +926,11 @@ const TopicPage: React.FC = () => {
                           <li
                             key={test.id}
                             className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between transition-colors hover:bg-blue-50"
-                            onClick={() => navigate(`/test/${test.id}`)}
                           >
-                            <span className="text-gray-800 font-sans cursor-pointer">
+                            <span
+                              className="text-gray-800 font-sans cursor-pointer"
+                              onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}`)}
+                            >
                               {test.title}
                             </span>
                             {(user?.role === "admin" || user?.role === "teacher") && editMode && (
@@ -940,7 +939,7 @@ const TopicPage: React.FC = () => {
                                   size="icon"
                                   variant="ghost"
                                   className="text-blue-600"
-                                  onClick={() => navigate(`/test/${test.id}/edit`)}
+                                  onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}/edit`)}
                                   title="Редактировать тест"
                                 >
                                   <Pencil className="w-5 h-5" />
@@ -949,7 +948,7 @@ const TopicPage: React.FC = () => {
                                   size="icon"
                                   variant="ghost"
                                   className="text-green-600"
-                                  onClick={() => navigate(`/test/${test.id}/questions`)}
+                                  onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}/questions/edit`)}
                                   title="Редактировать вопросы"
                                 >
                                   <Edit3 className="w-4 h-4" />
@@ -978,7 +977,7 @@ const TopicPage: React.FC = () => {
                                 variant="outline"
                                 className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full border-[#3A86FF] text-[#3A86FF]"
                                 onClick={() =>
-                                    navigate(`/test/create/section/${section.id}`)
+                                    navigate(`/topic/${topicId}/section/${section.id}/test/create`)
                                 }
                             >
                               <PlusCircle className="h-4 w-4"/>{" "}
@@ -1014,7 +1013,7 @@ const TopicPage: React.FC = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/test/${test.id}`)}
+                      onClick={() => navigate(`/topic/${topicId}/test/${test.id}`)}
                     >
                       Пройти тест
                     </Button>
@@ -1024,7 +1023,7 @@ const TopicPage: React.FC = () => {
                             size="icon"
                             variant="ghost"
                             className="text-blue-600"
-                            onClick={() => navigate(`/test/${test.id}/edit`)}
+                            onClick={() => navigate(`/topic/${topicId}/test/${test.id}/edit`)}
                             title="Редактировать тест"
                         >
                           <Pencil className="w-5 h-5" />
@@ -1033,7 +1032,7 @@ const TopicPage: React.FC = () => {
                             size="sm"
                             variant="outline"
                             className="rounded-full border-[#3A86FF] text-[#3A86FF]"
-                            onClick={() => navigate(`/test/${test.id}/questions`)}
+                            onClick={() => navigate(`/topic/${topicId}/test/${test.id}/questions/edit`)}
                         >
                           Редактировать вопросы
                         </Button>
@@ -1060,33 +1059,7 @@ const TopicPage: React.FC = () => {
           </div>
         )}
       </div>
-      <footer className="bg-slate-900 text-white py-6 mt-auto">
-        <div className="container mx-auto px-6 text-center">
-          <p className="text-sm text-slate-400 mb-4">
-            © 2025. Все права защищены.
-          </p>
-          <div className="flex justify-center space-x-6 text-sm">
-            <a
-              href="/privacy"
-              className="text-purple-300 hover:text-purple-200 transition-colors"
-            >
-              Политика конфиденциальности
-            </a>
-            <a
-              href="/terms"
-              className="text-purple-300 hover:text-purple-200 transition-colors"
-            >
-              Условия использования
-            </a>
-            <a
-              href="/contact"
-              className="text-purple-300 hover:text-purple-200 transition-colors"
-            >
-              Контакты
-            </a>
-          </div>
-        </div>
-      </footer>
+
       {/* Модальное окно для создания раздела */}
       <Dialog open={openSection} onOpenChange={setOpenSection}>
         <DialogContent>

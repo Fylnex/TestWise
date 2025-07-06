@@ -8,11 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ArrowLeft, Save, Upload, FileText, File } from 'lucide-react';
 import Header from '@/components/Header';
-import { sectionApi } from '@/services/sectionApi';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import { sectionApi, Subsection } from '@/services/sectionApi';
 import { topicApi } from '@/services/topicApi';
+import http from '@/services/apiConfig';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import http from '@/services/apiConfig';
 
 interface SubsectionFormData {
   title: string;
@@ -22,8 +23,8 @@ interface SubsectionFormData {
   file?: File;
 }
 
-export default function CreateSubsection() {
-  const { sectionId, topicId } = useParams();
+export default function EditSubsection() {
+  const { topicId, sectionId, subsectionId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -34,7 +35,7 @@ export default function CreateSubsection() {
       <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="container mx-auto py-10 text-center text-red-500">
-          У вас нет прав для создания подразделов
+          У вас нет прав для редактирования подразделов
         </div>
       </div>
     );
@@ -42,10 +43,9 @@ export default function CreateSubsection() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<any>(null);
+  const [subsection, setSubsection] = useState<Subsection | null>(null);
   const [topicTitle, setTopicTitle] = useState<string>('');
   const [sectionTitle, setSectionTitle] = useState<string>('');
-  const [existingSubsections, setExistingSubsections] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<SubsectionFormData>({
@@ -55,43 +55,41 @@ export default function CreateSubsection() {
     order: 0
   });
 
-  // Загрузка данных секции и определение порядка
+  // Загрузка данных подраздела
   useEffect(() => {
-    if (!sectionId) return;
+    if (!subsectionId) return;
 
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Загружаем секцию
-        const sectionData = await sectionApi.getSection(Number(sectionId));
-        setSection(sectionData);
+                          // Загружаем подраздел через API
+         const subsectionResponse = await http.get<Subsection>(`/subsections/${subsectionId}`);
+         const subsectionData = subsectionResponse.data;
+         setSubsection(subsectionData);
 
-        // Загружаем информацию о теме (используем topicId из URL или из секции)
-        const topicIdToUse = topicId || sectionData.topic_id;
-        const topicData = await topicApi.getTopic(Number(topicIdToUse));
+         // Загружаем информацию о теме и секции
+         const sectionData = await sectionApi.getSection(subsectionData.section_id);
+         const topicData = await topicApi.getTopic(sectionData.topic_id);
+
         setTopicTitle(topicData.title);
         setSectionTitle(sectionData.title);
 
-        // Загружаем существующие подразделы для определения порядка
-        const subsectionsResponse = await sectionApi.getSectionSubsections(Number(sectionId));
-        const subsections = subsectionsResponse.subsections || [];
-        setExistingSubsections(subsections);
-
-        // Автоматически устанавливаем порядок как количество существующих подразделов + 1
-        const nextOrder = subsections.length + 1;
-        setFormData(prev => ({
-          ...prev,
-          order: nextOrder
-        }));
+        // Заполняем форму данными подраздела
+        setFormData({
+          title: subsectionData.title,
+          content: subsectionData.content || '',
+          type: subsectionData.type,
+          order: subsectionData.order
+        });
 
       } catch (err) {
         console.error('Ошибка загрузки данных:', err);
-        setError('Ошибка загрузки данных секции');
+        setError('Ошибка загрузки данных подраздела');
         toast({
           title: "Ошибка",
-          description: "Не удалось загрузить данные секции",
+          description: "Не удалось загрузить данные подраздела",
           variant: "destructive",
         });
       } finally {
@@ -100,7 +98,7 @@ export default function CreateSubsection() {
     };
 
     loadData();
-  }, [sectionId, topicId, toast]);
+  }, [subsectionId, toast]);
 
   const handleInputChange = (field: keyof SubsectionFormData, value: string | number) => {
     setFormData(prev => ({
@@ -122,52 +120,51 @@ export default function CreateSubsection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sectionId) return;
+    if (!subsection) return;
 
     try {
       setSaving(true);
       setError(null);
 
-      let newSubsection: any;
+      let updatedSubsection: Subsection;
 
       if (formData.type === 'pdf' && formData.file) {
-        // Создание PDF подраздела
+        // Обновление PDF подраздела
         const formDataToSend = new FormData();
-        formDataToSend.append('section_id', String(sectionId));
+        formDataToSend.append('section_id', String(subsection.section_id));
         formDataToSend.append('title', formData.title);
         formDataToSend.append('type', 'pdf');
         formDataToSend.append('order', String(formData.order));
         formDataToSend.append('file', formData.file);
 
-        newSubsection = await sectionApi.createSubsection(formDataToSend);
+        updatedSubsection = await sectionApi.updateSubsection(subsection.id, formDataToSend);
       } else {
-        // Создание текстового подраздела
+        // Обновление текстового подраздела
         const payload = {
-          section_id: Number(sectionId),
+          section_id: subsection.section_id,
           title: formData.title,
           content: formData.content,
           type: 'text' as const,
           order: formData.order
         };
 
-        newSubsection = await sectionApi.createSubsectionJson(payload);
+        updatedSubsection = await sectionApi.updateSubsectionJson(subsection.id, payload);
       }
 
       toast({
         title: "Успешно",
-        description: "Подраздел успешно создан",
+        description: "Подраздел успешно обновлен",
       });
 
       // Возвращаемся к странице темы
-      const topicIdToUse = topicId || section.topic_id;
-      navigate(`/topic/${topicIdToUse}`);
+      navigate(`/topic/${topicId}`);
 
     } catch (err) {
-      console.error('Ошибка создания:', err);
-      setError('Ошибка при создании подраздела');
+      console.error('Ошибка сохранения:', err);
+      setError('Ошибка при сохранении подраздела');
       toast({
         title: "Ошибка",
-        description: "Не удалось создать подраздел",
+        description: "Не удалось сохранить подраздел",
         variant: "destructive",
       });
     } finally {
@@ -176,8 +173,7 @@ export default function CreateSubsection() {
   };
 
   const handleCancel = () => {
-    const topicIdToUse = topicId || section?.topic_id;
-    navigate(`/topic/${topicIdToUse}`);
+    navigate(`/topic/${topicId}`);
   };
 
   if (loading) {
@@ -191,12 +187,12 @@ export default function CreateSubsection() {
     );
   }
 
-  if (error || !section) {
+  if (error || !subsection) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="container mx-auto py-10 text-center text-red-500">
-          {error || 'Секция не найдена'}
+          {error || 'Подраздел не найден'}
         </div>
       </div>
     );
@@ -206,6 +202,8 @@ export default function CreateSubsection() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="container mx-auto w-full max-w-4xl px-4 py-8">
+
+
         {/* Заголовок */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
@@ -219,17 +217,17 @@ export default function CreateSubsection() {
               Назад
             </Button>
             <h1 className="text-3xl font-bold text-gray-900">
-              Создание подраздела
+              Редактирование подраздела
             </h1>
           </div>
           <div className="text-gray-600">
             <p><strong>Тема:</strong> {topicTitle}</p>
             <p><strong>Раздел:</strong> {sectionTitle}</p>
-            <p><strong>Порядок:</strong> {formData.order} (автоматически установлен)</p>
+            <p><strong>Подраздел:</strong> {subsection.title}</p>
           </div>
         </div>
 
-        {/* Форма создания */}
+        {/* Форма редактирования */}
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Название */}
@@ -261,17 +259,17 @@ export default function CreateSubsection() {
                       Текстовый контент
                     </div>
                   </SelectItem>
-                  <SelectItem value="pdf">
-                    <div className="flex items-center gap-2">
-                      <File className="w-4 h-4" />
-                      PDF документ
-                    </div>
-                  </SelectItem>
+                                     <SelectItem value="pdf">
+                     <div className="flex items-center gap-2">
+                       <File className="w-4 h-4" />
+                       PDF документ
+                     </div>
+                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Порядок (только для чтения) */}
+            {/* Порядок */}
             <div>
               <Label htmlFor="order">Порядок</Label>
               <Input
@@ -280,12 +278,8 @@ export default function CreateSubsection() {
                 value={formData.order}
                 onChange={(e) => handleInputChange('order', parseInt(e.target.value) || 0)}
                 placeholder="0"
-                min="1"
-                className="bg-gray-50"
+                min="0"
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Автоматически установлен как {formData.order} (после {existingSubsections.length} существующих подразделов)
-              </p>
             </div>
 
             {/* Контент в зависимости от типа */}
@@ -311,7 +305,6 @@ export default function CreateSubsection() {
                     accept=".pdf"
                     onChange={handleFileChange}
                     className="hidden"
-                    required
                   />
                   <label htmlFor="file" className="cursor-pointer">
                     <span className="text-blue-600 hover:text-blue-800">
@@ -336,7 +329,7 @@ export default function CreateSubsection() {
                 className="flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Создание...' : 'Создать'}
+                {saving ? 'Сохранение...' : 'Сохранить'}
               </Button>
               <Button
                 type="button"
