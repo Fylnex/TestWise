@@ -21,7 +21,7 @@ const emptyAnswer: Answer = { text: '', is_correct: false };
 const emptyQuestion: QuestionForm = { text: '', hint: '', answers: [emptyAnswer] };
 
 export default function CreateTestForSection() {
-  const { sectionId, topicId } = useParams<{ sectionId: string; topicId: string }>();
+  const { topicId, sectionId } = useParams<{ topicId?: string; sectionId?: string }>();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'hinted' | 'section_final' | 'global_final'>('hinted');
@@ -30,7 +30,8 @@ export default function CreateTestForSection() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isTopicTest = Boolean(topicId);
+  const isSectionTest = Boolean(sectionId);
+  const isTopicTest = !sectionId && Boolean(topicId);
 
   const handleAddQuestion = () => setQuestions(qs => [...qs, emptyQuestion]);
   const handleRemoveQuestion = (idx: number) =>
@@ -64,9 +65,9 @@ export default function CreateTestForSection() {
         title,
         type,
         duration: duration ? Number(duration) : undefined,
-        ...(isTopicTest
-          ? { topic_id: Number(topicId) }
-          : { section_id: Number(sectionId) }),
+        ...(isSectionTest
+          ? { section_id: Number(sectionId) }
+          : { topic_id: Number(topicId) }),
       };
       const createdTest = await testApi.createTest(testPayload);
 
@@ -82,11 +83,11 @@ export default function CreateTestForSection() {
         })
       ));
 
-      // Перенаправляем обратно на страницу темы или секции
-      if (topicId) {
-        navigate(`/topic/${topicId}`);
+      // Перенаправляем обратно на страницу раздела или темы
+      if (isSectionTest) {
+        navigate(-1);
       } else {
-        navigate(`/test/${createdTest.id}`);
+        navigate(`/topic/${topicId}`);
       }
     } catch {
       setError('Ошибка при создании теста');
@@ -98,7 +99,7 @@ export default function CreateTestForSection() {
   return (
     <div className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">
-        {isTopicTest ? 'Создать тест для темы' : 'Создать тест для раздела'}
+        {isSectionTest ? 'Создать тест для раздела' : 'Создать тест для темы'}
       </h1>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -202,13 +203,7 @@ export default function CreateTestForSection() {
           <Button type="submit" disabled={loading}>
             {loading ? 'Создание...' : 'Сохранить тест'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => {
-            if (topicId) {
-              navigate(`/topic/${topicId}`);
-            } else {
-              navigate(-1);
-            }
-          }}>
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Отмена
           </Button>
         </div>
