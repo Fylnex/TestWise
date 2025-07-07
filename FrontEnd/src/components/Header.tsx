@@ -68,9 +68,9 @@ const Header = () => {
                 Темы
               </Link>
               <Link
-                to="/about"
+                to="/about_vm"
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  location.pathname.startsWith('/about') 
+                  location.pathname.startsWith('/about_vm') 
                     ? 'bg-blue-50 text-blue-700 shadow-sm' 
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}

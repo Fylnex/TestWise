@@ -15,7 +15,7 @@ const NotFound = () => {
           className="w-full max-w-2xl h-auto object-contain mb-8"
           style={{ maxHeight: '60vh' }}
         />
-        <Button onClick={() => navigate(-1)} size="lg" className="text-black border border-gray-300 bg-white hover:bg-gray-100">
+        <Button onClick={() => navigate(-1)} size="lg">
           Назад
         </Button>
       </div>

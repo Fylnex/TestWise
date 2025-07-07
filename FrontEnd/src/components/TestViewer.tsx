@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, ArrowLeft, Clock, HelpCircle, Edit } from 'lucide
 import { testApi, Test } from '@/services/testApi';
 import { questionApi, Question } from '@/services/questionApi';
 import { useAuth } from '@/context/AuthContext';
+import Header from '@/components/Header';
 
 interface TestViewerProps {
   testId?: number;
@@ -190,44 +191,53 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <div className="text-center">Загрузка теста...</div>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="text-center">Загрузка теста...</div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <div className="text-center text-red-500">{error}</div>
-        <Button onClick={() => {
-          if (topicId) {
-            navigate(`/topic/${topicId}`);
-          } else {
-            navigate(-1);
-          }
-        }} className="mt-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Назад
-        </Button>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="text-center text-red-500">{error}</div>
+          <Button onClick={() => {
+            if (topicId) {
+              navigate(`/topic/${topicId}`);
+            } else {
+              navigate(-1);
+            }
+          }} className="mt-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (!test || !questions.length) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <div className="text-center">Тест не найден</div>
-        <Button onClick={() => {
-          if (topicId) {
-            navigate(`/topic/${topicId}`);
-          } else {
-            navigate(-1);
-          }
-        }} className="mt-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Назад
-        </Button>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="text-center">Тест не найден</div>
+          <Button onClick={() => {
+            if (topicId) {
+              navigate(`/topic/${topicId}`);
+            } else {
+              navigate(-1);
+            }
+          }} className="mt-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
+          </Button>
+        </div>
       </div>
     );
   }
@@ -235,54 +245,57 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
   // Экран начала теста
   if (!testStarted) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">{test.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-semibold mb-2">Информация о тесте:</h3>
-                <ul className="space-y-2 text-sm">
-                  <li>Тип: {test.type}</li>
-                  <li>Количество вопросов: {questions.length}</li>
-                  {test.duration && (
-                    <li>Время: {test.duration} минут</li>
-                  )}
-                </ul>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="max-w-4xl mx-auto py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">{test.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Информация о тесте:</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>Тип: {test.type}</li>
+                    <li>Количество вопросов: {questions.length}</li>
+                    {test.duration && (
+                      <li>Время: {test.duration} минут</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Инструкции:</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Внимательно читайте каждый вопрос</li>
+                    <li>• Выберите один правильный ответ</li>
+                    {test.type === 'hinted' && (
+                      <li>• Используйте подсказки при необходимости</li>
+                    )}
+                    {test.duration && (
+                      <li>• Следите за временем</li>
+                    )}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold mb-2">Инструкции:</h3>
-                <ul className="space-y-2 text-sm">
-                  <li>• Внимательно читайте каждый вопрос</li>
-                  <li>• Выберите один правильный ответ</li>
-                  {test.type === 'hinted' && (
-                    <li>• Используйте подсказки при необходимости</li>
-                  )}
-                  {test.duration && (
-                    <li>• Следите за временем</li>
-                  )}
-                </ul>
+              <div className="flex gap-4 pt-4">
+                <Button onClick={handleStartTest} className="flex-1">
+                  Начать тест
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  if (topicId) {
+                    navigate(`/topic/${topicId}`);
+                  } else {
+                    navigate(-1);
+                  }
+                }}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Назад
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-4 pt-4">
-              <Button onClick={handleStartTest} className="flex-1">
-                Начать тест
-              </Button>
-              <Button variant="outline" onClick={() => {
-                if (topicId) {
-                  navigate(`/topic/${topicId}`);
-                } else {
-                  navigate(-1);
-                }
-              }}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Назад
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -293,65 +306,68 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
     const isPassed = score >= 70; // 70% для прохождения
 
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Результаты теста</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-6">
-            <div className="text-4xl font-bold">
-              {score}%
-            </div>
-            
-            {isPassed ? (
-              <div className="text-green-600">
-                <CheckCircle className="w-16 h-16 mx-auto mb-4" />
-                <p className="text-xl font-semibold">Тест пройден!</p>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="max-w-4xl mx-auto py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl text-center">Результаты теста</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center space-y-6">
+              <div className="text-4xl font-bold">
+                {score}%
               </div>
-            ) : (
-              <div className="text-red-600">
-                <XCircle className="w-16 h-16 mx-auto mb-4" />
-                <p className="text-xl font-semibold">Тест не пройден</p>
+              
+              {isPassed ? (
+                <div className="text-green-600">
+                  <CheckCircle className="w-16 h-16 mx-auto mb-4" />
+                  <p className="text-xl font-semibold">Тест пройден!</p>
+                </div>
+              ) : (
+                <div className="text-red-600">
+                  <XCircle className="w-16 h-16 mx-auto mb-4" />
+                  <p className="text-xl font-semibold">Тест не пройден</p>
+                </div>
+              )}
+
+              <div className="text-sm text-gray-600">
+                Правильных ответов: {answers.filter((answer, index) => 
+                  answer.selectedAnswer !== -1 && 
+                  questions[index].correct_answer === answer.selectedAnswer
+                ).length} из {questions.length}
               </div>
-            )}
 
-            <div className="text-sm text-gray-600">
-              Правильных ответов: {answers.filter((answer, index) => 
-                answer.selectedAnswer !== -1 && 
-                questions[index].correct_answer === answer.selectedAnswer
-              ).length} из {questions.length}
-            </div>
-
-            <div className="flex gap-4 justify-center">
-              <Button onClick={() => {
-                if (topicId) {
-                  navigate(`/topic/${topicId}`);
-                } else {
-                  navigate(-1);
-                }
-              }}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Назад
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setCurrentQuestion(0);
-                  setAnswers(questions.map(q => ({ questionId: q.id, selectedAnswer: -1 })));
-                  setShowResults(false);
-                  setTestStarted(false);
-                  setAttemptId(null);
-                  setStartTime(null);
-                  if (test.duration) {
-                    setTimeLeft(test.duration * 60);
+              <div className="flex gap-4 justify-center">
+                <Button onClick={() => {
+                  if (topicId) {
+                    navigate(`/topic/${topicId}`);
+                  } else {
+                    navigate(-1);
                   }
-                }}
-              >
-                Пройти заново
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                }}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Назад
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setCurrentQuestion(0);
+                    setAnswers(questions.map(q => ({ questionId: q.id, selectedAnswer: -1 })));
+                    setShowResults(false);
+                    setTestStarted(false);
+                    setAttemptId(null);
+                    setStartTime(null);
+                    if (test.duration) {
+                      setTimeLeft(test.duration * 60);
+                    }
+                  }}
+                >
+                  Пройти заново
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -361,99 +377,102 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
   const currentAnswer = answers[currentQuestion];
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-xl">
-              Вопрос {currentQuestion + 1} из {questions.length}
-            </CardTitle>
-            {timeLeft && (
-              <div className="flex items-center gap-2 text-red-600">
-                <Clock className="w-4 h-4" />
-                <span className="font-mono">{formatTime(timeLeft)}</span>
+    <div className="min-h-screen bg-white">
+      <Header />
+      <div className="max-w-4xl mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl">
+                Вопрос {currentQuestion + 1} из {questions.length}
+              </CardTitle>
+              {timeLeft && (
+                <div className="flex items-center gap-2 text-red-600">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono">{formatTime(timeLeft)}</span>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium mb-4">{currentQ.question}</h3>
+              
+              <RadioGroup
+                value={currentAnswer?.selectedAnswer?.toString() || ""}
+                onValueChange={(value) => handleAnswer(parseInt(value))}
+                className="space-y-3"
+              >
+                {currentQ.options?.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                    <Label htmlFor={`option-${index}`} className="text-base">
+                      {option}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {test.type === 'hinted' && currentQ.hint && (
+              <div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowHints(!showHints)}
+                  className="flex items-center gap-2"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  {showHints ? "Скрыть подсказку" : "Показать подсказку"}
+                </Button>
+                
+                {showHints && (
+                  <div className="mt-3 p-4 bg-yellow-50 rounded-md border border-yellow-200">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Подсказка:</strong> {currentQ.hint}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium mb-4">{currentQ.question}</h3>
-            
-            <RadioGroup
-              value={currentAnswer?.selectedAnswer?.toString() || ""}
-              onValueChange={(value) => handleAnswer(parseInt(value))}
-              className="space-y-3"
-            >
-              {currentQ.options?.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                  <Label htmlFor={`option-${index}`} className="text-base">
-                    {option}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
 
-          {test.type === 'hinted' && currentQ.hint && (
-            <div>
+            <div className="flex justify-between pt-4">
               <Button
                 variant="outline"
-                onClick={() => setShowHints(!showHints)}
-                className="flex items-center gap-2"
+                onClick={handlePrevious}
+                disabled={currentQuestion === 0}
               >
-                <HelpCircle className="w-4 h-4" />
-                {showHints ? "Скрыть подсказку" : "Показать подсказку"}
+                Назад
               </Button>
               
-              {showHints && (
-                <div className="mt-3 p-4 bg-yellow-50 rounded-md border border-yellow-200">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Подсказка:</strong> {currentQ.hint}
-                  </p>
-                </div>
-              )}
+              <div className="flex gap-2">
+                {currentQuestion === questions.length - 1 ? (
+                  <Button 
+                    onClick={handleSubmitTest}
+                    disabled={currentAnswer?.selectedAnswer === -1}
+                  >
+                    Завершить тест
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleNext}
+                    disabled={currentAnswer?.selectedAnswer === -1}
+                  >
+                    Следующий
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
 
-          <div className="flex justify-between pt-4">
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentQuestion === 0}
-            >
-              Назад
-            </Button>
-            
-            <div className="flex gap-2">
-              {currentQuestion === questions.length - 1 ? (
-                <Button 
-                  onClick={handleSubmitTest}
-                  disabled={currentAnswer?.selectedAnswer === -1}
-                >
-                  Завершить тест
-                </Button>
-              ) : (
-                <Button 
-                  onClick={handleNext}
-                  disabled={currentAnswer?.selectedAnswer === -1}
-                >
-                  Следующий
-                </Button>
-              )}
+            {/* Прогресс-бар */}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+              />
             </div>
-          </div>
-
-          {/* Прогресс-бар */}
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

@@ -23,9 +23,16 @@ export default function Topics() {
 
     fetchTopics(); // Initial fetch
 
-    window.addEventListener('topics-updated', fetchTopics); // Listen for updates
+    // Обновляем данные при каждом переходе на страницу
+    const handleFocus = () => {
+      fetchTopics();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('topics-updated', fetchTopics);
 
     return () => {
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('topics-updated', fetchTopics);
     };
   }, []);

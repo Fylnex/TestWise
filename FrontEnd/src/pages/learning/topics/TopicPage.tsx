@@ -123,6 +123,12 @@ const TopicPage: React.FC = () => {
 
   const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
 
+  // State for test deletion confirmation
+  const [testToDelete, setTestToDelete] = useState<{ id: number; sectionId?: number } | null>(null);
+
+  // State for subsection deletion confirmation
+  const [subsectionToDelete, setSubsectionToDelete] = useState<{ id: number; sectionId: number } | null>(null);
+
   // 1. State for editing section
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [editSectionForm, setEditSectionForm] = useState({
@@ -144,6 +150,10 @@ const TopicPage: React.FC = () => {
   });
   const [savingTopicTitle, setSavingTopicTitle] = useState(false);
   const [errorTopicTitle, setErrorTopicTitle] = useState<string | null>(null);
+
+  // State for topic deletion confirmation
+  const [showDeleteTopicModal, setShowDeleteTopicModal] = useState(false);
+  const [showDeleteTopicModalSecond, setShowDeleteTopicModalSecond] = useState(false);
 
   interface SubsectionFormData {
     file?: File;
@@ -199,9 +209,16 @@ const TopicPage: React.FC = () => {
         );
         setSectionTestsMap(testsMap);
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error('Ошибка загрузки темы:', error);
+        if (error.response?.status === 404) {
+          // Тема не найдена (возможно, удалена)
+          setTopic(null);
+          navigate('/topics');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [topicId]);
+  }, [topicId, navigate]);
 
   const handleCreateSection = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -433,42 +450,63 @@ const TopicPage: React.FC = () => {
   };
 
   const handleDeleteSubsection = async (subId: number, sectionId: number) => {
-    if (!window.confirm("Удалить подсекцию?")) return;
+    setSubsectionToDelete({ id: subId, sectionId });
+  };
+
+  const handleConfirmDeleteSubsection = async () => {
+    if (!subsectionToDelete) return;
+    
     try {
-      await sectionApi.deleteSubsection(subId);
+      await sectionApi.deleteSubsection(subsectionToDelete.id);
       setSubsectionsMap((prev) => ({
         ...prev,
-        [sectionId]: prev[sectionId].filter((s) => s.id !== subId),
+        [subsectionToDelete.sectionId]: prev[subsectionToDelete.sectionId].filter((s) => s.id !== subsectionToDelete.id),
       }));
     } catch {
       alert("Ошибка удаления подсекции");
+    } finally {
+      setSubsectionToDelete(null);
     }
   };
 
   const handleDeleteSectionTest = async (testId: number, sectionId: number) => {
-    if (!window.confirm("Удалить тест?")) return;
+    setTestToDelete({ id: testId, sectionId });
+  };
+
+  const handleConfirmDeleteTest = async () => {
+    if (!testToDelete) return;
+    
     try {
-      await testApi.deleteTest(testId);
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === sectionId
-            ? ({
-                ...s,
-                tests: ((s as Section & { tests?: Test[] }).tests || []).filter(
-                  (t) => t.id !== testId,
-                ),
-              } as Section & { tests: Test[] })
-            : s,
-        ),
-      );
+      await testApi.deleteTest(testToDelete.id);
       
-      // Обновляем карту тестов секций
-      setSectionTestsMap((prev) => ({
-        ...prev,
-        [sectionId]: (prev[sectionId] || []).filter((t) => t.id !== testId),
-      }));
+      if (testToDelete.sectionId) {
+        // Удаляем тест из секции
+        setSections((prev) =>
+          prev.map((s) =>
+            s.id === testToDelete.sectionId
+              ? ({
+                  ...s,
+                  tests: ((s as Section & { tests?: Test[] }).tests || []).filter(
+                    (t) => t.id !== testToDelete.id,
+                  ),
+                } as Section & { tests: Test[] })
+              : s,
+          ),
+        );
+        
+        // Обновляем карту тестов секций
+        setSectionTestsMap((prev) => ({
+          ...prev,
+          [testToDelete.sectionId!]: (prev[testToDelete.sectionId!] || []).filter((t) => t.id !== testToDelete.id),
+        }));
+      } else {
+        // Удаляем тест из общих тестов темы
+        setTests((prev) => prev.filter((t) => t.id !== testToDelete.id));
+      }
     } catch {
       alert("Ошибка удаления теста");
+    } finally {
+      setTestToDelete(null);
     }
   };
 
@@ -657,6 +695,21 @@ const TopicPage: React.FC = () => {
     }
   };
 
+  const handleDeleteTopic = async () => {
+    if (!topic) return;
+    try {
+      await topicApi.deleteTopic(topic.id);
+      setTopic(null);
+      // Обновляем список тем на странице Topics
+      window.dispatchEvent(new Event('topics-updated'));
+      navigate('/topics');
+      return;
+    } catch (err) {
+      console.error('Ошибка при удалении темы:', err);
+      alert('Ошибка при удалении темы');
+    }
+  };
+
   if (loading) {
     return (
         <div className="min-h-screen bg-gray-50">
@@ -702,15 +755,26 @@ const TopicPage: React.FC = () => {
               {topic.title}
             </h1>
             {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-blue-500 hover:text-blue-600"
-                onClick={handleStartEditTopicTitle}
-                title="Редактировать тему"
-              >
-                <Pencil className="w-6 h-6" />
-              </Button>
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-blue-500 hover:text-blue-600"
+                  onClick={handleStartEditTopicTitle}
+                  title="Редактировать тему"
+                >
+                  <Pencil className="w-6 h-6" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-destructive"
+                  onClick={() => setShowDeleteTopicModal(true)}
+                  title="Удалить тему"
+                >
+                  <Trash2 className="w-6 h-6" />
+                </Button>
+              </>
             )}
           </div>
           {topic.description && (
@@ -957,7 +1021,7 @@ const TopicPage: React.FC = () => {
                                   size="icon"
                                   variant="ghost"
                                   className="text-destructive"
-                                  onClick={() => handleDeleteSectionTest(test.id, section.id)}
+                                  onClick={() => setTestToDelete({ id: test.id })}
                                   title="Удалить тест"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1029,23 +1093,19 @@ const TopicPage: React.FC = () => {
                           <Pencil className="w-5 h-5" />
                         </Button>
                         <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full border-[#3A86FF] text-[#3A86FF]"
+                            size="icon"
+                            variant="ghost"
+                            className="text-green-600"
                             onClick={() => navigate(`/topic/${topicId}/test/${test.id}/questions/edit`)}
+                            title="Редактировать вопросы"
                         >
-                          Редактировать вопросы
+                          <Edit3 className="w-4 h-4" />
                         </Button>
                         <Button
                             size="icon"
                             variant="ghost"
                             className="text-destructive"
-                            onClick={async () => {
-                              await testApi.deleteTest(test.id);
-                              setTests((prev) =>
-                                  prev.filter((t) => t.id !== test.id),
-                              );
-                            }}
+                            onClick={() => setTestToDelete({ id: test.id })}
                             title="Удалить тест"
                         >
                         <Trash2 className="h-4 w-4" />
@@ -1250,6 +1310,104 @@ const TopicPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Модалка подтверждения удаления теста */}
+      <AlertDialog
+        open={testToDelete !== null}
+        onOpenChange={(open) => !open && setTestToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить тест?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить этот тест? Это действие необратимо.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTestToDelete(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteTest}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Модалка подтверждения удаления подраздела */}
+      <AlertDialog
+        open={subsectionToDelete !== null}
+        onOpenChange={(open) => !open && setSubsectionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить подраздел?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить этот подраздел? Это действие необратимо.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSubsectionToDelete(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteSubsection}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Модалка двойного подтверждения удаления темы */}
+      <AlertDialog open={showDeleteTopicModal} onOpenChange={setShowDeleteTopicModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить тему?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить эту тему? Это действие необратимо.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteTopicModal(false)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDeleteTopicModal(false);
+                setShowDeleteTopicModalSecond(true);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Подтвердить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showDeleteTopicModalSecond} onOpenChange={setShowDeleteTopicModalSecond}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Точно удалить тему?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие удалит тему безвозвратно со всеми разделами, тестами и материалами. Продолжить?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteTopicModalSecond(false)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTopic}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Удалить навсегда
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

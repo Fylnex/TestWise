@@ -10,6 +10,7 @@ import Login from "./pages/auth/Login";
 import { AdminPanel } from "./pages/admin/dashboard/AdminPanel";
 import Profile from "./pages/auth/Profile";
 import About from "./pages/info/About";
+import About_VM from "./pages/info/About_VM";
 import Topics from "./pages/main/Topics";
 import { TopicProvider } from "./context/TopicContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -144,6 +145,7 @@ const App = () => (
                 }
               />
               <Route path="/about" element={<About />} />
+              <Route path="/about_vm" element={<About_VM />} />
               <Route
                 path="/settings"
                 element={

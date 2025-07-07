@@ -21,6 +21,7 @@ interface SubsectionFormData {
   type: 'text' | 'pdf';
   order: number;
   file?: File;
+  images?: File[];
 }
 
 export default function EditSubsection() {
@@ -52,8 +53,10 @@ export default function EditSubsection() {
     title: '',
     content: '',
     type: 'text',
-    order: 0
+    order: 0,
+    images: []
   });
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   // Загрузка данных подраздела
   useEffect(() => {
@@ -118,6 +121,17 @@ export default function EditSubsection() {
     }
   };
 
+  const handleImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    setFormData(prev => ({
+      ...prev,
+      images: files
+    }));
+    // Превью
+    const previews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews(previews);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subsection) return;
@@ -139,7 +153,7 @@ export default function EditSubsection() {
 
         updatedSubsection = await sectionApi.updateSubsection(subsection.id, formDataToSend);
       } else {
-        // Обновление текстового подраздела
+        // Обновление текстового подраздела с изображениями
         const payload = {
           section_id: subsection.section_id,
           title: formData.title,
@@ -147,8 +161,20 @@ export default function EditSubsection() {
           type: 'text' as const,
           order: formData.order
         };
-
-        updatedSubsection = await sectionApi.updateSubsectionJson(subsection.id, payload);
+        if (formData.images && formData.images.length > 0) {
+          const formDataToSend = new FormData();
+          formDataToSend.append('section_id', String(subsection.section_id));
+          formDataToSend.append('title', formData.title);
+          formDataToSend.append('content', formData.content);
+          formDataToSend.append('type', 'text');
+          formDataToSend.append('order', String(formData.order));
+          formData.images.forEach((img, idx) => {
+            formDataToSend.append('images', img);
+          });
+          updatedSubsection = await sectionApi.updateSubsection(subsection.id, formDataToSend);
+        } else {
+          updatedSubsection = await sectionApi.updateSubsectionJson(subsection.id, payload);
+        }
       }
 
       toast({
@@ -199,155 +225,177 @@ export default function EditSubsection() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle, #e5e7eb 1px, transparent 1.5px)', backgroundSize: '32px 32px', backgroundColor: 'white' }}>
       <Header />
-      <div className="container mx-auto w-full max-w-4xl px-4 py-8">
-
-
-        {/* Заголовок */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancel}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Назад
-            </Button>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Редактирование подраздела
-            </h1>
-          </div>
-          <div className="text-gray-600">
-            <p><strong>Тема:</strong> {topicTitle}</p>
-            <p><strong>Раздел:</strong> {sectionTitle}</p>
-            <p><strong>Подраздел:</strong> {subsection.title}</p>
-          </div>
-        </div>
-
-        {/* Форма редактирования */}
-        <Card className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Название */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full py-8">
+        <div className="w-full h-full flex flex-col lg:flex-row items-stretch justify-center gap-0 lg:gap-12 max-w-6xl mx-auto px-2">
+          {/* Левая колонка — инфо и подсказки */}
+          <aside className="w-full lg:w-1/3 bg-white/80 rounded-t-3xl lg:rounded-l-3xl lg:rounded-tr-none shadow-xl border border-gray-100 p-8 flex flex-col justify-between mb-0 lg:mb-0">
             <div>
-              <Label htmlFor="title">Название подраздела</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="Введите название подраздела"
-                required
-              />
-            </div>
-
-            {/* Тип контента */}
-            <div>
-              <Label htmlFor="type">Тип контента</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value: 'text' | 'pdf') => handleInputChange('type', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Текстовый контент
-                    </div>
-                  </SelectItem>
-                                     <SelectItem value="pdf">
-                     <div className="flex items-center gap-2">
-                       <File className="w-4 h-4" />
-                       PDF документ
-                     </div>
-                   </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Порядок */}
-            <div>
-              <Label htmlFor="order">Порядок</Label>
-              <Input
-                id="order"
-                type="number"
-                value={formData.order}
-                onChange={(e) => handleInputChange('order', parseInt(e.target.value) || 0)}
-                placeholder="0"
-                min="0"
-              />
-            </div>
-
-            {/* Контент в зависимости от типа */}
-            {formData.type === 'text' ? (
-              <div>
-                <Label htmlFor="content">Содержимое</Label>
-                <Textarea
-                  id="content"
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
-                  placeholder="Введите содержимое подраздела"
-                  rows={10}
-                />
+              <h2 className="text-2xl font-bold text-indigo-700 mb-4 flex items-center gap-2">
+                <FileText className="w-7 h-7 text-indigo-600" />
+                Редактировать подраздел
+              </h2>
+              <div className="space-y-2 text-base text-gray-700 mb-6">
+                <div className="flex items-center gap-2"><span className="font-semibold">Тема:</span> <span>{topicTitle}</span></div>
+                <div className="flex items-center gap-2"><span className="font-semibold">Раздел:</span> <span>{sectionTitle}</span></div>
+                <div className="flex items-center gap-2"><span className="font-semibold">Подраздел:</span> <span>{subsection.title}</span></div>
+                <div className="flex items-center gap-2"><span className="font-semibold">Порядок:</span> <span>{formData.order}</span></div>
               </div>
-            ) : (
-              <div>
-                <Label htmlFor="file">PDF файл</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <input
-                    id="file"
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="file" className="cursor-pointer">
-                    <span className="text-blue-600 hover:text-blue-800">
-                      Выберите PDF файл
-                    </span>
-                    <span className="text-gray-500"> или перетащите его сюда</span>
-                  </label>
-                  {formData.file && (
-                    <p className="mt-2 text-sm text-gray-600">
-                      Выбран файл: {formData.file.name}
-                    </p>
-                  )}
+              <div className="mt-8 space-y-4 text-gray-500 text-sm">
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <b>Совет:</b> Название должно быть коротким и понятным.<br/>Например: <i>Введение</i>, <i>Практика 1</i>, <i>Теория</i>.
+                </div>
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <b>Тип контента:</b> <br/>Текст — для обычных материалов, PDF — для загружаемых файлов.
+                </div>
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <b>Содержимое:</b> <br/>Пишите просто, структурируйте текст, используйте списки и подзаголовки.
+                </div>
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <b>Картинки:</b> <br/>Загружайте только нужные изображения, чтобы не перегружать страницу.
                 </div>
               </div>
-            )}
-
-            {/* Кнопки */}
-            <div className="flex gap-4 pt-4">
-              <Button
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Сохранение...' : 'Сохранить'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Отмена
-              </Button>
             </div>
+          </aside>
 
-            {error && (
-              <div className="text-red-500 text-sm">
-                {error}
+          {/* Правая колонка — форма */}
+          <main className="w-full lg:w-2/3 bg-white/90 rounded-b-3xl lg:rounded-r-3xl lg:rounded-bl-none shadow-xl border border-gray-100 p-8 flex flex-col justify-center">
+            <form onSubmit={handleSubmit} className="space-y-10 w-full mx-auto">
+              {/* Название */}
+              <div>
+                <Label htmlFor="title" className="font-semibold text-gray-800 text-lg">Название подраздела</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Например: Введение или Практика 1"
+                  required
+                  className="mt-3 text-lg py-4 px-4"
+                />
               </div>
-            )}
-          </form>
-        </Card>
+
+              {/* Тип контента */}
+              <div>
+                <Label htmlFor="type" className="font-semibold text-gray-800 text-lg">Тип контента</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: 'text' | 'pdf') => handleInputChange('type', value)}
+                >
+                  <SelectTrigger className="mt-3 text-lg py-4 px-4">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        Текст
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="pdf">
+                      <div className="flex items-center gap-2">
+                        <File className="w-5 h-5" />
+                        PDF
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Контент или PDF */}
+              {formData.type === 'text' ? (
+                <div>
+                  <Label htmlFor="content" className="font-semibold text-gray-800 text-lg">Содержимое</Label>
+                  <Textarea
+                    id="content"
+                    value={formData.content}
+                    onChange={(e) => handleInputChange('content', e.target.value)}
+                    placeholder="Введите текст подраздела..."
+                    rows={14}
+                    className="mt-3 text-lg py-4 px-4 min-h-[220px]"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="file" className="font-semibold text-gray-800 text-lg">PDF файл</Label>
+                  <div className="border-2 border-dashed border-indigo-200 rounded-xl p-10 text-center mt-3 bg-indigo-50/40">
+                    <Upload className="w-10 h-10 mx-auto mb-3 text-indigo-400" />
+                    <input
+                      id="file"
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="file" className="cursor-pointer text-indigo-600 hover:text-indigo-800 font-medium text-lg">
+                      {formData.file ? 'Выбрать другой PDF' : 'Выберите PDF файл'}
+                    </label>
+                    {formData.file && (
+                      <p className="mt-3 text-base text-gray-600">
+                        Выбран файл: {formData.file.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Изображения */}
+              {formData.type === 'text' && (
+                <div>
+                  <Label htmlFor="images" className="font-semibold text-gray-800 text-lg">Картинки (PNG, JPG, GIF)</Label>
+                  <div className="border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center mt-3 bg-indigo-50/40">
+                    <input
+                      id="images"
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/gif"
+                      multiple
+                      onChange={handleImagesChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="images" className="cursor-pointer text-indigo-600 hover:text-indigo-800 font-medium text-lg">
+                      {formData.images && formData.images.length > 0 ? 'Выбрать другие изображения' : 'Добавить изображения'}
+                    </label>
+                    {imagePreviews.length > 0 && (
+                      <div className="flex flex-wrap gap-4 justify-center mt-4">
+                        {imagePreviews.map((src, idx) => (
+                          <img key={idx} src={src} alt="preview" className="w-24 h-24 object-cover rounded-lg border border-gray-200 shadow" />
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-sm text-gray-400 mt-2">Можно загрузить несколько файлов. Поддерживаются PNG, JPG, GIF.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Кнопки */}
+              <div className="flex flex-col sm:flex-row gap-6 pt-2 w-full">
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 w-full sm:w-auto justify-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:scale-105 transition-all text-lg py-4 px-8"
+                >
+                  <Save className="w-6 h-6" />
+                  {saving ? 'Сохранение...' : 'Сохранить подраздел'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="w-full sm:w-auto justify-center text-lg py-4 px-8"
+                >
+                  Отмена
+                </Button>
+              </div>
+
+              {error && (
+                <div className="text-red-500 text-lg text-center mt-4">
+                  {error}
+                </div>
+              )}
+            </form>
+          </main>
+        </div>
       </div>
     </div>
   );

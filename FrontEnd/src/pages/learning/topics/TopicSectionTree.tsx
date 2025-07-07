@@ -262,9 +262,9 @@ export default function TopicSectionTree() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
-          <aside className="w-80 bg-[#F5F7FA] border-r border-[#E0E4EA] p-4 overflow-y-auto transition-all duration-300 h-full min-h-screen flex-shrink-0 z-10 relative">
+          <aside className="w-80 bg-[#F5F7FA] border-r border-[#E0E4EA] p-4 overflow-y-auto transition-all duration-300 flex-shrink-0 z-10 relative" style={{ height: 'calc(100vh - 80px)' }}>
             <div className="flex items-center justify-between mb-4">
               {topicTitle ? (
                 <button
@@ -332,7 +332,7 @@ export default function TopicSectionTree() {
             <ChevronRight size={24} />
           </button>
         )}
-        <main className="flex-1 p-8 flex flex-col items-center items-center pt-6 relative">
+        <main className="flex-1 overflow-y-auto p-8 flex flex-col items-center pt-6 relative" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Хлебные крошки теперь внутри main, не влияют на sidebar */}
           <div className="w-full flex items-center justify-center mt-0 mb-4">
             <nav className="text-sm text-gray-500 flex items-center gap-2 justify-center">

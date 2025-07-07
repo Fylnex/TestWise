@@ -81,12 +81,7 @@ const Index = () => {
             </>
           )}
           <Button 
-            size={user?.role === 'teacher' ? 'default' : 'lg'} 
-            className={`${
-              user?.role === 'teacher' 
-                ? 'px-6 py-2 rounded-lg' 
-                : 'text-lg px-8 py-4 rounded-full shadow-lg hover:scale-105 transition-transform'
-            }`} 
+            size="lg"
             onClick={() => navigate('/topics')}
           >
             Начать обучение
@@ -183,7 +178,7 @@ const Index = () => {
                     )}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                       <Link to={`/topic/${topic.id}`}>
-                        <Button variant="secondary" className="text-lg px-6 py-2 rounded-full">Начать изучение</Button>
+                        <Button variant="secondary" size="lg">Начать изучение</Button>
                       </Link>
                     </div>
                   </div>
