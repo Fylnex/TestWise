@@ -56,7 +56,7 @@ export function AdminPanel() {
           </TabsContent>
           
           {/* <TabsContent value="notfound">
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden bg-white">
               <NotFound />
             </div>
           </TabsContent> */}
