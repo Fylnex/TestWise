@@ -180,7 +180,7 @@ async def calculate_topic_progress(
             SectionProgress.section_id.in_(s.id for s in topic.sections),
         )
         res = await session.execute(stmt)
-        (avg_percentage,) = res.first()
+        avg_percentage = res.scalar_one_or_none()
         percentage = float(avg_percentage or 0.0)
 
     topic_progress = await _ensure_topic_progress(session, user_id, topic_id)
@@ -218,7 +218,7 @@ async def check_test_availability(session: AsyncSession, user_id: int, test_id: 
             SectionProgress.user_id == user_id, SectionProgress.section_id == test.section_id
         )
         res = await session.execute(stmt)
-        (perc,) = res.first()
+        perc = res.scalar_one_or_none()
         return perc is not None and perc >= 90.0
 
     if test.type == TestType.GLOBAL_FINAL:
@@ -229,7 +229,7 @@ async def check_test_availability(session: AsyncSession, user_id: int, test_id: 
             TopicProgress.user_id == user_id, TopicProgress.topic_id == test.topic_id
         )
         res = await session.execute(stmt)
-        (perc,) = res.first()
+        perc = res.scalar_one_or_none()
         return perc is not None and perc >= 90.0
 
     return False  # fallback

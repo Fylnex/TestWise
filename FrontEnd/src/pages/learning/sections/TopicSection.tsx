@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { sectionApi, Subsection } from "@/services/sectionApi";
 import { testApi, Test as TestType } from "@/services/testApi";
 import { useEffect, useState } from "react";
+import { getTestTypeInRussian } from "@/lib/utils";
 
 const TopicSection = () => {
   const { sectionId } = useParams();
@@ -153,7 +154,7 @@ const TopicSection = () => {
                         <div>
                           <h3 className="text-lg font-bold mb-1">{test.title}</h3>
                           <div className="text-sm text-gray-600">
-                            Тип: {test.type}
+                            Тип: {getTestTypeInRussian(test.type)}
                             {test.duration && ` • Время: ${test.duration} мин`}
                             <div>Вопросов: {questionCount} (Целевой порог: 10)</div>
                             {test.last_score !== null && test.last_score !== undefined && (

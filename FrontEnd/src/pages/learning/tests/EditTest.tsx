@@ -44,6 +44,7 @@ const EditTest: React.FC = () => {
 
   const [formData, setFormData] = useState({
     title: '',
+    description: '',
     type: 'hinted',
     duration: '',
     max_attempts: '',
@@ -68,6 +69,7 @@ const EditTest: React.FC = () => {
         setTest(testData);
         setFormData({
           title: testData.title,
+          description: testData.description || '',
           type: testData.type,
           duration: testData.duration?.toString() || '',
           max_attempts: testData.max_attempts?.toString() || '',
@@ -245,6 +247,7 @@ const EditTest: React.FC = () => {
       // Обновляем основную информацию о тесте
       const updateData = {
         title: formData.title,
+        description: formData.description || null,
         type: formData.type,
         duration: formData.duration ? Number(formData.duration) : null,
         max_attempts: formData.max_attempts ? Number(formData.max_attempts) : undefined,
@@ -375,6 +378,17 @@ const EditTest: React.FC = () => {
                   onChange={(e) => handleInputChange("title", e.target.value)}
                   placeholder="Введите название теста"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Описание теста</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  placeholder="Введите описание теста (опционально)"
+                  rows={3}
                 />
               </div>
 

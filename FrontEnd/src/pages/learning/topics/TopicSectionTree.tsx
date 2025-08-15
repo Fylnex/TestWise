@@ -15,7 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { progressApi, TestAttempt } from '@/services/progressApi';
 import { useAuth } from '@/context/AuthContext';
 
-function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSub, setShowTopicStructure, testAttempts = [] }) {
+function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSub, setShowTopicStructure, testAttempts = [], topicId }) {
   const [open, setOpen] = useState(true);
   const hasChildren = (item.subsections && item.subsections.length > 0) || (item.tests && item.tests.length > 0);
 
@@ -93,8 +93,14 @@ function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSu
             setShowTopicStructure(false);
             navigate(`/section/tree/${item.section_id}?sub=${item.id}`);
           } else if (item.type === 'test') {
-            // Для тестов сразу переходим к тесту
-            navigate(`/test/${item.id}`);
+            // Для тестов переходим к тесту с правильными параметрами
+            if (item.section_id) {
+              // Тест принадлежит секции
+              navigate(`/topic/${topicId}/section/${item.section_id}/test/${item.id}`);
+            } else {
+              // Тест принадлежит теме (не секции)
+              navigate(`/topic/${topicId}/test/${item.id}`);
+            }
           }
         }}
       >
@@ -109,10 +115,10 @@ function TreeItem({ item, level = 0, navigate, setSelectedSection, setSelectedSu
       {hasChildren && open && (
         <ul>
           {item.subsections?.map(sub =>
-            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} />
+            <TreeItem key={sub.id} item={{ ...sub, key: `subsection-${sub.id}`, type: 'subsection' }} level={level + 1} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} topicId={topicId} />
           )}
           {item.tests?.map(test =>
-            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 2} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} />
+            <TreeItem key={test.id} item={{ ...test, key: `test-${test.id}`, type: 'test' }} level={level + 2} navigate={navigate} setSelectedSection={setSelectedSection} setSelectedSub={setSelectedSub} setShowTopicStructure={setShowTopicStructure} testAttempts={testAttempts} topicId={topicId} />
           )}
         </ul>
       )}
@@ -314,6 +320,7 @@ export default function TopicSectionTree() {
                     setSelectedSub={setSelectedSub}
                     setShowTopicStructure={setShowTopicStructure}
                     testAttempts={testAttempts}
+                    topicId={topicId}
                   />
                 )}
               </ul>
@@ -366,6 +373,7 @@ export default function TopicSectionTree() {
                     setSelectedSub={setSelectedSub}
                     setShowTopicStructure={setShowTopicStructure}
                     testAttempts={testAttempts}
+                    topicId={topicId}
                   />
                 )}
               </ul>
@@ -435,7 +443,13 @@ export default function TopicSectionTree() {
                         <FileCheck2 className="mr-2 text-green-500" size={16} />
                         <span 
                           className="cursor-pointer hover:text-blue-600 transition-colors"
-                          onClick={() => navigate(`/test/${test.id}`)}
+                          onClick={() => {
+                            if (test.section_id) {
+                              navigate(`/topic/${topicId}/section/${test.section_id}/test/${test.id}`);
+                            } else {
+                              navigate(`/topic/${topicId}/test/${test.id}`);
+                            }
+                          }}
                         >
                           {test.title}
                         </span>

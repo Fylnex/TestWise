@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import Header from "@/components/Header";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { getTestTypeInRussian } from "@/lib/utils";
 
 
 const TopicPage: React.FC = () => {
@@ -1071,8 +1072,19 @@ const TopicPage: React.FC = () => {
                     <div className="font-semibold text-lg text-gray-900 font-sans">
                       {test.title}
                     </div>
-                    <div className="text-gray-500 text-sm">
-                      Тип: {test.type}
+                    {test.description && (
+                      <div className="text-gray-600 text-sm mt-1">
+                        {test.description}
+                      </div>
+                    )}
+                    <div className="text-gray-500 text-sm mt-1">
+                      <span>Тип: {getTestTypeInRussian(test.type)}</span>
+                      {test.max_attempts && (
+                        <span className="ml-2">• Попыток: {test.max_attempts}</span>
+                      )}
+                      {test.duration && (
+                        <span className="ml-2">• Время: {test.duration} мин</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

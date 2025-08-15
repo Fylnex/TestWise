@@ -10,8 +10,9 @@ attempts, including creation, retrieval, and submission handling.
 
 from __future__ import annotations
 
+from _ast import Load
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,8 +123,8 @@ async def _next_attempt_number(session: AsyncSession, user_id: int, test_id: int
         TestAttempt.user_id == user_id, TestAttempt.test_id == test_id
     )
     result = await session.execute(stmt)
-    (count,) = result.first()
-    return count + 1
+    count = result.scalar_one_or_none()
+    return (count or 0) + 1
 
 async def create_test_attempt(
     session: AsyncSession,

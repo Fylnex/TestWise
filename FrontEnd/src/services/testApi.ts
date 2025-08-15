@@ -19,6 +19,7 @@ export interface Question {
 export interface Test {
   id: number;
   title: string;
+  description?: string;
   type: string;
   duration?: number;
   section_id?: number;

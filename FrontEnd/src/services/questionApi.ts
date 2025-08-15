@@ -23,6 +23,7 @@ export interface CreateQuestionData {
   hint?: string;
   is_final?: boolean;
   image?: string;
+  image_file?: File; // Для загрузки файла
 }
 
 export interface UpdateQuestionData {
@@ -33,6 +34,7 @@ export interface UpdateQuestionData {
   hint?: string;
   is_final?: boolean;
   image?: string;
+  image_file?: File; // Для загрузки файла
 }
 
 const validateCorrectAnswer = (question_type: string, correct_answer: number | number[] | string): void => {
@@ -63,6 +65,13 @@ export const questionApi = {
     validateCorrectAnswer(data.question_type, data.correct_answer);
 
     const response = await http.post<Question>("/questions", data);
+    return response.data;
+  },
+
+  getQuestionsByTest: async (testId: number): Promise<Question[]> => {
+    const response = await http.get<Question[]>("/questions", {
+      params: { test_id: testId },
+    });
     return response.data;
   },
 

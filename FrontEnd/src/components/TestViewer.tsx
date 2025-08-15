@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,24 +6,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle,
   XCircle,
   ArrowLeft,
   Clock,
   HelpCircle,
+  Play,
+  BookOpen,
+  Target,
+  Timer,
+  Users,
 } from "lucide-react";
-import {
-  testApi,
-  Test,
-  TestStartResponse,
-  SubmitTestData,
-  SubmitResponse,
-  AttemptStatusResponse,
-  Question,
-} from "@/services/testApi";
+import { Question } from "@/services/testApi";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/Header";
+import { useTest } from "@/hooks/useTest";
+import { getTestTypeInRussian } from "@/lib/utils";
 
 interface TestViewerProps {
   testId?: number;
@@ -35,467 +35,31 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
   const { user } = useAuth();
   const testId = propTestId || Number(urlTestId);
 
-  const [test, setTest] = useState<Test | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<
-    Record<number, number | number[] | string>
-  >({});
-  const [showResults, setShowResults] = useState(false);
   const [showHints, setShowHints] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [testStarted, setTestStarted] = useState(false);
-  const [attemptId, setAttemptId] = useState<number | null>(null);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [submitResponse, setSubmitResponse] = useState<SubmitResponse | null>(
-    null,
-  );
-  const [submitAttempts, setSubmitAttempts] = useState(0);
-  const [statusCheckAttempts, setStatusCheckAttempts] = useState(0);
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(
-    null,
-  );
 
-  // Refs для контроля таймеров
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Восстановление состояния из localStorage и проверка активной попытки
-  useEffect(() => {
-    if (!testId) {
-      console.error("testId is undefined or invalid");
-      setError("Неверный ID теста");
-      setLoading(false);
-      return;
-    }
-
-    console.log(
-      `Loading test data for testId: ${testId}, sectionId: ${sectionId}, topicId: ${topicId}`,
-    );
-
-    const loadTestData = async () => {
-      try {
-        setLoading(true);
-
-        // Загружаем базовую информацию о тесте (без вопросов)
-        console.log("Fetching tests by section or topic...");
-        const allTests =
-          (await testApi.getTestsBySection(Number(sectionId) || undefined)) ||
-          (await testApi.getTestsByTopic(Number(topicId) || undefined)) ||
-          [];
-        const testData = allTests.find((t) => t.id === testId);
-        if (!testData) {
-          throw new Error("Тест не найден");
-        }
-        setTest(testData);
-
-        console.log("Fetching attempt status...");
-        try {
-          // Проверяем статус попытки через /tests/{test_id}/status
-          const attemptStatus = await testApi.getTestAttemptStatus(testId);
-          console.log("Attempt status received:", attemptStatus);
-          setAttemptId(attemptStatus.attempt_id);
-          setStartTime(new Date(attemptStatus.start_time));
-          setQuestions(attemptStatus.questions);
-          setAnswers(
-            attemptStatus.questions.reduce(
-              (acc, q) => ({
-                ...acc,
-                [q.id]:
-                  q.question_type === "multiple_choice"
-                    ? []
-                    : q.question_type === "open_text"
-                      ? ""
-                      : null,
-              }),
-              {} as Record<number, number | number[] | string>,
-            ),
-          );
-          setCurrentQuestion(0);
-          setTestStarted(true);
-          localStorage.setItem(
-            `test_${testId}_attemptId`,
-            attemptStatus.attempt_id.toString(),
-          );
-        } catch (error: any) {
-          console.error("Error fetching attempt status:", error);
-          if (
-            error.response?.status === 404 ||
-            error.response?.status === 304
-          ) {
-            // Нет активной попытки или кэшированный ответ, инициализируем пустое состояние
-            setQuestions([]);
-            setAnswers({});
-            setCurrentQuestion(0);
-            setTestStarted(false);
-          } else {
-            setError("Ошибка загрузки статуса попытки");
-            console.error("Error fetching attempt status:", error);
-          }
-        }
-      } catch (err) {
-        setError("Ошибка загрузки теста");
-        console.error("Error loading test:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTestData();
-  }, [testId, sectionId, topicId]);
-
-  // Сохранение состояния в localStorage при изменении
-  useEffect(() => {
-    if (testId && testStarted && attemptId) {
-      localStorage.setItem(`test_${testId}_attemptId`, attemptId.toString());
-      localStorage.setItem(`test_${testId}_test`, JSON.stringify(test));
-      localStorage.setItem(
-        `test_${testId}_questions`,
-        JSON.stringify(questions),
-      );
-      localStorage.setItem(`test_${testId}_answers`, JSON.stringify(answers));
-      localStorage.setItem(
-        `test_${testId}_currentQuestion`,
-        currentQuestion.toString(),
-      );
-      localStorage.setItem(
-        `test_${testId}_startTime`,
-        startTime?.toISOString() || "",
-      );
-    }
-  }, [
-    testId,
-    testStarted,
-    attemptId,
+  // Используем хук для управления тестом
+  const {
     test,
     questions,
-    answers,
     currentQuestion,
-    startTime,
-  ]);
-
-  // Очистка localStorage
-  const clearLocalStorage = () => {
-    localStorage.removeItem(`test_${testId}_attemptId`);
-    localStorage.removeItem(`test_${testId}_test`);
-    localStorage.removeItem(`test_${testId}_questions`);
-    localStorage.removeItem(`test_${testId}_answers`);
-    localStorage.removeItem(`test_${testId}_currentQuestion`);
-    localStorage.removeItem(`test_${testId}_startTime`);
-  };
-
-  // Очистка всех таймеров
-  const clearAllTimers = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (redirectTimerRef.current) {
-      clearTimeout(redirectTimerRef.current);
-      redirectTimerRef.current = null;
-    }
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-  };
-
-  const handleAutoSubmit = async () => {
-    if (!attemptId) {
-      setError("Тест не был запущен");
-      return;
-    }
-
-    // Проверяем статус попытки
-    try {
-      const attemptStatus = await testApi.getTestAttemptStatus(testId);
-      if (attemptStatus.status === "COMPLETED") {
-        console.log("Attempt already completed:", attemptStatus);
-        setSubmitResponse({
-          id: attemptStatus.attempt_id,
-          user_id: user?.id || 0,
-          test_id: testId,
-          attempt_number: attemptStatus.attempt_number,
-          score: attemptStatus.score || 0,
-          time_spent: attemptStatus.duration || 0,
-          started_at: attemptStatus.start_time,
-          completed_at: attemptStatus.completed_at || null,
-          status: attemptStatus.status,
-          correctCount: attemptStatus.score
-            ? Math.round(
-                (attemptStatus.score / 100) * attemptStatus.questions.length,
-              )
-            : 0,
-          totalQuestions: attemptStatus.questions.length,
-        });
-        setShowResults(true);
-        clearLocalStorage();
-        return;
-      }
-    } catch (error: any) {
-      console.error("Error checking attempt status:", error);
-      setError("Ошибка проверки статуса попытки");
-      return;
-    }
-
-    if (submitAttempts >= 3) {
-      navigate(`/section/tree/${topicId}`);
-      return;
-    }
-
-    // Отправляем ВСЕ ответы, включая неподтвержденные
-    const submitData: SubmitTestData = {
-      attempt_id: attemptId,
-      time_spent: Math.floor((Date.now() - startTime!.getTime()) / 1000),
-      answers: Object.entries(answers).map(([questionId, selectedAnswer]) => {
-        const question = questions.find((q) => q.id === Number(questionId))!;
-        return {
-          question_id: Number(questionId),
-          answer:
-            question.question_type === "open_text"
-              ? typeof selectedAnswer === "string"
-                ? selectedAnswer
-                : ""
-              : Array.isArray(selectedAnswer)
-                ? selectedAnswer
-                : selectedAnswer !== null
-                  ? [selectedAnswer as number]
-                  : [], // Отправляем пустой массив для неотвеченных вопросов
-        };
-      }),
-    };
-
-    try {
-      const response = await testApi.submitTest(testId, submitData);
-      console.log("Submit response:", response);
-      setSubmitResponse(response);
-      setShowResults(true);
-      clearLocalStorage();
-    } catch (err) {
-      setError("Ошибка отправки результатов");
-      console.error("Error submitting test:", err);
-      setSubmitAttempts((prev) => prev + 1);
-      if (submitAttempts + 1 >= 3) {
-        navigate(`/section/tree/${topicId}`);
-      }
-    }
-  };
-
-  // Таймер для теста
-  useEffect(() => {
-    // Очищаем предыдущий таймер
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (
-      testStarted &&
-      startTime &&
-      test?.duration &&
-      attemptId &&
-      !showResults
-    ) {
-      const calculateTimeLeft = async () => {
-        const now = new Date();
-        const elapsed = (now.getTime() - startTime.getTime()) / 1000; // В секундах
-        const totalTime = test.duration * 60; // В секундах
-        const remaining = Math.max(0, totalTime - elapsed);
-        setTimeLeft(remaining);
-
-        if (remaining <= 0) {
-          // Прямо отправляем ответы без проверки статуса
-          await handleAutoSubmit();
-
-          // Останавливаем таймер после обработки истечения времени
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-        }
-      };
-
-      calculateTimeLeft();
-      timerRef.current = setInterval(calculateTimeLeft, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [
-    testStarted,
-    startTime,
-    test?.duration,
-    attemptId,
-    testId,
-    user,
+    answers,
     showResults,
-  ]);
-
-  // Автоматическое перенаправление через 30 секунд после показа результатов
-  useEffect(() => {
-    if (showResults && topicId) {
-      // Запускаем обратный отсчет
-      setRedirectCountdown(30);
-
-      // Таймер для обновления счетчика каждую секунду
-      countdownTimerRef.current = setInterval(() => {
-        setRedirectCountdown((prev) => {
-          if (prev === null || prev <= 1) {
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      // Таймер для перенаправления через 30 секунд
-      redirectTimerRef.current = setTimeout(() => {
-        navigate(`/section/tree/${topicId}`);
-      }, 30000);
-    }
-
-    return () => {
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-        redirectTimerRef.current = null;
-      }
-      if (countdownTimerRef.current) {
-        clearInterval(countdownTimerRef.current);
-        countdownTimerRef.current = null;
-      }
-    };
-  }, [showResults, topicId, navigate]);
-
-  // Очистка всех таймеров при размонтировании компонента
-  useEffect(() => {
-    return () => {
-      clearAllTimers();
-    };
-  }, []);
-
-  const handleStartTest = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Проверяем наличие активной попытки через /tests/{test_id}/status
-      try {
-        const attemptStatus = await testApi.getTestAttemptStatus(testId);
-        if (attemptStatus.status === "IN_PROGRESS") {
-          setError(
-            "У вас уже есть активная попытка. Завершите её перед началом новой.",
-          );
-          return;
-        }
-      } catch (error: any) {
-        if (error.response?.status !== 404) {
-          setError("Ошибка проверки статуса попытки");
-          console.error("Error checking attempt status:", error);
-          return;
-        }
-      }
-
-      // Начинаем новую попытку
-      const startResponse = await testApi.startTest(testId);
-      setAttemptId(startResponse.attempt_id);
-      setStartTime(new Date(startResponse.start_time));
-      setQuestions(startResponse.questions);
-      setAnswers(
-        startResponse.questions.reduce(
-          (acc, q) => ({
-            ...acc,
-            [q.id]:
-              q.question_type === "multiple_choice"
-                ? []
-                : q.question_type === "open_text"
-                  ? ""
-                  : null,
-          }),
-          {} as Record<number, number | number[] | string>,
-        ),
-      );
-      setCurrentQuestion(0);
-      setTestStarted(true);
-      if (test?.duration) {
-        setTimeLeft(test.duration * 60);
-      }
-      localStorage.setItem(
-        `test_${testId}_attemptId`,
-        startResponse.attempt_id.toString(),
-      );
-    } catch (err) {
-      setError("Ошибка запуска теста");
-      console.error("Error starting test:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnswer = (
-    questionId: number,
-    value: number | number[] | string,
-  ) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: value,
-    }));
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    } else {
-      handleSubmitTest();
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
-  const isAnswerReady = (
-    answer: {
-      questionId: number;
-      selectedAnswer: number | number[] | string;
-    },
-    question: Question,
-  ) => {
-    if (question.question_type === "single_choice") {
-      return typeof answer.selectedAnswer === "number";
-    }
-    if (question.question_type === "multiple_choice") {
-      return (
-        Array.isArray(answer.selectedAnswer) && answer.selectedAnswer.length > 0
-      );
-    }
-    if (question.question_type === "open_text") {
-      return (
-        typeof answer.selectedAnswer === "string" &&
-        answer.selectedAnswer.trim() !== ""
-      );
-    }
-    return false;
-  };
-
-  const handleSubmitTest = async () => {
-    // Останавливаем таймер при ручной отправке
-    clearAllTimers();
-    await handleAutoSubmit();
-  };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
+    loading,
+    error,
+    timeLeft,
+    testStarted,
+    submitResponse,
+    redirectCountdown,
+    handleStartTest,
+    handleAnswer,
+    handleNext,
+    handlePrevious,
+    handleSubmitTest,
+    clearAllTimers,
+    formatTime,
+    isAnswerReady,
+    resetTest,
+  } = useTest({ testId, topicId, sectionId });
 
   if (loading) {
     return (
@@ -540,39 +104,120 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
 
   if (!testStarted) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <Header />
-        <div className="max-w-4xl mx-auto py-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">{test.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Информация о тесте:</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>Тип: {test.type}</li>
-                    {test.duration && <li>Время: {test.duration} минут</li>}
-                  </ul>
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Готовы к тестированию?</h1>
+            <p className="text-gray-600">Проверьте свои знания и получите результат</p>
+          </div>
+          
+          <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader className="text-center pb-6">
+              <div className="flex justify-center mb-4">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <BookOpen className="w-8 h-8 text-blue-600" />
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Инструкции:</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>• Внимательно читайте каждый вопрос</li>
-                    <li>• Выберите правильные ответы</li>
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-900">{test.title}</CardTitle>
+              {test.description && (
+                <p className="text-gray-600 mt-2">{test.description}</p>
+              )}
+              <div className="flex justify-center mt-4">
+                <Badge variant="secondary" className="text-sm">
+                  {getTestTypeInRussian(test.type)}
+                </Badge>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              {/* Информация о тесте */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {test.duration && (
+                  <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                    <Timer className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-gray-900">{test.duration} мин</p>
+                      <p className="text-sm text-gray-600">Время на прохождение</p>
+                    </div>
+                  </div>
+                )}
+                
+                {test.max_attempts && (
+                  <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
+                    <Users className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="font-semibold text-gray-900">{test.max_attempts}</p>
+                      <p className="text-sm text-gray-600">Попыток доступно</p>
+                    </div>
+                  </div>
+                )}
+                
+                {test.questions && (
+                  <div className="flex items-center space-x-3 p-4 bg-purple-50 rounded-lg">
+                    <Target className="w-5 h-5 text-purple-600" />
+                    <div>
+                      <p className="font-semibold text-gray-900">{test.questions.length}</p>
+                      <p className="text-sm text-gray-600">Вопросов в тесте</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Инструкции */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+                  <HelpCircle className="w-5 h-5 mr-2 text-gray-600" />
+                  Инструкции по прохождению
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                  <ul className="space-y-2">
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      Внимательно читайте каждый вопрос
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      Выберите правильные ответы
+                    </li>
+                  </ul>
+                  <ul className="space-y-2">
                     {test.type === "hinted" && (
-                      <li>• Используйте подсказки при необходимости</li>
+                      <li className="flex items-start">
+                        <span className="text-blue-600 mr-2">•</span>
+                        Используйте подсказки при необходимости
+                      </li>
                     )}
-                    {test.duration && <li>• Следите за временем</li>}
+                    {test.duration && (
+                      <li className="flex items-start">
+                        <span className="text-blue-600 mr-2">•</span>
+                        Следите за временем
+                      </li>
+                    )}
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      Можно вернуться к предыдущим вопросам
+                    </li>
                   </ul>
                 </div>
               </div>
-              <div className="flex gap-4 pt-4">
-                <Button onClick={handleStartTest} className="flex-1">
+
+              {/* Кнопки действий */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                <Button 
+                  onClick={handleStartTest} 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold"
+                  size="lg"
+                >
+                  <Play className="w-5 h-5 mr-2" />
                   Начать тест
                 </Button>
-                <Button variant="outline" onClick={() => navigate(-1)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate(-1)}
+                  className="py-3 text-lg"
+                  size="lg"
+                >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Назад
                 </Button>
@@ -636,23 +281,12 @@ const TestViewer: React.FC<TestViewerProps> = ({ testId: propTestId }) => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    clearAllTimers();
-                    setCurrentQuestion(0);
-                    setAnswers({});
-                    setShowResults(false);
-                    setTestStarted(false);
-                    setAttemptId(null);
-                    setStartTime(null);
-                    setSubmitResponse(null);
-                    setTimeLeft(null);
-                    setSubmitAttempts(0);
-                    setStatusCheckAttempts(0);
-                    setRedirectCountdown(null);
-                    clearLocalStorage();
+                    resetTest();
                   }}
                 >
                   Пройти заново
                 </Button>
+
               </div>
             </CardContent>
           </Card>

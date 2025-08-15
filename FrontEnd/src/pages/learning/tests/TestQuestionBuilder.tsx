@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { testApi, Test } from "@/services/testApi";
+import { getTestTypeInRussian } from "@/lib/utils";
 
 const TestQuestionBuilder = () => {
   const { testId, topicId, sectionId } = useParams();
@@ -15,8 +16,14 @@ const TestQuestionBuilder = () => {
   useEffect(() => {
     if (testId) {
       setLoading(true);
-      testApi.getTest(Number(testId))
-        .then(setTest)
+      // Используем getAllTests и находим нужный тест
+      testApi.getAllTests()
+        .then(tests => {
+          const testData = tests.find(t => t.id === Number(testId));
+          if (testData) {
+            setTest(testData);
+          }
+        })
         .catch(console.error)
         .finally(() => setLoading(false));
     }
@@ -66,7 +73,7 @@ const TestQuestionBuilder = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{test.title}</h2>
-              <p className="text-gray-600 text-sm">Тип: {test.type}</p>
+              <p className="text-gray-600 text-sm">Тип: {getTestTypeInRussian(test.type)}</p>
               {test.duration && (
                 <p className="text-gray-600 text-sm">Длительность: {test.duration} минут</p>
               )}
