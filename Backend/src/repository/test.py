@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
+from src.domain.enums import TestAttemptStatus
 from src.domain.models import Test, TestAttempt, TestType, User, Topic, Section
 from src.repository.base import create_item, delete_item, get_item, update_item
 from src.utils.exceptions import NotFoundError, ValidationError
@@ -34,8 +35,8 @@ async def create_test(
     section_id: int | None = None,
     topic_id: int | None = None,
     duration: int | None = None,
+    max_attempts: int | None = None,
 ) -> Test:
-    """Create a new test with validation for section or topic ID."""
     if (section_id is None) == (topic_id is None):
         raise ValidationError(detail="Either section_id or topic_id must be provided (but not both)")
     if section_id is not None:
@@ -50,11 +51,12 @@ async def create_test(
         section_id=section_id,
         topic_id=topic_id,
         duration=duration,
+        max_attempts=max_attempts or (3 if type in [TestType.SECTION_FINAL, TestType.GLOBAL_FINAL] else None),
     )
 
-async def get_test(session: AsyncSession, test_id: int) -> Test:
-    """Retrieve a test by ID."""
-    return await get_item(session, Test, test_id)
+async def get_test(session: AsyncSession, test_id: int, options: Optional[list[Load]] = None) -> Test:
+    """Retrieve a test by ID with optional loading strategies."""
+    return await get_item(session, Test, test_id, options=options, is_archived=False)
 
 async def update_test(
     session: AsyncSession,
@@ -173,11 +175,11 @@ async def submit_test(
     attempt.time_spent = time_spent
     attempt.answers = answers
     attempt.completed_at = datetime.now()
+    attempt.status = TestAttemptStatus.COMPLETED  # Установка статуса completed
     await update_item(session, TestAttempt, attempt_id)
 
     # Recompute and store the best score into the Test.completion_percentage
     test = await get_item(session, Test, attempt.test_id)
-    # take the max of existing and this new score
     test.completion_percentage = max(test.completion_percentage or 0.0, score)
     await session.commit()
 

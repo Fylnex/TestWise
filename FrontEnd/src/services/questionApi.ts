@@ -1,13 +1,11 @@
-// TestWise/src/services/questionApi.ts
 import http from "./apiConfig";
 
 export interface Question {
   id: number;
   test_id: number;
   question: string;
-  question_type: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'open_text';
   options?: any[];
-  correct_answer?: any;
   hint?: string;
   is_final: boolean;
   image?: string;
@@ -16,8 +14,54 @@ export interface Question {
   is_archived: boolean;
 }
 
+export interface CreateQuestionData {
+  test_id: number;
+  question: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'open_text';
+  options?: any[];
+  correct_answer: number | number[] | string;
+  hint?: string;
+  is_final?: boolean;
+  image?: string;
+}
+
+export interface UpdateQuestionData {
+  question?: string;
+  question_type?: 'single_choice' | 'multiple_choice' | 'open_text';
+  options?: any[];
+  correct_answer?: number | number[] | string;
+  hint?: string;
+  is_final?: boolean;
+  image?: string;
+}
+
+const validateCorrectAnswer = (question_type: string, correct_answer: number | number[] | string): void => {
+  switch (question_type) {
+    case 'single_choice':
+      if (typeof correct_answer !== 'number') {
+        throw new Error('For single_choice questions, correct_answer must be a number (index)');
+      }
+      break;
+    case 'multiple_choice':
+      if (!Array.isArray(correct_answer) || !correct_answer.every(item => typeof item === 'number')) {
+        throw new Error('For multiple_choice questions, correct_answer must be an array of numbers (indices)');
+      }
+      break;
+    case 'open_text':
+      if (typeof correct_answer !== 'string') {
+        throw new Error('For open_text questions, correct_answer must be a string');
+      }
+      break;
+    default:
+      throw new Error(`Unsupported question_type: ${question_type}`);
+  }
+};
+
 export const questionApi = {
-  createQuestion: async (data: Omit<Partial<Question>, "id" | "created_at" | "updated_at" | "is_archived">): Promise<Question> => {
+  createQuestion: async (data: CreateQuestionData): Promise<Question> => {
+    // Валидация correct_answer и question_type
+    validateCorrectAnswer(data.question_type, data.correct_answer);
+
     const response = await http.post<Question>("/questions", data);
     return response.data;
   },
@@ -27,7 +71,15 @@ export const questionApi = {
     return response.data;
   },
 
-  updateQuestion: async (id: number, data: Partial<Question>): Promise<Question> => {
+  updateQuestion: async (
+    id: number,
+    data: UpdateQuestionData,
+  ): Promise<Question> => {
+    // Валидация correct_answer и question_type, если они предоставлены
+    if (data.question_type && data.correct_answer !== undefined) {
+      validateCorrectAnswer(data.question_type, data.correct_answer);
+    }
+
     const response = await http.put<Question>(`/questions/${id}`, data);
     return response.data;
   },
@@ -46,12 +98,5 @@ export const questionApi = {
 
   deleteQuestionPermanently: async (id: number): Promise<void> => {
     await http.delete(`/questions/${id}/permanent`);
-  },
-
-  getQuestionsByTestId: async (testId: number): Promise<Question[]> => {
-    const response = await http.get<Question[]>("/questions", {
-      params: { test_id: testId },
-    });
-    return response.data;
   },
 };

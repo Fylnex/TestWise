@@ -6,57 +6,179 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Save, FileText, ListChecks } from 'lucide-react';
 import Header from '@/components/Header';
+import { testApi } from '@/services/testApi';
+import { questionApi } from '@/services/questionApi';
 
-const placeholderImages = [
-  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80',
-];
+interface QuestionForm {
+  text: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'open_text';
+  options?: string[];
+  correct_answer: number | number[] | string;
+}
+
+const emptyQuestion: QuestionForm = {
+  text: '',
+  question_type: 'single_choice',
+  options: ['', ''],
+  correct_answer: 0
+};
 
 export default function CreateTest() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [type, setType] = useState('hinted');
-  const [questions, setQuestions] = useState([
-    { text: '', answers: ['', ''], correct: 0 },
-  ]);
+  const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleQuestionChange = (idx: number, value: string) => {
-    setQuestions(qs => qs.map((q, i) => i === idx ? { ...q, text: value } : q));
+  const handleQuestionChange = (idx: number, field: keyof QuestionForm, value: string) => {
+    setQuestions(qs => qs.map((q, i) => {
+      if (i === idx) {
+        const updatedQuestion = { ...q, [field]: value };
+
+        // При смене типа вопроса сбрасываем опции и правильный ответ
+        if (field === 'question_type') {
+          if (value === 'open_text') {
+            updatedQuestion.options = undefined;
+            updatedQuestion.correct_answer = '';
+          } else if (value === 'single_choice') {
+            updatedQuestion.options = q.options || ['', ''];
+            updatedQuestion.correct_answer = 0;
+          } else if (value === 'multiple_choice') {
+            updatedQuestion.options = q.options || ['', ''];
+            updatedQuestion.correct_answer = [];
+          }
+        }
+
+        return updatedQuestion;
+      }
+      return q;
+    }));
   };
-  const handleAnswerChange = (qIdx: number, aIdx: number, value: string) => {
+
+  const handleOptionChange = (qIdx: number, oIdx: number, value: string) => {
     setQuestions(qs => qs.map((q, i) => i === qIdx ? {
       ...q,
-      answers: q.answers.map((a, j) => j === aIdx ? value : a)
+      options: q.options?.map((o, j) => j === oIdx ? value : o)
     } : q));
   };
-  const handleCorrectChange = (qIdx: number, value: number) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? { ...q, correct: value } : q));
+
+  const handleCorrectAnswerChange = (qIdx: number, value: number | number[] | string) => {
+    setQuestions(qs => qs.map((q, i) => i === qIdx ? { ...q, correct_answer: value } : q));
   };
+
   const addQuestion = () => {
-    setQuestions(qs => [...qs, { text: '', answers: ['', ''], correct: 0 }]);
+    setQuestions(qs => [...qs, { ...emptyQuestion }]);
   };
+
   const addAnswer = (qIdx: number) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? { ...q, answers: [...q.answers, ''] } : q));
+    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
+      ...q,
+      options: q.options ? [...q.options, ''] : ['', '']
+    } : q));
   };
+
   const removeQuestion = (idx: number) => {
-    setQuestions(qs => qs.filter((_, i) => i !== idx));
+    if (questions.length > 1) {
+      setQuestions(qs => qs.filter((_, i) => i !== idx));
+    }
   };
+
   const removeAnswer = (qIdx: number, aIdx: number) => {
-    setQuestions(qs => qs.map((q, i) => i === qIdx ? { ...q, answers: q.answers.filter((_, j) => j !== aIdx) } : q));
+    setQuestions(qs => qs.map((q, i) => i === qIdx ? {
+      ...q,
+      options: q.options && q.options.length > 2 ? q.options.filter((_, j) => j !== aIdx) : q.options
+    } : q));
+  };
+
+  const validateQuestions = (): boolean => {
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+
+      if (!q.text.trim()) {
+        setError(`Вопрос ${i + 1}: текст вопроса не может быть пустым`);
+        return false;
+      }
+
+      switch (q.question_type) {
+        case 'single_choice':
+          if (!q.options || q.options.length < 2) {
+            setError(`Вопрос ${i + 1}: должно быть минимум 2 варианта ответа`);
+            return false;
+          }
+          if (q.options.some(opt => !opt.trim())) {
+            setError(`Вопрос ${i + 1}: все варианты ответов должны быть заполнены`);
+            return false;
+          }
+          if (typeof q.correct_answer !== 'number' || q.correct_answer < 0 || q.correct_answer >= q.options.length) {
+            setError(`Вопрос ${i + 1}: выберите правильный ответ`);
+            return false;
+          }
+          break;
+
+        case 'multiple_choice':
+          if (!q.options || q.options.length < 2) {
+            setError(`Вопрос ${i + 1}: должно быть минимум 2 варианта ответа`);
+            return false;
+          }
+          if (q.options.some(opt => !opt.trim())) {
+            setError(`Вопрос ${i + 1}: все варианты ответов должны быть заполнены`);
+            return false;
+          }
+          if (!Array.isArray(q.correct_answer) || q.correct_answer.length === 0) {
+            setError(`Вопрос ${i + 1}: выберите хотя бы один правильный ответ`);
+            return false;
+          }
+          break;
+
+        case 'open_text':
+          if (typeof q.correct_answer !== 'string' || !q.correct_answer.trim()) {
+            setError(`Вопрос ${i + 1}: введите правильный ответ`);
+            return false;
+          }
+          break;
+      }
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateQuestions()) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      // Создаем тест
+      const testData = await testApi.createTest({
+        title,
+        type,
+        section_id: sectionId ? Number(sectionId) : undefined,
+      });
+
+      // Создаем вопросы
+      await Promise.all(questions.map(q =>
+        questionApi.createQuestion({
+          test_id: testData.id,
+          question: q.text,
+          question_type: q.question_type,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          is_final: type === 'section_final' || type === 'global_final',
+        })
+      ));
+
       navigate(-1);
-    }, 1200);
+    } catch (err) {
+      setError('Ошибка при создании теста');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +205,7 @@ export default function CreateTest() {
                   <b>Тип теста:</b> <br/>С подсказками — для тренировки, финальный — для проверки знаний.
                 </div>
                 <div className="bg-indigo-50 rounded-xl p-4">
-                  <b>Вопросы:</b> <br/>Формулируйте чётко, добавляйте минимум 2 варианта, отмечайте правильный.
+                  <b>Типы вопросов:</b> <br/>Одиночный выбор, множественный выбор или открытый текст.
                 </div>
               </div>
             </div>
@@ -104,6 +226,7 @@ export default function CreateTest() {
                   className="mt-3 text-lg py-4 px-4"
                 />
               </div>
+
               {/* Тип теста */}
               <div>
                 <Label htmlFor="type" className="font-semibold text-gray-800 text-lg">Тип теста</Label>
@@ -111,13 +234,14 @@ export default function CreateTest() {
                   id="type"
                   value={type}
                   onChange={e => setType(e.target.value)}
-                  className="mt-3 text-lg py-4 px-4 border rounded"
+                  className="mt-3 text-lg py-4 px-4 border rounded w-full"
                 >
                   <option value="hinted">С подсказками</option>
                   <option value="section_final">Финальный по секции</option>
                   <option value="global_final">Глобальный финальный</option>
                 </select>
               </div>
+
               {/* Вопросы */}
               <div className="flex flex-col gap-8">
                 {questions.map((q, qIdx) => (
@@ -130,31 +254,108 @@ export default function CreateTest() {
                         </Button>
                       )}
                     </div>
-                    <Textarea value={q.text} onChange={e => handleQuestionChange(qIdx, e.target.value)} required rows={2} placeholder="Текст вопроса..." className="text-base" />
-                    <div className="mt-3 flex flex-col gap-2">
-                      {q.answers.map((a, aIdx) => (
-                        <div key={aIdx} className="flex items-center gap-2">
-                          <Input value={a} onChange={e => handleAnswerChange(qIdx, aIdx, e.target.value)} required placeholder={`Вариант ${aIdx + 1}`} className="text-base" />
-                          <input type="radio" name={`correct-${qIdx}`} checked={q.correct === aIdx} onChange={() => handleCorrectChange(qIdx, aIdx)} />
-                          <span className="text-xs text-gray-500">Правильный</span>
-                          {q.answers.length > 2 && (
-                            <Button type="button" variant="ghost" size="sm" onClick={() => removeAnswer(qIdx, aIdx)}>
-                              ✕
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                      <Button type="button" variant="outline" size="sm" onClick={() => addAnswer(qIdx)}>
-                        Добавить вариант
-                      </Button>
+
+                    <Textarea
+                      value={q.text}
+                      onChange={e => handleQuestionChange(qIdx, 'text', e.target.value)}
+                      required
+                      rows={2}
+                      placeholder="Текст вопроса..."
+                      className="text-base mb-3"
+                    />
+
+                    <div className="mb-3">
+                      <Label className="font-semibold text-gray-700">Тип вопроса</Label>
+                      <select
+                        value={q.question_type}
+                        onChange={e => handleQuestionChange(qIdx, 'question_type', e.target.value)}
+                        className="mt-1 text-base py-2 px-3 border rounded w-full"
+                      >
+                        <option value="single_choice">Одиночный выбор</option>
+                        <option value="multiple_choice">Множественный выбор</option>
+                        <option value="open_text">Открытый текст</option>
+                      </select>
                     </div>
+
+                    {q.question_type === 'open_text' ? (
+                      <div>
+                        <Label className="font-semibold text-gray-700">Правильный ответ</Label>
+                        <Input
+                          value={q.correct_answer as string}
+                          onChange={e => handleCorrectAnswerChange(qIdx, e.target.value)}
+                          placeholder="Введите правильный ответ"
+                          className="text-base mt-1"
+                          required
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <Label className="font-semibold text-gray-700 mb-2 block">Варианты ответов</Label>
+                        <div className="flex flex-col gap-2">
+                          {q.options?.map((option, oIdx) => (
+                            <div key={oIdx} className="flex items-center gap-2">
+                              <Input
+                                value={option}
+                                onChange={e => handleOptionChange(qIdx, oIdx, e.target.value)}
+                                placeholder={`Вариант ${oIdx + 1}`}
+                                className="text-base flex-1"
+                                required
+                              />
+
+                              {q.question_type === 'single_choice' ? (
+                                <input
+                                  type="radio"
+                                  name={`correct-${qIdx}`}
+                                  checked={q.correct_answer === oIdx}
+                                  onChange={() => handleCorrectAnswerChange(qIdx, oIdx)}
+                                />
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={Array.isArray(q.correct_answer) && q.correct_answer.includes(oIdx)}
+                                  onChange={(e) => {
+                                    const currentAnswers = Array.isArray(q.correct_answer) ? q.correct_answer : [];
+                                    if (e.target.checked) {
+                                      handleCorrectAnswerChange(qIdx, [...currentAnswers, oIdx]);
+                                    } else {
+                                      handleCorrectAnswerChange(qIdx, currentAnswers.filter(idx => idx !== oIdx));
+                                    }
+                                  }}
+                                />
+                              )}
+
+                              <span className="text-xs text-gray-500">Правильный</span>
+
+                              {q.options && q.options.length > 2 && (
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeAnswer(qIdx, oIdx)}>
+                                  ✕
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addAnswer(qIdx)}
+                          className="mt-2"
+                        >
+                          Добавить вариант
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+
               <Button type="button" variant="secondary" onClick={addQuestion} className="w-full">
                 Добавить вопрос
               </Button>
+
               {error && <div className="text-red-500 text-sm">{error}</div>}
+
               <div className="flex flex-col sm:flex-row gap-6 pt-2 w-full">
                 <Button
                   type="submit"
@@ -180,4 +381,4 @@ export default function CreateTest() {
       </div>
     </div>
   );
-} 
+}

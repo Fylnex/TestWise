@@ -29,13 +29,13 @@ from src.domain.enums import (
     SubsectionType,
     TestType,
     QuestionType,
-    ProgressStatus,
+    ProgressStatus, TestAttemptStatus,
 )
 
 Base = declarative_base()
 
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------a--------
 # Core domain models
 # ---------------------------------------------------------------------------
 
@@ -209,12 +209,14 @@ class Test(Base):
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=True, index=True)
     topic_id = Column(Integer, ForeignKey("topics.id"), nullable=True, index=True)
     title = Column(String, nullable=False)
+    description = Column(String, nullable=True)  # Добавлено поле
     duration = Column(Integer, nullable=True)
     type = Column(Enum(TestType), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
     completion_percentage = Column(Float, default=0.0)
+    max_attempts = Column(Integer, nullable=True)  # Add this line
 
     section = relationship("Section", back_populates="tests")
     topic = relationship("Topic", back_populates="global_tests")
@@ -245,6 +247,8 @@ class Question(Base):
     hint = Column(String, nullable=True)
     is_final = Column(Boolean, default=False)
     image = Column(String, nullable=True)
+    correct_answer_index = Column(Integer, nullable=True)  # Для SINGLE_CHOICE
+    correct_answer_indices = Column(JSON, nullable=True)  # Для MULTIPLE_CHOICE
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
@@ -315,12 +319,14 @@ class TestAttempt(Base):
     attempt_number = Column(Integer, nullable=False, default=1)
     score = Column(Float, nullable=True)
     time_spent = Column(Integer, nullable=True)
-    answers = Column(JSON, nullable=True)
+    answers = Column(JSON, nullable=True)  # Хранит ответы пользователя
+    randomized_config = Column(JSON, nullable=True)  # Хранит рандомизированные options и индексы
     started_at = Column(DateTime, default=datetime.now)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, onupdate=datetime.now)
     is_archived = Column(Boolean, default=False)
+    status = Column(Enum(TestAttemptStatus), default=TestAttemptStatus.STARTED, nullable=False)
 
     user = relationship("User", back_populates="test_attempts")
     test = relationship("Test", back_populates="attempts")

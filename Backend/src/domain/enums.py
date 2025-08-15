@@ -50,3 +50,10 @@ class GroupStudentStatus(str, enum.Enum):
     """Membership states within a group."""
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class TestAttemptStatus(str, enum.Enum):
+    """Statuses for test attempt lifecycle."""
+    STARTED = "started"  # Попытка теста начата
+    IN_PROGRESS = "in_progress"  # Попытка в процессе выполнения
+    COMPLETED = "completed"  # Попытка завершена

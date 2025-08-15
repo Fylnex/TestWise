@@ -11,6 +11,8 @@ import random
 from datetime import datetime
 from typing import Any, Dict, List
 
+from fastapi import HTTPException
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +28,7 @@ logger = configure_logger()
 
 
 async def _fetch_questions_by_test_ids(
-    session: AsyncSession, test_ids: List[int], only_final: bool = False
+        session: AsyncSession, test_ids: List[int], only_final: bool = False
 ) -> List[Question]:
     """Выбираем все вопросы по списку test_id."""
     stmt = select(Question).where(Question.test_id.in_(test_ids))
@@ -37,7 +39,7 @@ async def _fetch_questions_by_test_ids(
 
 
 async def _random_sample_questions(
-    questions: List[Question], num: int | None = None
+        questions: List[Question], num: int | None = None
 ) -> List[Question]:
     """Случайная выборка объектов Question."""
     if num is None or num >= len(questions):
@@ -46,11 +48,11 @@ async def _random_sample_questions(
 
 
 async def generate_hinted_test(
-    session: AsyncSession,
-    section_id: int,
-    num_questions: int = 10,
-    duration: int | None = 15,
-    title: str | None = None,
+        session: AsyncSession,
+        section_id: int,
+        num_questions: int = 10,
+        duration: int | None = 15,
+        title: str | None = None,
 ) -> Test:
     """
     Создаёт новый hinted‑тест, клонируя в него ненулевые вопросы из всех статичных тестов раздела.
@@ -103,11 +105,11 @@ async def generate_hinted_test(
 
 
 async def generate_section_final_test(
-    session: AsyncSession,
-    section_id: int,
-    num_questions: int | None = None,
-    duration: int | None = 20,
-    title: str | None = None,
+        session: AsyncSession,
+        section_id: int,
+        num_questions: int | None = None,
+        duration: int | None = 20,
+        title: str | None = None,
 ) -> Test:
     """
     Аналогично hinted, но используем только is_final=True вопросы.
@@ -151,11 +153,11 @@ async def generate_section_final_test(
 
 
 async def generate_global_final_test(
-    session: AsyncSession,
-    topic_id: int,
-    num_questions: int = 30,
-    duration: int | None = 40,
-    title: str | None = None,
+        session: AsyncSession,
+        topic_id: int,
+        num_questions: int = 30,
+        duration: int | None = 40,
+        title: str | None = None,
 ) -> Test:
     """
     Итоговый тест по теме: берём вопросы is_final=True из всех разделов темы.
@@ -209,8 +211,71 @@ async def generate_global_final_test(
 async def start_test(session: AsyncSession, user_id: int, test_id: int) -> TestAttempt:
     if not await check_test_availability(session, user_id, test_id):
         raise ValidationError(detail="Test not yet available")
-    return await create_test_attempt(session, user_id, test_id)
+    attempt = await create_test_attempt(session, user_id, test_id)
 
+    # Получаем вопросы и рандомизируем варианты
+    q_stmt = select(Question).where(
+        Question.test_id == test_id,
+        Question.is_archived.is_(False),
+        Question.correct_answer.is_not(None),
+        Question.correct_answer != []
+    )
+    questions = (await session.execute(q_stmt)).scalars().all()
+    randomized_questions = []
+    randomized_config = {}  # Инициализируем как словарь для накопления
+    for q in questions:
+        q_dict = {k: v for k, v in q.__dict__.items() if k in ['id', 'question', 'question_type', 'options', 'hint', 'image']}
+        if q.options:
+            options = q.options.copy()
+            random.shuffle(options)
+            q_dict['options'] = options
+            if isinstance(q.correct_answer, str):
+                try:
+                    original_index = q.options.index(q.correct_answer)
+                    correct_index = options.index(q.correct_answer)
+                    q_dict['correct_answer_index'] = correct_index
+                except ValueError:
+                    continue
+            elif isinstance(q.correct_answer, list):
+                try:
+                    original_indices = [q.options.index(a) for a in q.correct_answer]
+                    correct_indices = [options.index(a) for a in q.correct_answer]
+                    q_dict['correct_answer_indices'] = correct_indices
+                except ValueError:
+                    continue
+            randomized_config[str(q.id)] = {
+                'options': options,
+                'correct_answer_index': q_dict.get('correct_answer_index'),
+                'correct_answer_indices': q_dict.get('correct_answer_indices'),
+                'original_correct_answer': q.correct_answer
+            }
+        randomized_questions.append(q_dict)
+    random.shuffle(randomized_questions)
+
+    # Сохраняем конфигурацию в попытке
+    attempt.randomized_config = randomized_config
+    await session.commit()
+
+    # Логирование собранного теста
+    question_ids = [q.get('id') for q in randomized_questions]
+    logger.debug(
+        f"Test {test_id} started for user {user_id}, attempt_id={attempt.id}, "
+        f"total_questions={len(randomized_questions)}, question_ids={question_ids}"
+    )
+    for q in randomized_questions:
+        q_id = q.get('id')
+        config = randomized_config.get(str(q_id), {})
+        options = config.get('options', [])
+        correct_index = config.get('correct_answer_index')
+        correct_indices = config.get('correct_answer_indices')
+        original_answer = config.get('original_correct_answer')
+        logger.debug(
+            f"Question {q_id}: randomized_options={options}, "
+            f"correct_index={correct_index}, correct_indices={correct_indices}, "
+            f"original_correct_answer={original_answer}"
+        )
+
+    return attempt
 
 async def submit_test(
     session: AsyncSession,
@@ -218,59 +283,86 @@ async def submit_test(
     answers: Dict[int, Any],
 ) -> TestAttempt:
     attempt = await session.get(TestAttempt, attempt_id)
-    if attempt is None:
-        raise NotFoundError("TestAttempt", attempt_id)
-    if attempt.completed_at is not None:
-        raise ValidationError(detail="Attempt already submitted")
+    if attempt is None or attempt.completed_at is not None:
+        raise ValidationError(detail="Attempt not found or already submitted")
 
     test = await session.get(Test, attempt.test_id)
-    if test is None:
-        raise NotFoundError("Test", attempt.test_id)
+    if test.max_attempts is not None:
+        # Проверка количества попыток
+        stmt = (
+            select(TestAttempt)
+            .where(
+                TestAttempt.user_id == attempt.user_id,
+                TestAttempt.test_id == attempt.test_id,
+                TestAttempt.completed_at.is_not(None)
+            )
+        )
+        completed_attempts = (await session.execute(stmt)).scalars().all()
+        logger.debug(f"Completed attempts: {len(completed_attempts)}, max attempts: {test.max_attempts}")
+        if len(completed_attempts) >= test.max_attempts:
+            raise HTTPException(status_code=429, detail="Превышено максимальное количество попыток. Перейдите к материалам.")
 
-    res = await session.execute(
-        select(Question).where(Question.test_id == test.id)
-    )
-    questions = {q.id: q for q in res.scalars().all()}
+    q_stmt = select(Question).where(Question.test_id == test.id, Question.is_archived.is_(False))
+    questions = {q.id: q for q in (await session.execute(q_stmt)).scalars().all()}
 
     correct = 0
-    for q_id, q in questions.items():
-        ua = answers.get(q_id)
-        if ua is None:
+    total_questions = len(questions)
+    user_answers = {}
+    randomized_config = attempt.randomized_config or {}
+
+    for q_id, user_answer in answers.items():
+        q = questions.get(int(q_id))
+        if q is None:
             continue
 
-        if q.question_type in {QuestionType.SINGLE_CHOICE, QuestionType.OPEN_TEXT}:
-            if isinstance(ua, int) and q.options:
-                user_value = q.options[ua]
-            else:
-                user_value = ua
-            if user_value == q.correct_answer:
+        user_answers[q_id] = user_answer
+        config = randomized_config.get(str(q_id), {})
+        options = config.get('options', q.options or [])
+        user_answer_text = (
+            [options[i] for i in user_answer if i < len(options)] if isinstance(user_answer, list) and options
+            else options[user_answer] if isinstance(user_answer, int) and user_answer < len(options)
+            else user_answer
+        )
+        original_correct_answer = config.get('original_correct_answer', q.correct_answer)
+
+        is_correct = False
+        if q.question_type == QuestionType.MULTIPLE_CHOICE:
+            correct_indices = config.get('correct_answer_indices', [])
+            if isinstance(user_answer, list) and sorted(user_answer) == sorted(correct_indices):
                 correct += 1
-        else:
-            if isinstance(ua, list):
-                if all(isinstance(x, int) for x in ua) and q.options:
-                    user_list = [q.options[i] for i in ua if 0 <= i < len(q.options)]
-                else:
-                    user_list = [str(x) for x in ua]
-            elif isinstance(ua, int) and q.options:
-                user_list = [q.options[ua]]
-            else:
-                user_list = [ua]
-
-            ca = q.correct_answer or []
-            correct_list = ca if isinstance(ca, list) else [ca]
-
-            if sorted(user_list) == sorted(correct_list):
+                is_correct = True
+        elif q.question_type == QuestionType.SINGLE_CHOICE:
+            correct_index = config.get('correct_answer_index')
+            if isinstance(user_answer, int) and correct_index is not None and user_answer == correct_index:
                 correct += 1
+                is_correct = True
+        elif q.question_type == QuestionType.OPEN_TEXT:
+            if str(user_answer).strip().lower() == str(q.correct_answer).strip().lower():
+                correct += 1
+                is_correct = True
 
-    score = (correct / len(questions) * 100) if questions else 0.0
+        logger.debug(
+            f"Question {q_id}: user_answer={user_answer}, user_answer_text={user_answer_text}, "
+            f"correct_index={config.get('correct_answer_index')}, "
+            f"correct_indices={config.get('correct_answer_indices')}, "
+            f"original_correct_answer={original_correct_answer}, is_correct={is_correct}"
+        )
+
+    score = (correct / total_questions * 100) if total_questions > 0 else 0.0
     spent = int((datetime.now() - attempt.started_at).total_seconds())
 
+    # Преобразуем ключи в строки
+    answers_str_keys = {str(k): v for k, v in user_answers.items()}
     result = await submit_test_crud(
         session=session,
         attempt_id=attempt_id,
         score=round(score, 2),
         time_spent=spent,
-        answers=answers,
+        answers=answers_str_keys,
     )
-    logger.info(f"Attempt {attempt_id} scored {score:.2f}%")
+    logger.info(
+        f"Attempt {attempt_id} submitted: score={score:.2f}%, "
+        f"correct={correct}/{total_questions}, user_answers={user_answers}"
+    )
+
     return result

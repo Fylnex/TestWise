@@ -98,6 +98,8 @@ const TopicPage: React.FC = () => {
     type: "hinted",
     duration: "",
     question_ids: "",
+    max_attempts: "",
+
   });
   const [creatingSectionTest, setCreatingSectionTest] = useState(false);
   const [errorSectionTest, setErrorSectionTest] = useState<string | null>(null);
@@ -402,9 +404,8 @@ const TopicPage: React.FC = () => {
         ...sectionTestForm,
         section_id: sectionId,
         topic_id: Number(topicId),
-        duration: sectionTestForm.duration
-          ? Number(sectionTestForm.duration)
-          : null,
+        duration: sectionTestForm.duration ? Number(sectionTestForm.duration) : null,
+        max_attempts: sectionTestForm.type === "section_final" || sectionTestForm.type === "global_final" ? 3 : undefined,
       });
       // Добавляем тест в секцию и обновляем карту тестов
       setSections((prev) =>
@@ -420,7 +421,7 @@ const TopicPage: React.FC = () => {
             : s,
         ),
       );
-      
+
       // Обновляем карту тестов секций
       setSectionTestsMap((prev) => ({
         ...prev,
@@ -431,6 +432,7 @@ const TopicPage: React.FC = () => {
         type: "hinted",
         duration: "",
         question_ids: "",
+        max_attempts: undefined,
       });
       setOpenSectionTestId(null);
     } catch (err) {

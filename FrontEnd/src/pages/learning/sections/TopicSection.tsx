@@ -145,38 +145,45 @@ const TopicSection = () => {
                 <div className="text-gray-500">Нет тестов</div>
               )}
               <ul className="space-y-4">
-                {tests.map((test) => (
-                  <li key={test.id} className="border rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold mb-1">{test.title}</h3>
-                        <div className="text-sm text-gray-600">
-                          Тип: {test.type}
-                          {test.duration && ` • Время: ${test.duration} мин`}
+                {tests.map((test) => {
+                  const questionCount = test.questions?.length || 0;
+                  return (
+                    <li key={test.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold mb-1">{test.title}</h3>
+                          <div className="text-sm text-gray-600">
+                            Тип: {test.type}
+                            {test.duration && ` • Время: ${test.duration} мин`}
+                            <div>Вопросов: {questionCount} (Целевой порог: 10)</div>
+                            {test.last_score !== null && test.last_score !== undefined && (
+                              <div>Последний результат: {test.last_score}%</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/test/${test.id}`)}
+                          >
+                            Пройти тест
+                          </Button>
+                          {(user?.role === "admin" || user?.role === "teacher") && editMode && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-blue-600"
+                              onClick={() => navigate(`/test/${test.id}/edit`)}
+                              title="Редактировать тест"
+                            >
+                              <Pencil className="w-5 h-5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => navigate(`/test/${test.id}`)}
-                        >
-                          Пройти тест
-                        </Button>
-                        {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-blue-600"
-                            onClick={() => navigate(`/test/${test.id}/edit`)}
-                            title="Редактировать тест"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

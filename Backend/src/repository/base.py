@@ -11,7 +11,7 @@ for unit testing simplicity.
 
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar
+from typing import Any, Type, TypeVar, List
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -29,51 +29,39 @@ logger = configure_logger()
 # Generic helpers
 # ---------------------------------------------------------------------------
 
-async def get_item(session: AsyncSession, model: Type[T], item_id: Any, is_archived: bool = False) -> T:
-    """Retrieve a single item by ID, optionally filtered by archive status."""
-    stmt = select(model).where(model.id == item_id, model.is_archived == is_archived)
+async def get_item(session: AsyncSession, model: Type[Base], item_id: int, options: Optional[list[Load]] = None, is_archived: bool = False) -> Any:
+    """Retrieve a single item by ID with optional loading strategies and archive status filter."""
+    stmt = select(model).where(getattr(model, "id") == item_id, model.is_archived == is_archived)
+    if options:
+        stmt = stmt.options(*options)
     result = await session.execute(stmt)
-    item = result.scalar_one_or_none()
-    if not item:
+    item = result.scalars().first()
+    if item is None:
         raise NotFoundError(resource_type=model.__name__, resource_id=item_id)
     return item
 
-async def create_item(session: AsyncSession, model: Type[T], **kwargs) -> T:
-    """Create a new item with the given attributes."""
-    item = model(**kwargs)
-    session.add(item)
-    try:
-        await session.commit()
-        await session.refresh(item)
-        logger.info("Created %s with ID %s", model.__name__, item.id)
-    except IntegrityError as exc:
-        await session.rollback()
-        logger.error("Failed to create %s: %s", model.__name__, exc.orig)
-        raise ConflictError(detail=str(exc.orig))
-    return item
-
-async def update_item(session: AsyncSession, model: Type[T], item_id: Any, **kwargs) -> T:
-    """Update an existing item with the given attributes."""
-    item = await get_item(session, model, item_id)
-    for key, value in kwargs.items():
-        if hasattr(item, key):
-            setattr(item, key, value)  # Corrected to use key and value
-    try:
-        await session.commit()
-        await session.refresh(item)
-        logger.info("Updated %s with ID %s", model.__name__, item_id)
-    except IntegrityError as exc:
-        await session.rollback()
-        logger.error("Failed to update %s: %s", model.__name__, exc.orig)
-        raise ConflictError(detail=str(exc.orig))
-    return item
-
-async def delete_item(session: AsyncSession, model: Type[T], item_id: Any) -> None:
-    """Delete an item by ID."""
-    item = await get_item(session, model, item_id)
-    await session.delete(item)
+async def create_item(session: AsyncSession, model: Type[Base], **kwargs: Any) -> Any:
+    """Create a new item in the database."""
+    instance = model(**kwargs)
+    session.add(instance)
     await session.commit()
-    logger.info("Deleted %s with ID %s", model.__name__, item_id)
+    await session.refresh(instance)
+    return instance
+
+async def update_item(session: AsyncSession, model: Type[Base], item_id: int, **kwargs: Any) -> Any:
+    """Update an existing item in the database."""
+    instance = await get_item(session, model, item_id)
+    for key, value in kwargs.items():
+        setattr(instance, key, value)
+    await session.commit()
+    await session.refresh(instance)
+    return instance
+
+async def delete_item(session: AsyncSession, model: Type[Base], item_id: int) -> None:
+    """Delete an item from the database."""
+    instance = await get_item(session, model, item_id)
+    await session.delete(instance)
+    await session.commit()
 
 async def archive_item(session: AsyncSession, model: Type[T], item_id: Any) -> None:
     """Archive an item by setting its is_archived flag to True."""
@@ -89,9 +77,24 @@ async def delete_item_permanently(session: AsyncSession, model: Type[T], item_id
     await session.commit()
     logger.info("Permanently deleted %s with ID %s", model.__name__, item_id)
 
-async def list_items(session: AsyncSession, model: Type[T], **filters) -> list[T]:
+async def list_items(
+    session: AsyncSession,
+    model: Type[T],
+    *args,
+    **filters,
+) -> List[T]:
     """Retrieve a list of items filtered by the given criteria."""
-    stmt = select(model).filter_by(**filters)
+    stmt = select(model)
+    # Обработка кастомных фильтров перед filter_by
+    for key, value in filters.items():
+        if key.endswith('__not') and value is None:
+            attr_name = key[:-5]  # Удаляем '__not'
+            stmt = stmt.where(getattr(model, attr_name).is_not(None))
+        elif key.endswith('__ne'):
+            attr_name = key[:-4]  # Удаляем '__ne'
+            stmt = stmt.where(getattr(model, attr_name) != value)
+    # Применение оставшихся фильтров
+    stmt = stmt.filter_by(**{k: v for k, v in filters.items() if not k.endswith(('__not', '__ne'))})
     result = await session.execute(stmt)
     items = result.scalars().all()
     logger.debug("Retrieved %d %s items", len(items), model.__name__)

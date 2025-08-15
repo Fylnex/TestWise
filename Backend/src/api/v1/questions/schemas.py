@@ -1,4 +1,3 @@
-# TestWise/Backend/src/api/v1/questions/schemas.py
 # -*- coding: utf-8 -*-
 """
 Pydantic-схемы для работы с вопросами.
@@ -42,14 +41,17 @@ class QuestionReadSchema(BaseModel):
     test_id: int
     question: str
     question_type: QuestionType
-    options: Optional[List[Any]]
-    correct_answer: Optional[Any]
-    hint: Optional[str]
+    options: Optional[List[Any]] = None
+    correct_answer: Optional[Any] = None  # Сделали необязательным
+    hint: Optional[str] = None
     is_final: bool
-    image: Optional[str]
+    image: Optional[str] = None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: Optional[datetime] = None
     is_archived: bool
+    original_correct_answer: Optional[Any] = None  # Для отладки или внутреннего использования
+    correct_answer_index: Optional[int] = None     # Для отладки или внутреннего использования
+    correct_answer_indices: Optional[List[int]] = None  # Для отладки или внутреннего использования
 
     class Config:
         from_attributes = True

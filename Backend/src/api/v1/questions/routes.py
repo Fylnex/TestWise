@@ -3,6 +3,7 @@
 """
 Этот модуль определяет маршруты FastAPI для эндпоинтов, связанных с вопросами.
 """
+import random
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +12,7 @@ from starlette import status
 
 from src.config.logger import configure_logger
 from src.database.db import get_db
-from src.domain.enums import Role
+from src.domain.enums import Role, QuestionType
 from src.domain.models import Question
 from src.repository.base import (
     get_item,
@@ -77,11 +78,6 @@ async def list_questions_endpoint(
     test_id: Optional[int] = None,
     session: AsyncSession = Depends(get_db),
 ):
-    """
-    Возвращает список вопросов для теста.
-
-    - **test_id**: обязательный query-параметр.
-    """
     if test_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,8 +88,27 @@ async def list_questions_endpoint(
         Question,
         is_archived=False,
         test_id=test_id,
+        correct_answer__not=None,
+        correct_answer__ne=[],
     )
-    return [QuestionReadSchema.model_validate(q) for q in questions]
+
+    # Рандомизация вариантов ответов
+    randomized_questions = []
+    for q in questions:
+        q_dict = q.__dict__.copy()
+        if q.options:
+            options = q.options.copy()
+            random.shuffle(options)
+            q_dict['options'] = options
+            # Удаляем информацию о правильных ответах
+            q_dict.pop('correct_answer', None)
+            q_dict.pop('original_correct_answer', None)
+            q_dict.pop('correct_answer_index', None)
+            q_dict.pop('correct_answer_indices', None)
+        randomized_questions.append(q_dict)
+    random.shuffle(randomized_questions)
+
+    return [QuestionReadSchema.model_validate(q) for q in randomized_questions]
 
 
 @router.post(
