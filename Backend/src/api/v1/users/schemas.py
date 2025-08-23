@@ -1,5 +1,5 @@
 # TestWise/Backend/src/api/v1/users/schemas.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -29,12 +29,16 @@ class UserUpdateSchema(BaseModel):
     """Схема для обновления пользователя."""
     full_name: Optional[str] = None
     last_login: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    role: Optional[Role] = None
 
     class Config:
         json_schema_extra = {
             "example": {
                 "full_name": "Updated User",
-                "last_login": "2025-06-20T15:42:00"
+                "last_login": "2025-06-20T15:42:00",
+                "is_active": True,
+                "role": "student"
             }
         }
 

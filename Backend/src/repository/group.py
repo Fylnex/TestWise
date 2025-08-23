@@ -48,13 +48,41 @@ async def add_student_to_group(session: AsyncSession, user_id: int, group_id: in
     """Add a student to a group with ACTIVE status."""
     await get_item(session, User, user_id)
     await get_item(session, Group, group_id)
-    return await create_item(
+    
+    # Проверяем, есть ли уже связь студента с группой (включая архивированные)
+    stmt = select(GroupStudents).where(
+        GroupStudents.user_id == user_id, 
+        GroupStudents.group_id == group_id
+    )
+    result = await session.execute(stmt)
+    existing_link = result.scalar_one_or_none()
+    
+    if existing_link:
+        # Если связь уже существует
+        if existing_link.is_archived:
+            # Восстанавливаем архивированную связь
+            existing_link.is_archived = False
+            existing_link.left_at = None
+            existing_link.status = GroupStudentStatus.ACTIVE
+            existing_link.updated_at = datetime.now()
+            await session.commit()
+            logger.info(f"Restored archived student {user_id} in group {group_id}")
+            return existing_link
+        else:
+            # Связь уже активна, возвращаем её
+            logger.info(f"Student {user_id} is already active in group {group_id}")
+            return existing_link
+    
+    # Создаем новую связь
+    new_link = await create_item(
         session,
         GroupStudents,
         user_id=user_id,
         group_id=group_id,
         status=GroupStudentStatus.ACTIVE,
     )
+    logger.info(f"Added new student {user_id} to group {group_id}")
+    return new_link
 
 async def remove_student_from_group(session: AsyncSession, user_id: int, group_id: int) -> None:
     """Remove a student from a group."""

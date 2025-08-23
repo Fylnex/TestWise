@@ -228,7 +228,7 @@ export default function TeacherDashboard({
   };
 
   const content = (
-    <div className="container mx-auto py-6">
+            <div className="max-w-[1000px] mx-auto px-6 py-6">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Панель управления</h1>
         <Dialog open={open} onOpenChange={setOpen}>

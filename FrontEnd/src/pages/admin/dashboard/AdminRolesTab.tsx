@@ -145,7 +145,7 @@ const AdminRolesTab: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto py-6">
+          <div className="max-w-[1000px] mx-auto px-6 py-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Роли</h2>
         <Button variant="outline" onClick={() => {

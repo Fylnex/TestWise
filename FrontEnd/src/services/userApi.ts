@@ -15,9 +15,9 @@ export interface User {
   full_name: string;
   patronymic?: string;
   role: "admin" | "student" | "teacher";
-  isActive: boolean;
-  createdAt: string; // Ensure this is a string in ISO format
-  lastLogin?: string; // Ensure this is a string in ISO format
+  is_active: boolean;
+  created_at: string; // Ensure this is a string in ISO format
+  last_login?: string; // Ensure this is a string in ISO format
   refresh_token?: string;
   is_archived: boolean;
 }
@@ -26,17 +26,15 @@ export const userApi = {
   getAllUsers: async (filters?: {
     search?: string;
     role?: string;
-    isActive?: boolean;
-    startDate?: string;
-    endDate?: string;
+    is_active?: boolean;
   }): Promise<User[]> => {
     const response = await http.get<User[]>("/users", { params: filters });
     // Ensure dates are returned as ISO strings
     return response.data.map((user) => ({
       ...user,
-      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : "",
-      lastLogin: user.lastLogin
-        ? new Date(user.lastLogin).toISOString()
+      created_at: user.created_at ? new Date(user.created_at).toISOString() : "",
+      last_login: user.last_login
+        ? new Date(user.last_login).toISOString()
         : undefined,
     }));
   },
@@ -46,7 +44,7 @@ export const userApi = {
     full_name: string;
     password: string;
     role: string;
-    isActive?: boolean;
+    is_active?: boolean;
   }): Promise<User> => {
     const response = await http.post<User>("/users", userData);
     return response.data;
@@ -58,7 +56,7 @@ export const userApi = {
       username?: string;
       full_name?: string;
       last_login?: string;
-      isActive?: boolean;
+      is_active?: boolean;
       role?: string;
     },
   ): Promise<User> => {
@@ -99,11 +97,11 @@ export const userApi = {
 
   bulkUpdateStatus: async (
     userIds: number[],
-    isActive: boolean,
+    is_active: boolean,
   ): Promise<User[]> => {
     const response = await http.put<User[]>("/users/bulk/status", {
       userIds,
-      isActive,
+      is_active,
     });
     return response.data;
   },
@@ -111,9 +109,7 @@ export const userApi = {
   exportUsers: async (filters?: {
     search?: string;
     role?: string;
-    isActive?: boolean;
-    startDate?: string;
-    endDate?: string;
+    is_active?: boolean;
   }): Promise<Blob> => {
     const response = await http.get<ArrayBuffer>("/users/export", {
       params: filters,

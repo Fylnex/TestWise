@@ -105,6 +105,14 @@ export const groupApi = {
     await http.delete(`/groups/${groupId}/teachers/${userId}`);
   },
 
+  restoreGroupStudent: async (groupId: number, userId: number): Promise<void> => {
+    await http.post(`/groups/${groupId}/students/${userId}/restore`);
+  },
+
+  restoreGroupTeacher: async (groupId: number, userId: number): Promise<void> => {
+    await http.post(`/groups/${groupId}/teachers/${userId}/restore`);
+  },
+
   getMyGroups: async (): Promise<Group[]> => {
     const response = await http.get<Group[]>("/profile/my-groups"); // Обновлённый путь
     return response.data;

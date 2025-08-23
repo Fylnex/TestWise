@@ -238,8 +238,13 @@ async def list_group_teachers_endpoint(
 async def create_group_endpoint(
     group_data: GroupCreateSchema,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_only),
+    claims: dict = Depends(admin_or_teacher),
 ):
+    # Добавляем отладочную информацию
+    logger.debug(f"Creating group endpoint called with claims: {claims}")
+    logger.debug(f"User ID: {claims.get('sub')}, Role: {claims.get('role')}")
+    logger.debug(f"Claims keys: {list(claims.keys())}")
+    logger.debug(f"Claims values: {claims}")
     """Создает новую группу.
 
     Args:
@@ -256,6 +261,8 @@ async def create_group_endpoint(
         HTTPException: Если данные некорректны (400).
     """
     logger.debug(f"Creating group with data: {group_data.model_dump()}")
+    
+    # Создаем группу
     group = await create_group(
         session,
         name=group_data.name,
@@ -263,7 +270,15 @@ async def create_group_endpoint(
         end_year=group_data.end_year,
         description=group_data.description,
     )
-    logger.debug(f"Group created with ID: {group.id}")
+    
+    # Автоматически назначаем создателя учителем группы
+    user_id = claims["sub"]
+    logger.debug(f"Assigning user {user_id} as teacher to group {group.id}")
+    gt = GroupTeachers(group_id=group.id, user_id=user_id)
+    session.add(gt)
+    await session.commit()
+    
+    logger.debug(f"Group created with ID: {group.id} and teacher {user_id} assigned")
     return GroupReadSchema.model_validate({
         "id": group.id,
         "name": group.name,
