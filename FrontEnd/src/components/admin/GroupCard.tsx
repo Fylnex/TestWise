@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Users } from 'lucide-react';
 
 interface GroupCardProps {
   name: string;
@@ -17,6 +18,7 @@ interface GroupCardProps {
   onClick?: () => void;
   onAssignTeacher?: () => void;
   teachers?: { id: number; full_name: string; username: string }[];
+  studentCount?: number;
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({
@@ -28,6 +30,7 @@ const GroupCard: React.FC<GroupCardProps> = ({
   onClick,
   onAssignTeacher,
   teachers = [],
+  studentCount = 0,
 }) => {
   return (
     <div
@@ -36,9 +39,14 @@ const GroupCard: React.FC<GroupCardProps> = ({
     >
       <div>
         <h3 className="font-semibold">{name}</h3>
-        <p className="text-sm text-muted-foreground">
-          {start_year}–{end_year}
-        </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>{start_year}–{end_year}</span>
+          <span>•</span>
+          <div className="flex items-center gap-1">
+            <Users className="w-3 h-3" />
+            <span>{studentCount} студент{studentCount === 1 ? '' : studentCount < 5 ? 'а' : 'ов'}</span>
+          </div>
+        </div>
         {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
       </div>
     </div>

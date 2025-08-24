@@ -116,9 +116,6 @@ export default function AdminProfile({
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="destructive" className="text-sm">Администратор</Badge>
                 <Badge variant="outline" className="text-sm">ID: {user.id}</Badge>
-                <Badge variant={user.isActive ? "default" : "secondary"} className="text-sm">
-                  {user.isActive ? 'Активен' : 'Заблокирован'}
-                </Badge>
               </div>
             </div>
             <Button variant="outline" className="ml-auto" onClick={() => setEditOpen(true)}>
@@ -199,24 +196,16 @@ export default function AdminProfile({
                 <label className="text-sm font-medium text-muted-foreground">Полное имя</label>
                 <p className="text-sm font-medium">{user.full_name || 'Не указано'}</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Роль</label>
-                <Badge variant="destructive" className="text-sm">Администратор</Badge>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Статус</label>
-                <Badge variant={user.isActive ? "default" : "secondary"} className="text-sm">
-                  {user.isActive ? 'Активен' : 'Заблокирован'}
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Дата регистрации</label>
-                <p className="text-sm">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Не указано'}</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Последний вход</label>
-                <p className="text-sm">{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Не указано'}</p>
-              </div>
+
+
+                             <div className="space-y-2">
+                 <label className="text-sm font-medium text-muted-foreground">Дата регистрации</label>
+                 <p className="text-sm">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Не указано'}</p>
+               </div>
+                               <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Последний вход</label>
+                  <p className="text-sm">{new Date().toLocaleDateString()}</p>
+                </div>
             </div>
           </CardContent>
         </Card>

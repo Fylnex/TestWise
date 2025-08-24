@@ -52,7 +52,9 @@ export const groupApi = {
   },
 
   updateGroup: async (groupId: number, data: Partial<Group>): Promise<Group> => {
+    console.log('groupApi.updateGroup вызван с:', { groupId, data });
     const response = await http.put<Group>(`/groups/${groupId}`, data);
+    console.log('groupApi.updateGroup ответ:', response.data);
     return response.data;
   },
 
@@ -66,6 +68,10 @@ export const groupApi = {
 
   deleteGroupPermanently: async (groupId: number): Promise<void> => {
     await http.delete(`/groups/${groupId}/permanent`);
+  },
+
+  deleteGroup: async (groupId: number): Promise<void> => {
+    await http.delete(`/groups/${groupId}`);
   },
 
   getGroupStudents: async (groupId: number): Promise<GroupStudent[]> => {

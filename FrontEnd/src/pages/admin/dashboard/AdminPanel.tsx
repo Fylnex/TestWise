@@ -21,9 +21,9 @@ export function AdminPanel() {
         
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="users">Управление пользователями</TabsTrigger>
-            <TabsTrigger value="analytics">Аналитика</TabsTrigger>
+            <TabsTrigger value="users">Пользователи</TabsTrigger>
             <TabsTrigger value="groups">Группы</TabsTrigger>
+            <TabsTrigger value="analytics">Аналитика</TabsTrigger>
             <TabsTrigger value="roles">Роли</TabsTrigger>
             <TabsTrigger value="logs">Логи</TabsTrigger>
             {/* <TabsTrigger value="notfound" className="text-red-500">Страница 404</TabsTrigger> */}

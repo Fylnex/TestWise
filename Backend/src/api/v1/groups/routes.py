@@ -399,7 +399,7 @@ async def update_group_endpoint(
     group_id: int,
     group_data: GroupUpdateSchema,
     session: AsyncSession = Depends(get_db),
-    _claims: dict = Depends(admin_only),
+    _claims: dict = Depends(admin_or_teacher),
 ):
     """Обновляет данные группы.
 

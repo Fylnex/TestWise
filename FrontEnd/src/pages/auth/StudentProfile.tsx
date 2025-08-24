@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import LayoutWithoutFooter from "@/components/LayoutWithoutFooter";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users, BookOpen, FileText, Settings, Award, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { StudentProgress } from "@/services/progressApi";
 
 interface StudentProfileProps {
@@ -43,63 +44,90 @@ export default function StudentProfile({
   return (
     <LayoutWithoutFooter>
       <div className="max-w-[1000px] mx-auto py-6 px-4">
-        <h1 className="text-3xl font-bold mb-6">Профиль студента</h1>
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Заголовок и основная информация */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="text-2xl">
+                {user.username?.[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">{user.full_name || user.username}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="default" className="text-sm bg-green-600">Студент</Badge>
+                <Badge variant="outline" className="text-sm">ID: {user.id}</Badge>
+              </div>
+            </div>
+            <Button variant="outline" className="ml-auto" onClick={() => setEditOpen(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Редактировать
+            </Button>
+          </div>
+        </div>
+
+        {/* Статистика обучения */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle>Основная информация</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Пройдено тестов</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="flex items-center space-x-4 mb-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="text-2xl">
-                    {user.username?.[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="text-2xl font-bold">{user.username}</h2>
-                  <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">Студент</div>
-                  <div className="mt-2 text-muted-foreground">{user.full_name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">ID: {user.id}</div>
-                </div>
+              <div className="text-2xl font-bold">
+                {isLoading ? '-' : progress ? progress.completedTests : 0}
               </div>
-              <div className="text-sm text-muted-foreground">Статус: {user.isActive ? 'Активен' : 'Заблокирован'}</div>
-              <Button variant="outline" className="mt-4" onClick={() => setEditOpen(true)}>Редактировать</Button>
+              <p className="text-xs text-muted-foreground">Всего завершено</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <CardTitle>Статистика</CardTitle>
-              <CardDescription>Ваш прогресс обучения</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Средний балл</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="flex justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : progress ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>Пройдено тестов:</span>
-                    <span className="font-bold">{progress.completedTests}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Средний балл:</span>
-                    <span className="font-bold">{progress.averageScore}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Последняя активность:</span>
-                    <span className="font-bold">
-                      {new Date(progress.lastActivity).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p>Нет данных о прогрессе</p>
-              )}
+              <div className="text-2xl font-bold">
+                {isLoading ? '-' : progress ? `${progress.averageScore}%` : '0%'}
+              </div>
+              <p className="text-xs text-muted-foreground">Успеваемость</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Информация о пользователе */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Информация о пользователе
+            </CardTitle>
+            <CardDescription>
+              Основная информация о вашем аккаунте
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Имя пользователя</label>
+                <p className="text-sm font-medium">{user.username}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Полное имя</label>
+                <p className="text-sm font-medium">{user.full_name || 'Не указано'}</p>
+              </div>
+                             <div className="space-y-2">
+                 <label className="text-sm font-medium text-muted-foreground">Дата регистрации</label>
+                 <p className="text-sm">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Не указано'}</p>
+               </div>
+                               <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Последний вход</label>
+                  <p className="text-sm">{new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Диалог редактирования */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogContent className="max-w-md w-full">
             <DialogHeader>
@@ -119,7 +147,9 @@ export default function StudentProfile({
               {editError && <div className="text-red-500 text-sm">{editError}</div>}
             </div>
             <DialogFooter>
-              <Button onClick={handleEditSave} disabled={editLoading}>{editLoading ? 'Сохранение...' : 'Сохранить'}</Button>
+              <Button onClick={handleEditSave} disabled={editLoading}>
+                {editLoading ? 'Сохранение...' : 'Сохранить'}
+              </Button>
               <DialogClose asChild>
                 <Button variant="outline" type="button">Отмена</Button>
               </DialogClose>

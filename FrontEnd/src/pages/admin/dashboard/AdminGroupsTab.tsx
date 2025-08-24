@@ -47,6 +47,11 @@ const AdminGroupsTab: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingSingleGroup, setDeletingSingleGroup] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', start_year: '', end_year: '', description: '' });
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     groupApi.getGroups()
@@ -348,10 +353,65 @@ const AdminGroupsTab: React.FC = () => {
         )
       );
       
-      // Закрываем модальное окно
-      setGroupModal(null);
+      // Если модальное окно группы открыто, обновляем данные группы
+      if (groupModal && groupModal.id === groupId) {
+        setGroupModal(prev => prev ? { ...prev, ...data, start_year: Number(data.start_year), end_year: Number(data.end_year) } : null);
+      }
+      
+      // Закрываем модальное окно редактирования
+      setEditModalOpen(false);
+      setEditingGroup(null);
+      setEditForm({ name: '', start_year: '', end_year: '', description: '' });
     } catch (error) {
       console.error("Ошибка при редактировании группы:", error);
+      throw error;
+    }
+  };
+
+  const openEditModal = (group: Group) => {
+    setEditingGroup(group);
+    setEditForm({
+      name: group.name,
+      start_year: group.start_year.toString(),
+      end_year: group.end_year.toString(),
+      description: group.description || ''
+    });
+    setEditModalOpen(true);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGroup) return;
+    
+    setEditing(true);
+    setEditError(null);
+    
+    try {
+      // Проверяем обязательные поля
+      if (!editForm.name.trim() || !editForm.start_year || !editForm.end_year) {
+        setEditError("Все поля обязательны для заполнения");
+        return;
+      }
+      
+      if (Number(editForm.start_year) >= Number(editForm.end_year)) {
+        setEditError("Год окончания должен быть больше года начала");
+        return;
+      }
+      
+      // Обновляем группу
+      await handleEditGroup(editingGroup.id, editForm);
+      
+      // Закрываем модальное окно
+      setEditModalOpen(false);
+      setEditingGroup(null);
+      setEditForm({ name: '', start_year: '', end_year: '', description: '' });
+      
+    } catch (error) {
+      console.error("Ошибка при редактировании группы:", error);
+      setEditError("Ошибка при редактировании группы");
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -472,25 +532,31 @@ const AdminGroupsTab: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Год начала</label>
-                    <Input
-                      placeholder="2024"
-                      type="number"
-                      min="0"
+                    <select
+                      className="w-full border rounded px-3 py-2"
                       value={form.start_year}
                       onChange={e => setForm(f => ({ ...f, start_year: e.target.value }))}
                       required
-                    />
+                    >
+                      <option value="">Выберите год</option>
+                      {Array.from({ length: 81 }, (_, i) => 2020 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Год окончания</label>
-                    <Input
-                      placeholder="2025"
-                      type="number"
-                      min="0"
+                    <select
+                      className="w-full border rounded px-3 py-2"
                       value={form.end_year}
                       onChange={e => setForm(f => ({ ...f, end_year: e.target.value }))}
                       required
-                    />
+                    >
+                      <option value="">Выберите год</option>
+                      {Array.from({ length: 81 }, (_, i) => 2020 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                  
@@ -603,7 +669,7 @@ const AdminGroupsTab: React.FC = () => {
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openGroupModal(group);
+                        openEditModal(group);
                       }}
                     >
                       <Pencil className="w-3 h-3" />
@@ -807,6 +873,95 @@ const AdminGroupsTab: React.FC = () => {
               <Button variant="outline">Отмена</Button>
             </DialogClose>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Модальное окно редактирования группы */}
+      <Dialog open={editModalOpen} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setEditModalOpen(false);
+          setEditingGroup(null);
+          setEditForm({ name: '', start_year: '', end_year: '', description: '' });
+          setEditError(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать группу</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Измените данные группы. После сохранения изменения будут применены.
+            </p>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Название группы</label>
+              <Input
+                placeholder="Введите название группы"
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Год начала</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={editForm.start_year}
+                  onChange={e => setEditForm(f => ({ ...f, start_year: e.target.value }))}
+                  required
+                >
+                  <option value="">Выберите год</option>
+                  {Array.from({ length: 81 }, (_, i) => 2020 + i).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Год окончания</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={editForm.end_year}
+                  onChange={e => setEditForm(f => ({ ...f, end_year: e.target.value }))}
+                  required
+                >
+                  <option value="">Выберите год</option>
+                  {Array.from({ length: 81 }, (_, i) => 2020 + i).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Описание группы</label>
+              <Textarea
+                placeholder="Описание группы (необязательно)"
+                value={editForm.description}
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                className="min-h-[80px]"
+              />
+            </div>
+            
+            {editError && <div className="text-red-500 text-sm">{editError}</div>}
+            
+            <DialogFooter>
+              <Button type="submit" disabled={editing}>
+                {editing ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Сохранение...
+                  </>
+                ) : (
+                  "Сохранить"
+                )}
+              </Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Отмена</Button>
+              </DialogClose>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
