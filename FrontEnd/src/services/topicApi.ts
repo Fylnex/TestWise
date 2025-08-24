@@ -11,6 +11,7 @@ export interface Topic {
   category?: string;
   image?: string;
   created_at?: string;
+  updated_at?: string;
   is_archived: boolean;
   creator_full_name: string;
 }

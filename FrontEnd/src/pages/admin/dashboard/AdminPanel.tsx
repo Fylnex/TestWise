@@ -6,7 +6,7 @@ import { SystemLogs } from '../../../components/admin/SystemLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
-import AdminGroupsTab from './AdminGroupsTab';
+import GroupsTab from '../../../components/admin/GroupsTab';
 import AdminAnalyticsTab from './AdminAnalyticsTab';
 import AdminRolesTab from './AdminRolesTab';
 import NotFound from '../../main/NotFound';
@@ -38,7 +38,14 @@ export function AdminPanel() {
           </TabsContent>
           
           <TabsContent value="groups">
-            <AdminGroupsTab />
+            <GroupsTab 
+              title=""
+              showCreateButton={true}
+              showDeleteButton={true}
+              showEditButton={true}
+              showAssignButtons={true}
+              className="px-0 py-0"
+            />
           </TabsContent>
           
           <TabsContent value="roles">

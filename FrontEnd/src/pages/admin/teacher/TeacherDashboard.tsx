@@ -31,6 +31,7 @@ import { Calendar, BookOpen, GraduationCap, Users, Plus, X, Search } from "lucid
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import CreateGroupModal, { CreateGroupFormData } from "@/components/admin/CreateGroupModal";
+import GroupModal from "@/components/admin/GroupModal";
 import GroupsTab from "@/components/admin/GroupsTab";
 
 export default function TeacherDashboard({
@@ -75,6 +76,8 @@ export default function TeacherDashboard({
   const [assigningStudent, setAssigningStudent] = useState(false);
   const [assignStudentError, setAssignStudentError] = useState<string | null>(null);
   const [removingStudent, setRemovingStudent] = useState<number | null>(null);
+  const [removingTeacher, setRemovingTeacher] = useState<number | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<number | null>(null);
   const [allStudents, setAllStudents] = useState<User[]>([]);
 
 
@@ -84,10 +87,11 @@ export default function TeacherDashboard({
 
     const fetchData = async () => {
       try {
-        const [groupsData, myGroupsData, allUsersData] = await Promise.all([
+        const [groupsData, myGroupsData, allUsersData, myTopicsData] = await Promise.all([
           groupApi.getGroups(),
           groupApi.getMyGroups(),
-          userApi.getAllUsers()
+          userApi.getAllUsers(),
+          topicApi.getMyTopics()
         ]);
 
         // Проверяем преподавателей для всех групп
@@ -104,9 +108,13 @@ export default function TeacherDashboard({
 
         setGroups(groupsData);
         setAllStudents(allUsersData.filter(u => u.role === 'student'));
+        setMyTopics(myTopicsData);
+        console.log("Загружено тем:", myTopicsData.length);
         setLoading(false);
       } catch (error) {
         console.error("Ошибка при загрузке данных:", error);
+        console.error("Детали ошибки:", error.response?.data || error.message);
+        setError("Ошибка при загрузке данных");
         setLoading(false);
       }
     };
@@ -360,6 +368,58 @@ export default function TeacherDashboard({
     }
   };
 
+  const handleRemoveTeacher = async (groupId: number, teacherId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить преподавателя из группы?')) {
+      return;
+    }
+    
+    setRemovingTeacher(teacherId);
+    
+    try {
+      await groupApi.removeGroupTeacher(groupId, teacherId);
+      
+      // Обновляем список преподавателей группы
+      setViewGroupTeachers(prev => prev.filter(t => t.id !== teacherId));
+      
+    } catch (error) {
+      console.error("Ошибка при удалении преподавателя из группы:", error);
+      alert("Ошибка при удалении преподавателя из группы");
+    } finally {
+      setRemovingTeacher(null);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить группу? Это действие нельзя отменить.')) {
+      return;
+    }
+    
+    setDeletingGroup(groupId);
+    
+    try {
+      await groupApi.deleteGroup(groupId);
+      
+      // Обновляем список групп
+      setGroups(prev => prev.filter(g => g.id !== groupId));
+      setViewGroupModal(null);
+      
+    } catch (error) {
+      console.error("Ошибка при удалении группы:", error);
+      alert("Ошибка при удалении группы");
+    } finally {
+      setDeletingGroup(null);
+    }
+  };
+
+  const handleAssignTeacher = (groupId: number) => {
+    // Будет реализовано позже, если потребуется
+    console.log("Assign teacher to group", groupId);
+  };
+
+  const handleAssignStudentToGroup = (groupId: number) => {
+    setAssignStudentModal(groupId);
+  };
+
 
 
   const content = (
@@ -514,23 +574,41 @@ export default function TeacherDashboard({
             <CardContent>
               {loading ? (
                 <div className="text-center py-10">Загрузка...</div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">
+                  <p>Ошибка при загрузке тем: {error}</p>
+                </div>
               ) : myTopics.length === 0 ? (
-                <div className="text-muted-foreground">
-                  У вас пока нет созданных тем.
+                <div className="text-center py-8 text-muted-foreground">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p>У вас пока нет созданных тем</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {myTopics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="border rounded p-3 bg-slate-50"
-                    >
-                      <div className="font-semibold text-lg">{topic.title}</div>
+                    <div key={topic.id} className="flex items-start justify-between p-4 bg-slate-50 rounded-lg border">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{topic.title}</h3>
                       {topic.description && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                           {topic.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span>Создана: {topic.created_at ? new Date(topic.created_at).toLocaleDateString() : 'Не указано'}</span>
+                          {topic.updated_at && (
+                            <span>Обновлена: {new Date(topic.updated_at).toLocaleDateString()}</span>
+                          )}
                         </div>
-                      )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={topic.is_archived ? "secondary" : "default"} className="text-xs">
+                          {topic.is_archived ? 'Архив' : 'Активна'}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          ID: {topic.id}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -543,157 +621,25 @@ export default function TeacherDashboard({
 
 
       {/* Модальное окно просмотра группы */}
-      <Dialog open={!!viewGroupModal} onOpenChange={(isOpen) => {
-        if (!isOpen) {
+      <GroupModal
+        group={viewGroupModal}
+        isOpen={!!viewGroupModal}
+        onClose={() => {
           setViewGroupModal(null);
           setViewGroupStudents([]);
           setViewGroupTeachers([]);
-        }
-      }}>
-        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-hidden p-0">
-          {/* Header */}
-          <DialogHeader className="p-6 pb-4 border-b border-gray-100">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <DialogTitle className="text-2xl font-semibold text-gray-900 mb-2">
-                  {viewGroupModal?.name}
-                </DialogTitle>
-                
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{viewGroupModal ? `${viewGroupModal.start_year} — ${viewGroupModal.end_year}` : ''}</span>
-                  </div>
-                  
-                  {viewGroupModal?.description && (
-                    <>
-                      <span>•</span>
-                      <div className="flex items-center gap-1">
-                        <BookOpen className="w-4 h-4" />
-                        <span className="max-w-xs truncate" title={viewGroupModal.description}>
-                          {viewGroupModal.description.length > 50 ? `${viewGroupModal.description.substring(0, 50)}...` : viewGroupModal.description}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Просмотр информации о группе и управление составом
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-8">
-              {/* Teachers Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-medium text-gray-900">Преподаватели</h3>
-                    <Badge variant="secondary" className="ml-2">
-                      {viewGroupTeachers.length}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {viewGroupTeachers.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <GraduationCap className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>Преподаватели не назначены</p>
-                    </div>
-                  ) : (
-                    viewGroupTeachers.map(teacher => (
-                      <div key={teacher.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className="bg-blue-100 text-blue-700">
-                            {getInitials(teacher.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {teacher.full_name}
-                            {teacher.patronymic && ` ${teacher.patronymic}`}
-                          </p>
-                          <p className="text-sm text-gray-500 truncate">
-                            @{teacher.username}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Students Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-green-600" />
-                    <h3 className="text-lg font-medium text-gray-900">Студенты</h3>
-                    <Badge variant="secondary" className="ml-2">
-                      {viewGroupStudents.length}
-                    </Badge>
-                  </div>
-                  <Button
-                    onClick={() => setAssignStudentModal(viewGroupModal?.id || null)}
-                    variant="outline"
-                    size="sm"
-                    className="border-green-200 text-green-700 hover:bg-green-50"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Добавить студента
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {viewGroupStudents.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>Студенты не добавлены</p>
-                    </div>
-                  ) : (
-                    viewGroupStudents.map(student => (
-                      <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className="bg-green-100 text-green-700">
-                            {getInitials(student.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {student.full_name}
-                            {student.patronymic && ` ${student.patronymic}`}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            @{student.username}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleRemoveStudent(viewGroupModal?.id || 0, student.id)}
-                          disabled={removingStudent === student.id}
-                        >
-                          {removingStudent === student.id ? (
-                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          ) : (
-                            <X className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        }}
+        onDelete={handleDeleteGroup}
+        onAssignTeacher={handleAssignTeacher}
+        onAssignStudent={handleAssignStudentToGroup}
+        onRemoveTeacher={handleRemoveTeacher}
+        onRemoveStudent={handleRemoveStudent}
+        students={viewGroupStudents}
+        teachers={viewGroupTeachers}
+        deletingGroup={deletingGroup}
+        removingTeacher={removingTeacher}
+        removingStudent={removingStudent}
+      />
 
       {/* Модальное окно назначения студента */}
       <Dialog open={!!assignStudentModal} onOpenChange={(isOpen) => {

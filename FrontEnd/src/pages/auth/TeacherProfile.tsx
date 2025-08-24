@@ -71,7 +71,7 @@ export default function TeacherProfile({
             <div>
               <h1 className="text-3xl font-bold text-slate-900">{user.full_name || user.username}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="default" className="text-sm bg-blue-600">Учитель</Badge>
+                <Badge variant="default" className="text-sm bg-blue-600">Преподаватель</Badge>
                 <Badge variant="outline" className="text-sm">ID: {user.id}</Badge>
               </div>
             </div>

@@ -51,39 +51,29 @@ const GroupModal: React.FC<GroupModalProps> = ({
       <DialogContent className="max-w-3xl w-full max-h-[85vh] p-0 rounded-2xl bg-white shadow-2xl">
         {/* Header */}
         <DialogHeader className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-2xl font-bold text-gray-800 tracking-tight">
-                {group.name}
-              </DialogTitle>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  <span>{`${group.start_year} — ${group.end_year}`}</span>
-                </div>
-                {group.description && (
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4 text-indigo-600" />
-                    <span className="max-w-sm truncate" title={group.description}>
-                      {group.description.length > 60 ? `${group.description.substring(0, 60)}...` : group.description}
-                    </span>
-                  </div>
-                )}
+          <div>
+            <DialogTitle className="text-2xl font-bold text-gray-800 tracking-tight">
+              {group.name}
+            </DialogTitle>
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                <span>{`${group.start_year} — ${group.end_year}`}</span>
               </div>
+              {group.description && (
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <span className="max-w-sm truncate" title={group.description}>
+                    {group.description.length > 60 ? `${group.description.substring(0, 60)}...` : group.description}
+                  </span>
+                </div>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-all duration-200"
-              onClick={onClose}
-            >
-              <X className="w-5 h-5" />
-            </Button>
           </div>
         </DialogHeader>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 pb-12 overflow-y-auto max-h-[60vh]">
           <div className="space-y-8">
             {/* Teachers Section */}
             <div className="space-y-4">
@@ -219,28 +209,7 @@ const GroupModal: React.FC<GroupModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
-          <Button
-            variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-100"
-            onClick={onClose}
-          >
-            Закрыть
-          </Button>
-          <Button
-            variant="destructive"
-            className="bg-red-600 hover:bg-red-700"
-            onClick={() => onDelete(group.id)}
-            disabled={deletingGroup === group.id}
-          >
-            {deletingGroup === group.id ? (
-              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            ) : (
-              'Удалить группу'
-            )}
-          </Button>
-        </div>
+
       </DialogContent>
     </Dialog>
   );
