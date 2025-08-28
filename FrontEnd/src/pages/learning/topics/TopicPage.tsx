@@ -484,6 +484,7 @@ const TopicPage: React.FC = () => {
     try {
       await testApi.deleteTest(testToDelete.id);
       
+      // Обновляем интерфейс независимо от ответа
       if (testToDelete.sectionId) {
         // Удаляем тест из секции
         setSections((prev) =>
@@ -508,7 +509,10 @@ const TopicPage: React.FC = () => {
         // Удаляем тест из общих тестов темы
         setTests((prev) => prev.filter((t) => t.id !== testToDelete.id));
       }
-    } catch {
+      
+      console.log(`Тест ${testToDelete.id} успешно удален`);
+    } catch (error) {
+      console.error('Ошибка удаления теста:', error);
       alert("Ошибка удаления теста");
     } finally {
       setTestToDelete(null);
@@ -1003,11 +1007,7 @@ const TopicPage: React.FC = () => {
                                 <>
                                   <span
                                     className="text-gray-800 font-sans cursor-pointer"
-                                    onClick={() => {
-                                      const path = getTestActionPath('preview', test.id, topicId?.toString(), section.id?.toString());
-                                      console.log('Section test navigating to preview:', path);
-                                      navigate(path);
-                                    }}
+                                    onClick={() => navigate(getTestActionPath('preview', test.id, topicId?.toString(), section.id?.toString()))}
                                   >
                                     {test.title}
                                   </span>
@@ -1076,11 +1076,7 @@ const TopicPage: React.FC = () => {
                   <div>
                     <div 
                       className="font-semibold text-lg text-gray-900 font-sans cursor-pointer hover:text-blue-600 transition-colors"
-                      onClick={() => {
-                        const path = getTestActionPath('preview', test.id, topicId?.toString());
-                        console.log('Navigating to preview:', path);
-                        navigate(path);
-                      }}
+                      onClick={() => navigate(getTestActionPath('preview', test.id, topicId?.toString()))}
                     >
                       {test.title}
                     </div>
@@ -1119,11 +1115,7 @@ const TopicPage: React.FC = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => {
-                                const path = getTestActionPath('preview', test.id, topicId?.toString());
-                                console.log('Button navigating to preview:', path);
-                                navigate(path);
-                              }}
+                              onClick={() => navigate(getTestActionPath('preview', test.id, topicId?.toString()))}
                             >
                               Просмотреть тест
                             </Button>

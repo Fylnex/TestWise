@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -58,3 +59,23 @@ async def update_question(
     """Update an existing question, excluding immutable fields."""
     kwargs.pop("id", None)
     return await update_item(session, Question, question_id, **kwargs)
+
+async def delete_question(session: AsyncSession, question_id: int) -> None:
+    """Archive a question by setting is_archived=True."""
+    question = await get_item(session, Question, question_id)
+    if question.is_archived:
+        raise NotFoundError(resource_type="Question", resource_id=question_id, details="Already archived")
+    question.is_archived = True
+    await session.commit()
+    logger.info(f"Archived question {question_id}")
+
+async def delete_questions_by_test(session: AsyncSession, test_id: int) -> None:
+    """Archive all questions for a specific test."""
+    stmt = select(Question).where(Question.test_id == test_id, Question.is_archived == False)
+    questions = (await session.execute(stmt)).scalars().all()
+    
+    for question in questions:
+        question.is_archived = True
+    
+    await session.commit()
+    logger.info(f"Archived {len(questions)} questions for test {test_id}")

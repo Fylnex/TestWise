@@ -77,13 +77,23 @@ async def update_test(
     return await update_item(session, Test, test_id, **kwargs)
 
 async def delete_test(session: AsyncSession, test_id: int) -> None:
-    """Archive a test by setting is_archived=True."""
+    """Archive a test by setting is_archived=True and archive all its questions."""
     test = await get_item(session, Test, test_id)
     if test.is_archived:
         raise NotFoundError(resource_type="Test", resource_id=test_id, details="Already archived")
+    
+    # Архивируем все вопросы теста
+    from src.domain.models import Question
+    stmt = select(Question).where(Question.test_id == test_id, Question.is_archived == False)
+    questions = (await session.execute(stmt)).scalars().all()
+    
+    for question in questions:
+        question.is_archived = True
+    
+    # Архивируем сам тест
     test.is_archived = True
     await session.commit()
-    logger.info(f"Archived test {test_id}")
+    logger.info(f"Archived test {test_id} and {len(questions)} questions")
 
 async def archive_test(session: AsyncSession, test_id: int) -> None:
     """Explicitly archive a test by setting is_archived=True."""

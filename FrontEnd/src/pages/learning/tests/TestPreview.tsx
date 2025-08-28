@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import Header from '@/components/Header';
-import { testApi, Test } from '@/services/testApi';
-import { questionApi, Question } from '@/services/questionApi';
+import { testApi } from '@/services/testApi';
+import { questionApi } from '@/services/questionApi';
+import { Test } from '@/types/test';
+import { Question } from '@/types/test';
 import { useAuth } from '@/context/AuthContext';
 import TestViewer from '@/components/tests/TestViewer';
 
@@ -91,17 +93,14 @@ const TestPreview: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
             Назад
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <BookOpen className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="text-center flex-1">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <BookOpen className="h-6 w-6 text-blue-600" />
+              </div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Просмотр теста
-              </h1>
-              <p className="text-gray-600">
                 {test.title}
-              </p>
+              </h1>
             </div>
             {(user?.role === "admin" || user?.role === "teacher") && (
               <Button

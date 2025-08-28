@@ -38,6 +38,7 @@ from src.repository.test import (
     get_test,
     get_test_attempts,
 )
+from src.repository.question import delete_questions_by_test
 from src.security.security import admin_or_teacher, authenticated, require_roles
 from src.service.tests import submit_test, start_test
 from src.service.progress import check_test_availability
@@ -158,6 +159,9 @@ async def delete_test_endpoint(
         session: AsyncSession = Depends(get_db),
 ):
     logger.debug(f"Archiving test with ID: {test_id}")
+    # Сначала удаляем все вопросы теста
+    await delete_questions_by_test(session, test_id)
+    # Затем удаляем сам тест
     await delete_test(session, test_id)
 
 
