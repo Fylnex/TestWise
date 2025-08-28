@@ -77,6 +77,7 @@ async def create_question_endpoint(
 async def list_questions_endpoint(
     test_id: Optional[int] = None,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(authenticated),
 ):
     if test_id is None:
         raise HTTPException(
@@ -92,6 +93,10 @@ async def list_questions_endpoint(
         correct_answer__ne=[],
     )
 
+    # Проверяем роль пользователя
+    user_role = current_user.get('role')
+    is_admin_or_teacher = user_role in [Role.ADMIN, Role.TEACHER]
+
     # Рандомизация вариантов ответов
     randomized_questions = []
     for q in questions:
@@ -100,11 +105,13 @@ async def list_questions_endpoint(
             options = q.options.copy()
             random.shuffle(options)
             q_dict['options'] = options
-            # Удаляем информацию о правильных ответах
-            q_dict.pop('correct_answer', None)
-            q_dict.pop('original_correct_answer', None)
-            q_dict.pop('correct_answer_index', None)
-            q_dict.pop('correct_answer_indices', None)
+            
+            # Если пользователь не админ/преподаватель, удаляем информацию о правильных ответах
+            if not is_admin_or_teacher:
+                q_dict.pop('correct_answer', None)
+                q_dict.pop('original_correct_answer', None)
+                q_dict.pop('correct_answer_index', None)
+                q_dict.pop('correct_answer_indices', None)
         randomized_questions.append(q_dict)
     random.shuffle(randomized_questions)
 

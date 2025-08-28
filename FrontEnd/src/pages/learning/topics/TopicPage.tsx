@@ -10,7 +10,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Section, Topic, topicApi } from "@/services/topicApi";
-import { Test, testApi } from "@/services/testApi";
+import { testApi } from "@/services/testApi";
+import { Test } from "@/types/test";
 import { sectionApi, Subsection } from "@/services/sectionApi";
 import {
   Accordion,
@@ -42,6 +43,7 @@ import {
 import Header from "@/components/Header";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { getTestTypeInRussian } from "@/lib/utils";
+import { useTestNavigation, getTestActionPath } from "@/utils/testNavigation";
 
 
 const TopicPage: React.FC = () => {
@@ -994,43 +996,46 @@ const TopicPage: React.FC = () => {
                             key={test.id}
                             className="bg-gray-50 rounded-xl px-4 py-2 flex items-center justify-between transition-colors hover:bg-blue-50"
                           >
-                            <span
-                              className="text-gray-800 font-sans cursor-pointer"
-                              onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}`)}
-                            >
-                              {test.title}
-                            </span>
-                            {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="text-blue-600"
-                                  onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}/edit`)}
-                                  title="Редактировать тест"
-                                >
-                                  <Pencil className="w-5 h-5" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="text-green-600"
-                                  onClick={() => navigate(`/topic/${topicId}/section/${section.id}/test/${test.id}/questions/edit`)}
-                                  title="Редактировать вопросы"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="text-destructive"
-                                  onClick={() => setTestToDelete({ id: test.id })}
-                                  title="Удалить тест"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                            {(() => {
+                              const navigation = useTestNavigation(test.id, topicId?.toString(), section.id?.toString());
+                              
+                              return (
+                                <>
+                                  <span
+                                    className="text-gray-800 font-sans cursor-pointer"
+                                    onClick={() => {
+                                      const path = getTestActionPath('preview', test.id, topicId?.toString(), section.id?.toString());
+                                      console.log('Section test navigating to preview:', path);
+                                      navigate(path);
+                                    }}
+                                  >
+                                    {test.title}
+                                  </span>
+                                  {navigation.canEditTest && editMode && (
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-blue-600"
+                                        onClick={() => navigate(getTestActionPath('edit', test.id, topicId?.toString(), section.id?.toString()))}
+                                        title="Редактировать тест"
+                                      >
+                                        <Pencil className="w-5 h-5" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-destructive"
+                                        onClick={() => setTestToDelete({ id: test.id })}
+                                        title="Удалить тест"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </li>
                         ))}
                       </ul>
@@ -1069,7 +1074,14 @@ const TopicPage: React.FC = () => {
                       className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between border border-gray-200"
                   >
                   <div>
-                    <div className="font-semibold text-lg text-gray-900 font-sans">
+                    <div 
+                      className="font-semibold text-lg text-gray-900 font-sans cursor-pointer hover:text-blue-600 transition-colors"
+                      onClick={() => {
+                        const path = getTestActionPath('preview', test.id, topicId?.toString());
+                        console.log('Navigating to preview:', path);
+                        navigate(path);
+                      }}
+                    >
                       {test.title}
                     </div>
                     {test.description && (
@@ -1088,44 +1100,59 @@ const TopicPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(`/topic/${topicId}/test/${test.id}`)}
-                    >
-                      Пройти тест
-                    </Button>
-                    {(user?.role === "admin" || user?.role === "teacher") && editMode && (
-                      <>
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-blue-600"
-                            onClick={() => navigate(`/topic/${topicId}/test/${test.id}/edit`)}
-                            title="Редактировать тест"
-                        >
-                          <Pencil className="w-5 h-5" />
-                        </Button>
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-green-600"
-                            onClick={() => navigate(`/topic/${topicId}/test/${test.id}/questions/edit`)}
-                            title="Редактировать вопросы"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => setTestToDelete({ id: test.id })}
-                            title="Удалить тест"
-                        >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      </>
-                    )}
+                    {(() => {
+                      const navigation = useTestNavigation(test.id, topicId);
+                      
+                      if (navigation.canTakeTest) {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => navigate(getTestActionPath('take', test.id, topicId?.toString()))}
+                          >
+                            Пройти тест
+                          </Button>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const path = getTestActionPath('preview', test.id, topicId?.toString());
+                                console.log('Button navigating to preview:', path);
+                                navigate(path);
+                              }}
+                            >
+                              Просмотреть тест
+                            </Button>
+                            {navigation.canEditTest && editMode && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-blue-600"
+                                  onClick={() => navigate(getTestActionPath('edit', test.id, topicId?.toString()))}
+                                  title="Редактировать тест"
+                                >
+                                  <Pencil className="w-5 h-5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => setTestToDelete({ id: test.id })}
+                                  title="Удалить тест"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
               ))}

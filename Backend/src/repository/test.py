@@ -57,7 +57,15 @@ async def create_test(
 
 async def get_test(session: AsyncSession, test_id: int, options: Optional[list[Load]] = None) -> Test:
     """Retrieve a test by ID with optional loading strategies."""
-    return await get_item(session, Test, test_id, options=options, is_archived=False)
+    stmt = select(Test).where(Test.id == test_id, Test.is_archived == False)
+    if options:
+        for opt in options:
+            stmt = stmt.options(opt)
+    result = await session.execute(stmt)
+    test = result.scalars().first()
+    if not test:
+        raise NotFoundError(resource_type="Test", resource_id=test_id)
+    return test
 
 async def update_test(
     session: AsyncSession,

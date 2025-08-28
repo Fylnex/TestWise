@@ -1,37 +1,5 @@
 import http from "./apiConfig";
-
-export interface Question {
-  id: number;
-  test_id: number;
-  question: string;
-  question_type: "single_choice" | "multiple_choice" | "open_text";
-  options?: string[];
-  hint?: string;
-  is_final: boolean;
-  image?: string;
-  created_at?: string;
-  updated_at?: string;
-  is_archived: boolean;
-  correct_answer_index?: number; // Для single_choice после рандомизации (не возвращается)
-  correct_answer_indices?: number[]; // Для multiple_choice после рандомизации (не возвращается)
-}
-
-export interface Test {
-  id: number;
-  title: string;
-  description?: string;
-  type: string;
-  duration?: number;
-  section_id?: number;
-  topic_id?: number;
-  questions?: Question[];
-  completion_percentage?: number;
-  created_at?: string;
-  updated_at?: string;
-  is_archived: boolean;
-  max_attempts?: number;
-  last_score?: number;
-}
+import { Test, Question } from "@/types/test";
 
 export interface TestStartResponse {
   attempt_id: number;
@@ -123,6 +91,11 @@ export const testApi = {
   getAllTests: async (): Promise<Test[]> => {
     const response = await http.get<Test[]>("/tests");
     return response.data.filter((t) => !t.is_archived);
+  },
+
+  getTest: async (id: number): Promise<Test> => {
+    const response = await http.get<Test>(`/tests/${id}`);
+    return response.data;
   },
 
   createTest: async (data: Partial<Test>): Promise<Test> => {

@@ -16,13 +16,9 @@ const TestQuestionBuilder = () => {
   useEffect(() => {
     if (testId) {
       setLoading(true);
-      // Используем getAllTests и находим нужный тест
-      testApi.getAllTests()
-        .then(tests => {
-          const testData = tests.find(t => t.id === Number(testId));
-          if (testData) {
-            setTest(testData);
-          }
+      testApi.getTest(Number(testId))
+        .then(testData => {
+          setTest(testData);
         })
         .catch(console.error)
         .finally(() => setLoading(false));

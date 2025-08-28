@@ -98,6 +98,13 @@ export const useTest = ({ testId, topicId, sectionId }: UseTestProps): UseTestRe
       return;
     }
 
+    // Проверяем роль пользователя - только студенты могут проходить тесты
+    if (user?.role !== 'student') {
+      setError("Доступ запрещен. Только студенты могут проходить тесты.");
+      setLoading(false);
+      return;
+    }
+
     console.log(
       `Loading test data for testId: ${testId}, sectionId: ${sectionId}, topicId: ${topicId}`,
     );
@@ -260,6 +267,12 @@ export const useTest = ({ testId, topicId, sectionId }: UseTestProps): UseTestRe
   };
 
   const handleAutoSubmit = async () => {
+    // Проверяем роль пользователя - только студенты могут отправлять тесты
+    if (user?.role !== 'student') {
+      console.log("Non-student user, skipping auto submit");
+      return;
+    }
+
     if (!attemptId) {
       setError("Тест не был запущен");
       return;
@@ -314,6 +327,12 @@ export const useTest = ({ testId, topicId, sectionId }: UseTestProps): UseTestRe
 
   const checkAttemptStatus = async () => {
     if (!attemptId) {
+      return false;
+    }
+
+    // Проверяем роль пользователя - только студенты могут проверять статус
+    if (user?.role !== 'student') {
+      console.log("Non-student user, skipping status check");
       return false;
     }
 
@@ -450,6 +469,12 @@ export const useTest = ({ testId, topicId, sectionId }: UseTestProps): UseTestRe
   }, []);
 
   const handleStartTest = async () => {
+    // Проверяем роль пользователя - только студенты могут запускать тесты
+    if (user?.role !== 'student') {
+      setError("Доступ запрещен. Только студенты могут запускать тесты.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -556,6 +581,12 @@ export const useTest = ({ testId, topicId, sectionId }: UseTestProps): UseTestRe
   };
 
   const handleSubmitTest = async () => {
+    // Проверяем роль пользователя - только студенты могут отправлять тесты
+    if (user?.role !== 'student') {
+      console.log("Non-student user, skipping test submission");
+      return;
+    }
+
     // Останавливаем таймер при ручной отправке
     clearAllTimers();
     

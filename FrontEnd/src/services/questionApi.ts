@@ -1,41 +1,5 @@
 import http from "./apiConfig";
-
-export interface Question {
-  id: number;
-  test_id: number;
-  question: string;
-  question_type: 'single_choice' | 'multiple_choice' | 'open_text';
-  options?: any[];
-  hint?: string;
-  is_final: boolean;
-  image?: string;
-  created_at?: string;
-  updated_at?: string;
-  is_archived: boolean;
-}
-
-export interface CreateQuestionData {
-  test_id: number;
-  question: string;
-  question_type: 'single_choice' | 'multiple_choice' | 'open_text';
-  options?: any[];
-  correct_answer: number | number[] | string;
-  hint?: string;
-  is_final?: boolean;
-  image?: string;
-  image_file?: File; // Для загрузки файла
-}
-
-export interface UpdateQuestionData {
-  question?: string;
-  question_type?: 'single_choice' | 'multiple_choice' | 'open_text';
-  options?: any[];
-  correct_answer?: number | number[] | string;
-  hint?: string;
-  is_final?: boolean;
-  image?: string;
-  image_file?: File; // Для загрузки файла
-}
+import { Question, CreateQuestionData, UpdateQuestionData } from "@/types/test";
 
 const validateCorrectAnswer = (question_type: string, correct_answer: number | number[] | string): void => {
   switch (question_type) {
