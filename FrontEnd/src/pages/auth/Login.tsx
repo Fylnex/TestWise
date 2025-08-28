@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import Layout from "@/components/Layout";
+import LayoutAuth from "@/components/LayoutAuth";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -36,9 +36,8 @@ const Login = () => {
   };
 
   return (
-    <Layout>
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <Card className="w-full max-w-md p-6">
+    <LayoutAuth>
+      <Card className="w-full max-w-md p-6">
           <h1 className="text-2xl font-bold text-center mb-6">Вход в систему</h1>
           
           {error && (
@@ -76,8 +75,7 @@ const Login = () => {
             </Button>
           </form>
         </Card>
-      </div>
-    </Layout>
+    </LayoutAuth>
   );
 };
 

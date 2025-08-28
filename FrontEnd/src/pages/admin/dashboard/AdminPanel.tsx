@@ -6,8 +6,7 @@ import { SystemLogs } from '../../../components/admin/SystemLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
-import TeacherDashboard from '../teacher/TeacherDashboard';
-import AdminGroupsTab from './AdminGroupsTab';
+import GroupsTab from '../../../components/admin/GroupsTab';
 import AdminAnalyticsTab from './AdminAnalyticsTab';
 import AdminRolesTab from './AdminRolesTab';
 import NotFound from '../../main/NotFound';
@@ -17,17 +16,16 @@ export function AdminPanel() {
   useEffect(() => { localStorage.setItem('adminTab', tab); }, [tab]);
   return (
     <Layout>
-      <div className="container mx-auto py-6">
+      <div className="max-w-[1000px] mx-auto px-6 py-6">
         <h1 className="text-3xl font-bold mb-6">Панель администратора</h1>
         
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="users">Управление пользователями</TabsTrigger>
-            <TabsTrigger value="analytics">Аналитика</TabsTrigger>
+            <TabsTrigger value="users">Пользователи</TabsTrigger>
             <TabsTrigger value="groups">Группы</TabsTrigger>
+            <TabsTrigger value="analytics">Аналитика</TabsTrigger>
             <TabsTrigger value="roles">Роли</TabsTrigger>
             <TabsTrigger value="logs">Логи</TabsTrigger>
-            <TabsTrigger value="teacher">Панель преподавателя</TabsTrigger>
             {/* <TabsTrigger value="notfound" className="text-red-500">Страница 404</TabsTrigger> */}
           </TabsList>
           
@@ -40,7 +38,14 @@ export function AdminPanel() {
           </TabsContent>
           
           <TabsContent value="groups">
-            <AdminGroupsTab />
+            <GroupsTab 
+              title=""
+              showCreateButton={true}
+              showDeleteButton={true}
+              showEditButton={true}
+              showAssignButtons={true}
+              className="px-0 py-0"
+            />
           </TabsContent>
           
           <TabsContent value="roles">
@@ -49,10 +54,6 @@ export function AdminPanel() {
 
           <TabsContent value="logs">
             <SystemLogs />
-          </TabsContent>
-
-          <TabsContent value="teacher">
-            <TeacherDashboard withoutLayout={true} />
           </TabsContent>
           
           {/* <TabsContent value="notfound">

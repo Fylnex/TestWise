@@ -11,7 +11,7 @@ for unit testing simplicity.
 
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar, List
+from typing import Any, Type, TypeVar, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -29,11 +29,9 @@ logger = configure_logger()
 # Generic helpers
 # ---------------------------------------------------------------------------
 
-async def get_item(session: AsyncSession, model: Type[Base], item_id: int, options: Optional[list[Load]] = None, is_archived: bool = False) -> Any:
-    """Retrieve a single item by ID with optional loading strategies and archive status filter."""
+async def get_item(session: AsyncSession, model: Type[Base], item_id: int, is_archived: bool = False) -> Any:
+    """Retrieve a single item by ID with archive status filter."""
     stmt = select(model).where(getattr(model, "id") == item_id, model.is_archived == is_archived)
-    if options:
-        stmt = stmt.options(*options)
     result = await session.execute(stmt)
     item = result.scalars().first()
     if item is None:

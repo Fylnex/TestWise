@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import {
   Select,
@@ -28,29 +27,34 @@ import { User, userApi } from "@/services/userApi";
 import { Topic, topicApi } from "@/services/topicApi";
 import GroupCard from "@/components/admin/GroupCard";
 
+import { Calendar, BookOpen, GraduationCap, Users, Plus, X, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import CreateGroupModal, { CreateGroupFormData } from "@/components/admin/CreateGroupModal";
+import GroupModal from "@/components/admin/GroupModal";
+import GroupsTab from "@/components/admin/GroupsTab";
+
 export default function TeacherDashboard({
   withoutLayout = false,
 }: {
   withoutLayout?: boolean;
 }) {
+  // Функция для получения инициалов
+  const getInitials = (fullName: string) => {
+    const parts = fullName.trim().split(' ');
+    if (parts.length === 1) return parts[0][0] || '';
+    return (parts[0][0] || '') + (parts[1][0] || '');
+  };
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    start_year: "",
-    end_year: "",
-    description: "",
-    student_count: "",
-  });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
   const { user } = useAuth();
   const [analyticsTab, setAnalyticsTab] = useState<
     "groups" | "analytics" | "content"
   >("groups");
-  const [teacherGroups, setTeacherGroups] = useState<Group[]>([]);
   const [groupStudents, setGroupStudents] = useState<{
     [groupId: number]: User[];
   }>({});
@@ -62,67 +66,66 @@ export default function TeacherDashboard({
     completedTests: number;
   } | null>(null);
   const [myTopics, setMyTopics] = useState<Topic[]>([]); // Убедимся, что тип корректен
-  const [demoOpen, setDemoOpen] = useState(false);
+
+  const [viewGroupModal, setViewGroupModal] = useState<Group | null>(null);
+  const [viewGroupStudents, setViewGroupStudents] = useState<User[]>([]);
+  const [viewGroupTeachers, setViewGroupTeachers] = useState<User[]>([]);
+  const [assignStudentModal, setAssignStudentModal] = useState<number | null>(null);
+  const [assignStudentId, setAssignStudentId] = useState<number | null>(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [assigningStudent, setAssigningStudent] = useState(false);
+  const [assignStudentError, setAssignStudentError] = useState<string | null>(null);
+  const [removingStudent, setRemovingStudent] = useState<number | null>(null);
+  const [removingTeacher, setRemovingTeacher] = useState<number | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<number | null>(null);
+  const [allStudents, setAllStudents] = useState<User[]>([]);
+
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    const demoGroup = {
-      id: -1,
-      name: "Демонстрационная группа",
-      start_year: 2023,
-      end_year: 2024,
-      description:
-        "Группа для примера. Назначьте сюда преподавателя через панель администратора.",
-      is_archived: false,
-    };
-    const addDemoGroup = (arr: Group[]) => {
-      if (!arr.some((g) => g.id === -1)) {
-        return [demoGroup, ...arr];
+
+    const fetchData = async () => {
+      try {
+        const [groupsData, myGroupsData, allUsersData, myTopicsData] = await Promise.all([
+          groupApi.getGroups(),
+          groupApi.getMyGroups(),
+          userApi.getAllUsers(),
+          topicApi.getMyTopics()
+        ]);
+
+        // Проверяем преподавателей для всех групп
+        console.log('=== ПРОВЕРКА ВСЕХ ГРУПП ===');
+        for (const group of groupsData.slice(0, 3)) { // Проверяем первые 3 группы
+          try {
+            const teachers = await groupApi.getGroupTeachers(group.id);
+            console.log(`Группа "${group.name}" (ID: ${group.id}):`, teachers);
+          } catch (error) {
+            console.error(`Ошибка при получении преподавателей для группы ${group.id}:`, error);
+          }
+        }
+        console.log('=== КОНЕЦ ПРОВЕРКИ ===');
+
+        setGroups(groupsData);
+        setAllStudents(allUsersData.filter(u => u.role === 'student'));
+        setMyTopics(myTopicsData);
+        console.log("Загружено тем:", myTopicsData.length);
+        setLoading(false);
+      } catch (error) {
+        console.error("Ошибка при загрузке данных:", error);
+        console.error("Детали ошибки:", error.response?.data || error.message);
+        setError("Ошибка при загрузке данных");
+        setLoading(false);
       }
-      return arr;
     };
-    if (user?.role === "teacher") {
-  (async () => {
-    try {
-      setLoading(true);
 
-      // 1. Тянем всё необходимое одним махом
-      const [groups, topics, allUsers] = await Promise.all([
-        groupApi.getMyGroups(),   // ваши группы
-        topicApi.getMyTopics(),   // ваши темы
-        userApi.getAllUsers(),    // все пользователи (один запрос!)
-      ]);
-
-      setGroups(groups);
-      setTeacherGroups(groups);
-
-      // 2. Собираем: группа → массив её студентов
-      const studentsByGroup: Record<number, User[]> = {};
-
-      await Promise.all(
-        groups.map(async (grp) => {
-          const links = await groupApi.getGroupStudents(grp.id); // только id
-          studentsByGroup[grp.id] = links
-            .map((l) => allUsers.find((u) => u.id === l.user_id))
-            .filter((u): u is User => Boolean(u)); // type‑guard вместо жёсткого as
-        }),
-      );
-
-      // 3. Кладём в state
-      setGroupStudents(studentsByGroup);
-      setMyTopics(topics);
-    } finally {
-      setLoading(false); // даже если что‑то упало
-    }
-  })();
-} else {
-      groupApi
-        .getGroups()
-        .then((res) => setGroups(addDemoGroup(res)))
-        .finally(() => setLoading(false));
-    }
+    fetchData();
   }, [user]);
+
+  // Отслеживаем изменения состояния преподавателей
+  useEffect(() => {
+    console.log('Состояние viewGroupTeachers изменилось:', viewGroupTeachers);
+  }, [viewGroupTeachers]);
 
   // Аналитика: прогресс по студенту
   useEffect(() => {
@@ -170,205 +173,263 @@ export default function TeacherDashboard({
     fetchGroupProgress();
   }, [selectedGroup, groupStudents]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (formData: CreateGroupFormData) => {
     setCreating(true);
     setError(null);
     try {
-      if (
-        Number(form.start_year) < 0 ||
-        Number(form.end_year) < 0 ||
-        (form.student_count && Number(form.student_count) < 0)
-      ) {
-        setError("Числовые значения не могут быть отрицательными");
-        setCreating(false);
+      if (!formData.name.trim() || !formData.start_year || !formData.end_year) {
+        setError("Все поля обязательны для заполнения");
         return;
       }
-      if (file) {
-        const formData = new FormData();
-        formData.append("name", form.name);
-        formData.append("start_year", form.start_year);
-        formData.append("end_year", form.end_year);
-        formData.append("description", form.description);
-        formData.append("file", file);
-        await fetch("/api/groups/upload", {
-          method: "POST",
-          body: formData,
-        });
-        setFile(null);
-        setForm({
-          name: "",
-          start_year: "",
-          end_year: "",
-          description: "",
-          student_count: "",
-        });
-        setOpen(false);
-      } else {
-        const newGroup = await groupApi.createGroup({
-          ...form,
-          start_year: Number(form.start_year),
-          end_year: Number(form.end_year),
-        });
-        setGroups((prev) => [...prev, newGroup]);
-        setForm({
-          name: "",
-          start_year: "",
-          end_year: "",
-          description: "",
-          student_count: "",
-        });
-        setOpen(false);
+      
+      if (Number(formData.start_year) >= Number(formData.end_year)) {
+        setError("Год окончания должен быть больше года начала");
+        return;
       }
-    } catch (err) {
-      setError("Ошибка при создании группы");
+      
+      if (formData.student_count && Number(formData.student_count) < 1) {
+        setError("Количество студентов должно быть не менее 1");
+        return;
+      }
+      
+      const newGroup = await groupApi.createGroup({
+        name: formData.name,
+        start_year: Number(formData.start_year),
+        end_year: Number(formData.end_year),
+        description: formData.description,
+      });
+      
+      setGroups(prev => [...prev, newGroup]);
+        setOpen(false);
+      setError(null);
+    } catch (err: any) {
+      console.error("Ошибка при создании группы:", err);
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("Ошибка при создании группы");
+      }
     } finally {
       setCreating(false);
     }
   };
 
+
+
+  const openViewGroupModal = async (group: Group) => {
+    setViewGroupModal(group);
+    try {
+      console.log('=== ДИАГНОСТИКА ОТКРЫТИЯ ГРУППЫ ===');
+      console.log('Группа:', group);
+      console.log('Текущий пользователь:', user);
+      console.log('Роль пользователя:', user?.role);
+      
+      // Загружаем студентов и преподавателей группы точно так же, как в админ панели
+      console.log('Вызываем API для группы ID:', group.id);
+      
+      const studentsResponse = await groupApi.getGroupStudents(group.id);
+      const teachersResponse = await groupApi.getGroupTeachers(group.id);
+      
+      console.log('Ответ API getGroupStudents:', studentsResponse);
+      console.log('Ответ API getGroupTeachers:', teachersResponse);
+      
+      // Проверяем структуру ответов
+      console.log('Тип studentsResponse:', typeof studentsResponse, Array.isArray(studentsResponse));
+      console.log('Тип teachersResponse:', typeof teachersResponse, Array.isArray(teachersResponse));
+      
+      if (Array.isArray(studentsResponse)) {
+        console.log('Структура первого студента:', studentsResponse[0]);
+      }
+      
+      if (Array.isArray(teachersResponse)) {
+        console.log('Структура первого преподавателя:', teachersResponse[0]);
+      }
+      
+      const [studs, teachers] = [
+        studentsResponse.map(s => s.user_id),
+        teachersResponse.map(t => t.user_id)
+      ];
+      
+      console.log('ID студентов:', studs);
+      console.log('ID преподавателей:', teachers);
+      
+      const allUsers = await userApi.getAllUsers();
+      console.log('Все пользователи загружены:', allUsers.length);
+      console.log('Примеры пользователей:', allUsers.slice(0, 3));
+      console.log('Структура первого пользователя:', allUsers[0] ? {
+        id: allUsers[0].id,
+        full_name: allUsers[0].full_name,
+        username: allUsers[0].username,
+        role: allUsers[0].role
+      } : 'Нет пользователей');
+      
+      const groupStudents = allUsers.filter(u => studs.includes(u.id));
+      const groupTeachers = allUsers.filter(u => teachers.includes(u.id));
+      
+      console.log('Отфильтрованные студенты:', groupStudents);
+      console.log('Отфильтрованные преподаватели:', groupTeachers);
+      console.log('=== КОНЕЦ ДИАГНОСТИКИ ===');
+      
+      console.log('Устанавливаем состояние:');
+      console.log('- viewGroupStudents:', groupStudents);
+      console.log('- viewGroupTeachers:', groupTeachers);
+      
+      setViewGroupStudents(groupStudents);
+      setViewGroupTeachers(groupTeachers);
+      
+      // Проверяем состояние после установки
+      setTimeout(() => {
+        console.log('Состояние после установки:');
+        console.log('- viewGroupStudents:', viewGroupStudents);
+        console.log('- viewGroupTeachers:', viewGroupTeachers);
+      }, 100);
+    } catch (error) {
+      console.error("Ошибка при загрузке данных группы:", error);
+      console.error("Детали ошибки:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
+      // Проверяем конкретные ошибки
+      if (error.response?.status === 403) {
+        console.error("ОШИБКА 403: У пользователя нет прав для просмотра преподавателей группы");
+      } else if (error.response?.status === 401) {
+        console.error("ОШИБКА 401: Пользователь не авторизован");
+      } else if (error.response?.status === 404) {
+        console.error("ОШИБКА 404: Группа не найдена");
+      }
+      
+      setViewGroupStudents([]);
+      setViewGroupTeachers([]);
+    }
+  };
+
+  const handleAssignStudent = async () => {
+    if (!assignStudentModal || !assignStudentId) return;
+    
+    setAssigningStudent(true);
+    setAssignStudentError(null);
+    
+    try {
+      await groupApi.addGroupStudents(assignStudentModal, [assignStudentId]);
+      
+      // Обновляем список студентов группы
+      const students = await groupApi.getGroupStudents(assignStudentModal);
+      const allUsers = await userApi.getAllUsers();
+      const updatedStudents = allUsers.filter(u => 
+        students.map(s => s.user_id).includes(u.id)
+      );
+      setViewGroupStudents(updatedStudents);
+      
+      // Обновляем локальное состояние групп
+      const updatedGroupStudents = { ...groupStudents };
+      updatedGroupStudents[assignStudentModal] = updatedStudents;
+      setGroupStudents(updatedGroupStudents);
+      
+      // Закрываем модальное окно
+      setAssignStudentModal(null);
+      setAssignStudentId(null);
+      setStudentSearch('');
+      
+    } catch (error) {
+      console.error("Ошибка при назначении студента:", error);
+      setAssignStudentError("Ошибка при назначении студента в группу");
+    } finally {
+      setAssigningStudent(false);
+    }
+  };
+
+  const handleRemoveStudent = async (groupId: number, studentId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить студента из группы?')) {
+      return;
+    }
+    
+    setRemovingStudent(studentId);
+    
+    try {
+      await groupApi.removeGroupStudent(groupId, studentId);
+      
+      // Обновляем список студентов группы
+      setViewGroupStudents(prev => prev.filter(s => s.id !== studentId));
+      
+      // Обновляем локальное состояние групп
+      const updatedGroupStudents = { ...groupStudents };
+      if (updatedGroupStudents[groupId]) {
+        updatedGroupStudents[groupId] = updatedGroupStudents[groupId].filter(s => s.id !== studentId);
+        setGroupStudents(updatedGroupStudents);
+      }
+      
+    } catch (error) {
+      console.error("Ошибка при удалении студента из группы:", error);
+      alert("Ошибка при удалении студента из группы");
+    } finally {
+      setRemovingStudent(null);
+    }
+  };
+
+  const handleRemoveTeacher = async (groupId: number, teacherId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить преподавателя из группы?')) {
+      return;
+    }
+    
+    setRemovingTeacher(teacherId);
+    
+    try {
+      await groupApi.removeGroupTeacher(groupId, teacherId);
+      
+      // Обновляем список преподавателей группы
+      setViewGroupTeachers(prev => prev.filter(t => t.id !== teacherId));
+      
+    } catch (error) {
+      console.error("Ошибка при удалении преподавателя из группы:", error);
+      alert("Ошибка при удалении преподавателя из группы");
+    } finally {
+      setRemovingTeacher(null);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить группу? Это действие нельзя отменить.')) {
+      return;
+    }
+    
+    setDeletingGroup(groupId);
+    
+    try {
+      await groupApi.deleteGroup(groupId);
+      
+      // Обновляем список групп
+      setGroups(prev => prev.filter(g => g.id !== groupId));
+      setViewGroupModal(null);
+      
+    } catch (error) {
+      console.error("Ошибка при удалении группы:", error);
+      alert("Ошибка при удалении группы");
+    } finally {
+      setDeletingGroup(null);
+    }
+  };
+
+  const handleAssignTeacher = (groupId: number) => {
+    // Будет реализовано позже, если потребуется
+    console.log("Assign teacher to group", groupId);
+  };
+
+  const handleAssignStudentToGroup = (groupId: number) => {
+    setAssignStudentModal(groupId);
+  };
+
+
+
   const content = (
-    <div className="container mx-auto py-6">
+            <div className="max-w-[1000px] mx-auto px-6 py-6">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Панель управления</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline">Создать группу</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Создать новую группу</DialogTitle>
-              <DialogDescription>
-                Введите данные для новой группы.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Название группы"
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Год начала"
-                type="number"
-                min="0"
-                value={form.start_year}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || Number(val) >= 0)
-                    setForm((f) => ({ ...f, start_year: val }));
-                }}
-                required
-              />
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Год окончания"
-                type="number"
-                min="0"
-                value={form.end_year}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || Number(val) >= 0)
-                    setForm((f) => ({ ...f, end_year: val }));
-                }}
-                required
-              />
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Количество студентов (для генерации логинов)"
-                type="number"
-                min="0"
-                value={form.student_count}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || Number(val) >= 0)
-                    setForm((f) => ({ ...f, student_count: val }));
-                }}
-                disabled={!!file}
-              />
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Загрузить файл для создания группы
-                </label>
-                <Input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={(e) =>
-                    setFile(e.target.files ? e.target.files[0] : null)
-                  }
-                />
-                {file && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Файл: {file.name}
-                  </div>
-                )}
-              </div>
-              <textarea
-                className="w-full border rounded px-3 py-2"
-                placeholder="Описание группы (необязательно)"
-                value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
-              />
-              {error && <div className="text-red-500 text-sm">{error}</div>}
-              <DialogFooter>
-                <Button type="submit" disabled={creating}>
-                  {creating ? "Создание..." : "Создать"}
-                </Button>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">
-                    Отмена
-                  </Button>
-                </DialogClose>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Статистика */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Мои группы</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teacherGroups.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Студенты в группах
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Object.values(groupStudents).reduce(
-                (sum, arr) => sum + arr.length,
-                0,
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Мои темы</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{myTopics.length}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Основной контент */}
-      <Tabs defaultValue="groups" className="space-y-4">
+      <Tabs value={analyticsTab} onValueChange={(value) => setAnalyticsTab(value as any)}>
         <TabsList>
           <TabsTrigger value="groups">Группы</TabsTrigger>
           <TabsTrigger value="analytics">Аналитика</TabsTrigger>
@@ -376,32 +437,15 @@ export default function TeacherDashboard({
         </TabsList>
 
         <TabsContent value="groups" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Группы студентов</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="text-center py-10">Загрузка...</div>
-                ) : (
-                  groups.map((group) => (
-                    <GroupCard
-                      key={group.id}
-                      name={group.name}
-                      start_year={group.start_year}
-                      end_year={group.end_year}
-                      description={group.description}
-                      isDemo={group.id === -1}
-                      onClick={
-                        group.id === -1 ? () => setDemoOpen(true) : undefined
-                      }
-                    />
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <GroupsTab 
+            title=""
+            showCreateButton={true}
+            showDeleteButton={false}
+            showEditButton={true}
+            showAssignButtons={true}
+            onGroupSelect={openViewGroupModal}
+            className="px-0 py-0"
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
@@ -414,7 +458,7 @@ export default function TeacherDashboard({
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">
-                    {teacherGroups.length}
+                    {groups.length}
                   </div>
                 </CardContent>
               </Card>
@@ -499,7 +543,7 @@ export default function TeacherDashboard({
                   <SelectValue placeholder="Выберите группу" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherGroups.map((group) => (
+                  {groups.map((group) => (
                     <SelectItem key={group.id} value={group.id.toString()}>
                       {group.name}
                     </SelectItem>
@@ -530,23 +574,41 @@ export default function TeacherDashboard({
             <CardContent>
               {loading ? (
                 <div className="text-center py-10">Загрузка...</div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">
+                  <p>Ошибка при загрузке тем: {error}</p>
+                </div>
               ) : myTopics.length === 0 ? (
-                <div className="text-muted-foreground">
-                  У вас пока нет созданных тем.
+                <div className="text-center py-8 text-muted-foreground">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p>У вас пока нет созданных тем</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {myTopics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="border rounded p-3 bg-slate-50"
-                    >
-                      <div className="font-semibold text-lg">{topic.title}</div>
+                    <div key={topic.id} className="flex items-start justify-between p-4 bg-slate-50 rounded-lg border">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{topic.title}</h3>
                       {topic.description && (
-                        <div className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                           {topic.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span>Создана: {topic.created_at ? new Date(topic.created_at).toLocaleDateString() : 'Не указано'}</span>
+                          {topic.updated_at && (
+                            <span>Обновлена: {new Date(topic.updated_at).toLocaleDateString()}</span>
+                          )}
                         </div>
-                      )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={topic.is_archived ? "secondary" : "default"} className="text-xs">
+                          {topic.is_archived ? 'Архив' : 'Активна'}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          ID: {topic.id}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -556,59 +618,88 @@ export default function TeacherDashboard({
         </TabsContent>
       </Tabs>
 
-      <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
+
+
+      {/* Модальное окно просмотра группы */}
+      <GroupModal
+        group={viewGroupModal}
+        isOpen={!!viewGroupModal}
+        onClose={() => {
+          setViewGroupModal(null);
+          setViewGroupStudents([]);
+          setViewGroupTeachers([]);
+        }}
+        onDelete={handleDeleteGroup}
+        onAssignTeacher={handleAssignTeacher}
+        onAssignStudent={handleAssignStudentToGroup}
+        onRemoveTeacher={handleRemoveTeacher}
+        onRemoveStudent={handleRemoveStudent}
+        students={viewGroupStudents}
+        teachers={viewGroupTeachers}
+        deletingGroup={deletingGroup}
+        removingTeacher={removingTeacher}
+        removingStudent={removingStudent}
+      />
+
+      {/* Модальное окно назначения студента */}
+      <Dialog open={!!assignStudentModal} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setAssignStudentModal(null);
+          setAssignStudentId(null);
+          setStudentSearch('');
+          setAssignStudentError(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Демонстрационная группа — Студенты</DialogTitle>
+            <DialogTitle>Добавить студента</DialogTitle>
+            <DialogDescription>
+              Выберите студента, чтобы добавить его в группу "{groups.find(g => g.id === assignStudentModal)?.name}".
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <div>
-              <b>Название:</b> Демонстрационная группа
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <input
+                className="w-full border rounded px-3 py-2"
+                placeholder="Поиск по ФИО студента..."
+                value={studentSearch}
+                onChange={e => setStudentSearch(e.target.value)}
+              />
             </div>
-            <div>
-              <b>Годы:</b> 2023–2024
+            <div className="max-h-60 overflow-y-auto border rounded-md">
+              {allStudents
+                .filter(s => s.full_name.toLowerCase().includes(studentSearch.toLowerCase()))
+                .filter(s => !viewGroupStudents.find(gs => gs.id === s.id)) // Исключаем уже добавленных студентов
+                .map(s => (
+                  <div
+                    key={s.id}
+                    className={`p-2 cursor-pointer hover:bg-muted ${assignStudentId === s.id ? 'bg-primary text-primary-foreground' : ''}`}
+                    onClick={() => setAssignStudentId(s.id)}
+                  >
+                    {s.full_name}
+                  </div>
+                ))}
             </div>
-            <div>
-              <b>Описание:</b> Группа для примера. Назначьте сюда преподавателя
-              через панель администратора.
-            </div>
-            <div>
-              <b>Студенты:</b>
-            </div>
-            <table className="w-full border mt-2">
-              <thead>
-                <tr className="bg-muted">
-                  <th className="p-2 text-left">ФИО</th>
-                  <th className="p-2 text-left">Логин</th>
-                  <th className="p-2 text-left">Пароль</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="p-2">Иван Иванов</td>
-                  <td className="p-2">student0001</td>
-                  <td className="p-2">demo1234</td>
-                </tr>
-                <tr>
-                  <td className="p-2">Мария Петрова</td>
-                  <td className="p-2">student0002</td>
-                  <td className="p-2">demo5678</td>
-                </tr>
-                <tr>
-                  <td className="p-2">Демо-студент 3</td>
-                  <td className="p-2">student0003</td>
-                  <td className="p-2">demo9999</td>
-                </tr>
-              </tbody>
-            </table>
+            {assignStudentError && <div className="text-red-500 text-sm">{assignStudentError}</div>}
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Закрыть</Button>
-            </DialogClose>
+            <Button onClick={handleAssignStudent} disabled={assigningStudent || !assignStudentId}>
+              {assigningStudent ? 'Добавление...' : 'Добавить'}
+            </Button>
+            <Button variant="outline" onClick={() => setAssignStudentModal(null)}>Отмена</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Модальное окно создания группы */}
+      <CreateGroupModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        onSubmit={handleCreate}
+        loading={creating}
+        error={error}
+      />
     </div>
   );
   return withoutLayout ? content : <Layout>{content}</Layout>;

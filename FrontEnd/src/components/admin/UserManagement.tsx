@@ -36,8 +36,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DatePicker } from "../../components/ui/date-picker";
-import { format } from "date-fns";
+
 import { Ban, Check, Pencil, Plus, Trash } from "lucide-react";
 
 class ErrorBoundary extends React.Component<
@@ -93,14 +92,12 @@ export function UserManagement() {
     full_name: "",
     password: "",
     role: "student",
-    isActive: true,
+    is_active: true,
   });
   const [filters, setFilters] = useState({
     search: "",
     role: "all",
-    isActive: undefined as boolean | undefined,
-    startDate: undefined as Date | undefined,
-    endDate: undefined as Date | undefined,
+    is_active: undefined as boolean | undefined,
   });
   const [bulkRole, setBulkRole] = useState("admin");
 
@@ -113,13 +110,7 @@ export function UserManagement() {
       const response = await userApi.getAllUsers({
         search: filters.search,
         role: filters.role !== "all" ? filters.role : undefined,
-        isActive: filters.isActive,
-        startDate: filters.startDate
-          ? format(filters.startDate, "yyyy-MM-dd")
-          : undefined,
-        endDate: filters.endDate
-          ? format(filters.endDate, "yyyy-MM-dd")
-          : undefined,
+        is_active: filters.is_active,
       });
       setUsers(response);
     } catch (error) {
@@ -134,7 +125,7 @@ export function UserManagement() {
         full_name: formData.full_name,
         password: formData.password,
         role: formData.role,
-        isActive: formData.isActive,
+        is_active: formData.is_active,
       });
       toast.success("Пользователь успешно создан");
       setIsCreateDialogOpen(false);
@@ -143,7 +134,7 @@ export function UserManagement() {
         full_name: "",
         password: "",
         role: "student",
-        isActive: true,
+        is_active: true,
       });
       loadUsers();
     } catch (error) {
@@ -157,8 +148,8 @@ export function UserManagement() {
     try {
       const updatedUser = await userApi.updateUser(selectedUser.id, {
         full_name: formData.full_name,
-        last_login: selectedUser.lastLogin, // Align with updateUser interface
-        isActive: formData.isActive,
+        last_login: selectedUser.last_login, // Align with updateUser interface
+        is_active: formData.is_active,
         role: formData.role,
       });
 
@@ -188,7 +179,7 @@ export function UserManagement() {
 
   const handleBlockUser = async (userId: number) => {
     try {
-      await userApi.updateUser(userId, { isActive: false });
+      await userApi.updateUser(userId, { is_active: false });
       toast.success("Пользователь заблокирован");
       loadUsers();
     } catch (error) {
@@ -198,7 +189,7 @@ export function UserManagement() {
 
   const handleUnblockUser = async (userId: number) => {
     try {
-      await userApi.updateUser(userId, { isActive: true });
+      await userApi.updateUser(userId, { is_active: true });
       toast.success("Пользователь разблокирован");
       loadUsers();
     } catch (error) {
@@ -220,13 +211,8 @@ export function UserManagement() {
       const blob = await userApi.exportUsers({
         search: filters.search,
         role: filters.role !== "all" ? filters.role : undefined,
-        isActive: filters.isActive,
-        startDate: filters.startDate
-          ? format(filters.startDate, "yyyy-MM-dd")
-          : undefined,
-        endDate: filters.endDate
-          ? format(filters.endDate, "yyyy-MM-dd")
-          : undefined,
+        is_active: filters.is_active,
+
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -282,7 +268,7 @@ export function UserManagement() {
       full_name: user.full_name || "",
       password: "",
       role: user.role,
-      isActive: user.isActive === undefined ? true : !!user.isActive,
+      is_active: user.is_active === undefined ? true : !!user.is_active,
     });
     setIsEditDialogOpen(true);
   };
@@ -385,11 +371,11 @@ export function UserManagement() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Статус</label>
                     <Select
-                      value={formData.isActive.toString()}
+                      value={formData.is_active.toString()}
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
-                          isActive: value === "true",
+                          is_active: value === "true",
                         })
                       }
                     >
@@ -420,7 +406,7 @@ export function UserManagement() {
         {/* Filters Section */}
         <div className="bg-white rounded-lg border p-4 space-y-4">
           <h3 className="text-lg font-medium text-gray-900">Фильтры</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Поиск</label>
               <Input
@@ -455,11 +441,11 @@ export function UserManagement() {
                 Статус
               </label>
               <Select
-                value={filters.isActive?.toString() || "all"}
+                value={filters.is_active?.toString() || "all"}
                 onValueChange={(value) =>
                   setFilters({
                     ...filters,
-                    isActive:
+                    is_active:
                       value === "true"
                         ? true
                         : value === "false"
@@ -478,25 +464,7 @@ export function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Период
-              </label>
-              <div className="flex space-x-2">
-                <DatePicker
-                  selected={filters.startDate}
-                  onSelect={(date) =>
-                    setFilters({ ...filters, startDate: date })
-                  }
-                  placeholderText="Дата с"
-                />
-                <DatePicker
-                  selected={filters.endDate}
-                  onSelect={(date) => setFilters({ ...filters, endDate: date })}
-                  placeholderText="Дата по"
-                />
-              </div>
-            </div>
+
           </div>
         </div>
 
@@ -604,17 +572,18 @@ export function UserManagement() {
                     </span>
                   </TableCell>
                   <TableCell>
+
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${user.isActive === true ? "bg-green-100 text-green-800" : user.isActive === false ? "bg-red-100 text-red-800" : "bg-gray-200 text-gray-500"}`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${user.is_active === true ? "bg-green-100 text-green-800" : user.is_active === false ? "bg-red-100 text-red-800" : "bg-gray-200 text-gray-500"}`}
                     >
-                      {user.isActive === true ? "Активен" : user.isActive === false ? "Заблокирован" : "Неизвестно"}
+                      {user.is_active === true ? "Активен" : user.is_active === false ? "Заблокирован" : "Неизвестно"}
                     </span>
                   </TableCell>
                   <TableCell>
-                    {user.createdAt ? format(new Date(user.createdAt), "dd.MM.yyyy") : "-"}
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : "-"}
                   </TableCell>
                   <TableCell>
-                    {user.lastLogin ? format(new Date(user.lastLogin), "dd.MM.yyyy HH:mm") : "-"}
+                    {user.last_login ? new Date(user.last_login).toLocaleString('ru-RU') : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -625,7 +594,7 @@ export function UserManagement() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {user.isActive ? (
+                      {user.is_active ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -680,7 +649,7 @@ export function UserManagement() {
           setIsEditDialogOpen(open);
           if (!open) {
             setSelectedUser(null);
-            setFormData({ username: '', full_name: '', password: '', role: 'student', isActive: true });
+            setFormData({ username: '', full_name: '', password: '', role: 'student', is_active: true });
           }
         }}>
           <DialogContent className="sm:max-w-[425px]">
@@ -736,8 +705,8 @@ export function UserManagement() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Статус</label>
                 <Select
-                  value={formData.isActive.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
+                  value={formData.is_active.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, is_active: value === "true" })}
                   disabled={!selectedUser}
                 >
                   <SelectTrigger>

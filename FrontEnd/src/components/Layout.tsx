@@ -31,12 +31,6 @@ const Layout = ({ children }: LayoutProps) => {
                 <a href="/topics" className="text-slate-300 hover:text-white transition-colors">
                   Все темы
                 </a>
-                <a href="/about" className="text-slate-300 hover:text-white transition-colors">
-                  О нас
-                </a>
-                <a href="/contact" className="text-slate-300 hover:text-white transition-colors">
-                  Контакты
-                </a>
               </div>
             </div>
             <div className="text-center md:text-right">
@@ -47,9 +41,6 @@ const Layout = ({ children }: LayoutProps) => {
                 </a>
                 <a href="/terms" className="text-slate-300 hover:text-white transition-colors">
                   Условия использования
-                </a>
-                <a href="/contact" className="text-slate-300 hover:text-white transition-colors">
-                  Помощь
                 </a>
               </div>
             </div>

@@ -29,7 +29,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from passlib.context import CryptContext
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.logger import configure_logger
@@ -124,14 +124,18 @@ async def get_user_endpoint(
 
 @router.get("", response_model=List[UserReadSchema])
 async def list_users_endpoint(
-        role: Optional[Role] = Query(None, description="Filter by role (admin/student/teacher)"),
+    role: Optional[Role] = Query(None, description="Filter by role (admin/student/teacher)"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    search: Optional[str] = Query(None, description="Search by username or full name"),
     session: AsyncSession = Depends(get_db),
     claims: dict = Depends(admin_or_teacher),
 ):
-    """Возвращает список пользователей с фильтром по роли.
+    """Возвращает список пользователей с фильтрацией.
 
     Args:
         role (Role, optional): Фильтр по роли. Defaults to None.
+        is_active (bool, optional): Фильтр по статусу активности. Defaults to None.
+        search (str, optional): Поиск по имени пользователя или полному имени. Defaults to None.
 
     Returns:
         List[UserReadSchema]: Список пользователей.
@@ -139,7 +143,7 @@ async def list_users_endpoint(
     Raises:
         HTTPException: Если у учителя нет прав для просмотра ролей кроме студентов (403).
     """
-    logger.debug(f"Listing users, role filter: {role}, requester role: {claims['role']}")
+    logger.debug(f"Listing users, role filter: {role}, is_active: {is_active}, search: {search}, requester role: {claims['role']}")
     requester_role = Role(claims["role"])
 
     if requester_role == Role.TEACHER:
@@ -151,14 +155,24 @@ async def list_users_endpoint(
         role = Role.STUDENT
 
     stmt = select(User).where(User.is_archived == False)
+    
     if role is not None:
         stmt = stmt.where(User.role == role)
+    
+    if is_active is not None:
+        stmt = stmt.where(User.is_active == is_active)
+    
+    if search:
+        search_filter = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                User.username.ilike(search_filter),
+                User.full_name.ilike(search_filter)
+            )
+        )
 
     res = await session.execute(stmt)
     users = list(res.scalars().all())
-    # logger.debug(f"Retrieved List of users: {[(users[i].username, users[i].full_name,
-    #                                            users[i].role, users[i].is_active, users[i].created_at,
-    #                                            users[i].last_login,) for i in range(len(users))]}")
     logger.debug(f"Retrieved {len(users)} users")
     return users
 
@@ -181,6 +195,8 @@ async def update_user_endpoint(
         user_data (UserUpdateSchema): Обновляемые поля.
             - full_name (str, optional): Новое полное имя.
             - last_login (datetime, optional): Новое время последнего входа.
+            - is_active (bool, optional): Новый статус активности.
+            - role (Role, optional): Новая роль пользователя.
 
     Returns:
         UserReadSchema: Обновленные данные пользователя.

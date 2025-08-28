@@ -18,7 +18,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   '/': 'Главная',
   '/topics': 'Темы',
   '/topics/create': 'Создание темы',
-  '/about': 'О нас',
+
   '/profile': 'Профиль',
   '/admin': 'Админ-панель',
   '/teacher': 'Панель преподавателя',
