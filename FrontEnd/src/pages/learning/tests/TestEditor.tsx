@@ -224,6 +224,8 @@ const TestEditor: React.FC = () => {
           type: formData.type,
           duration: formData.duration ? Number(formData.duration) : null,
           max_attempts: formData.max_attempts ? Number(formData.max_attempts) : undefined,
+          completion_percentage: formData.completion_percentage ? Number(formData.completion_percentage) : undefined,
+          target_questions: formData.target_questions ? Number(formData.target_questions) : undefined,
         };
 
         await testApi.updateTest(Number(testId), updateData);
@@ -486,6 +488,43 @@ const TestEditor: React.FC = () => {
                     }
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="completion_percentage" className="font-semibold flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Процент для прохождения (%)
+                  </Label>
+                  <Input
+                    id="completion_percentage"
+                    type="number"
+                    value={formData.completion_percentage}
+                    onChange={(e) => handleInputChange("completion_percentage", e.target.value)}
+                    placeholder="80"
+                    min="0"
+                    max="100"
+                  />
+                  <p className="text-sm text-gray-500">
+                    Минимальный процент правильных ответов для прохождения теста
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="target_questions" className="font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Целевое количество вопросов
+                  </Label>
+                  <Input
+                    id="target_questions"
+                    type="number"
+                    value={formData.target_questions}
+                    onChange={(e) => handleInputChange("target_questions", e.target.value)}
+                    placeholder="10"
+                    min="1"
+                  />
+                  <p className="text-sm text-gray-500">
+                    Количество вопросов, которое будет показано в тесте
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -499,37 +538,47 @@ const TestEditor: React.FC = () => {
                 />
               </div>
 
-              {/* Информация о тесте */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="h-4 w-4 text-blue-600" />
-                  <span className="font-semibold text-blue-800">Информация о тесте</span>
+              {/* Информация о тесте - показываем только в режиме просмотра */}
+              {!isEditing && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                    <span className="font-semibold text-blue-800">Информация о тесте</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Тип:</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {getTestTypeInRussian(formData.type)}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Вопросов:</span>
+                      <span className="font-semibold ml-2">{activeQuestions.length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Длительность:</span>
+                      <span className="font-semibold ml-2">
+                        {formData.duration ? `${formData.duration} мин` : 'Неограниченно'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Попыток:</span>
+                      <span className="font-semibold ml-2">
+                        {formData.max_attempts || 'Неограниченно'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Проходной балл:</span>
+                      <span className="font-semibold ml-2">{formData.completion_percentage}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Целевых вопросов:</span>
+                      <span className="font-semibold ml-2">{formData.target_questions}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Тип:</span>
-                    <Badge variant="secondary" className="ml-2">
-                      {getTestTypeInRussian(formData.type)}
-                    </Badge>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Вопросов:</span>
-                    <span className="font-semibold ml-2">{activeQuestions.length}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Длительность:</span>
-                    <span className="font-semibold ml-2">
-                      {formData.duration ? `${formData.duration} мин` : 'Неограниченно'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Попыток:</span>
-                    <span className="font-semibold ml-2">
-                      {formData.max_attempts || 'Неограниченно'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

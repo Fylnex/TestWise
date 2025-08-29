@@ -4,7 +4,8 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
-import { testApi, Test } from "@/services/testApi";
+import { testApi } from "@/services/testApi";
+import { Test } from "@/types/test";
 import { getTestTypeInRussian } from "@/lib/utils";
 
 const TestQuestionBuilder = () => {
@@ -72,6 +73,12 @@ const TestQuestionBuilder = () => {
               <p className="text-gray-600 text-sm">Тип: {getTestTypeInRussian(test.type)}</p>
               {test.duration && (
                 <p className="text-gray-600 text-sm">Длительность: {test.duration} минут</p>
+              )}
+              {test.completion_percentage && (
+                <p className="text-gray-600 text-sm">Проходной балл: {test.completion_percentage}%</p>
+              )}
+              {test.target_questions && (
+                <p className="text-gray-600 text-sm">Целевых вопросов: {test.target_questions}</p>
               )}
             </div>
             <Button
